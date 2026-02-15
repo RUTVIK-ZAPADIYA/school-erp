@@ -54,28 +54,28 @@
         <div class="col-md-3">
           <div class="team-member">
             <div class="team-avatar"><i class="fas fa-user"></i></div>
-            <h5>John Doe</h5>
+            <h5>RUTVIK ZAPADIYA</h5>
             <p>CEO & Founder</p>
           </div>
         </div>
         <div class="col-md-3">
           <div class="team-member">
             <div class="team-avatar"><i class="fas fa-user"></i></div>
-            <h5>Jane Smith</h5>
+            <h5>AMMAR BHARMAL</h5>
             <p>CTO</p>
           </div>
         </div>
         <div class="col-md-3">
           <div class="team-member">
             <div class="team-avatar"><i class="fas fa-user"></i></div>
-            <h5>Mike Johnson</h5>
+            <h5>DWIJ MALAVIYA</h5>
             <p>Lead Developer</p>
           </div>
         </div>
         <div class="col-md-3">
           <div class="team-member">
             <div class="team-avatar"><i class="fas fa-user"></i></div>
-            <h5>Sarah Williams</h5>
+            <h5>JENYY</h5>
             <p>Product Manager</p>
           </div>
         </div>
