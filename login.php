@@ -98,6 +98,18 @@
       .form-control:focus + .input-icon {
         color: #3498db;
       }
+      .form-control.is-invalid {
+        border-color: #e74c3c;
+      }
+      .form-control.is-invalid:focus {
+        box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.1);
+      }
+      .invalid-feedback {
+        display: block;
+        color: #e74c3c;
+        font-size: 13px;
+        margin-top: 5px;
+      }
       .password-toggle {
         position: absolute;
         right: 16px;
@@ -222,14 +234,16 @@
         
         <form method="POST" action="">
           <div class="input-group-custom">
-            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required minlength="3" title="Username or email must be at least 3 characters">
             <i class="fas fa-user input-icon"></i>
+            <div class="invalid-feedback"></div>
           </div>
           
           <div class="input-group-custom">
-            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required minlength="6" title="Password must be at least 6 characters">
             <i class="fas fa-lock input-icon"></i>
             <i class="fas fa-eye password-toggle" id="togglePassword"></i>
+            <div class="invalid-feedback"></div>
           </div>
           
           <div class="form-options">
@@ -250,7 +264,7 @@
         </div>
         
         <div class="signup-link">
-          Don't have an account? <a href="form.php">Sign Up</a>
+          Don't have an account? <a href="register.php">Sign Up</a>
         </div>
       </div>
     </div>
@@ -259,12 +273,22 @@
     <script>
       const togglePassword = document.getElementById('togglePassword');
       const passwordInput = document.getElementById('password');
+      const loginForm = document.querySelector('form');
       
       togglePassword.addEventListener('click', function() {
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
         this.classList.toggle('fa-eye');
         this.classList.toggle('fa-eye-slash');
+      });
+
+      loginForm.addEventListener('submit', function(e) {
+        // HTML5 validation will handle it automatically
+        if (!this.checkValidity()) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+        this.classList.add('was-validated');
       });
     </script>
   </body>
