@@ -13,7 +13,7 @@
         box-sizing: border-box;
       }
       body {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #2c3e50;
         display: flex;
         justify-content: center;
         align-items: center;
@@ -38,13 +38,13 @@
       .logo-icon {
         width: 70px;
         height: 70px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3498db;
         border-radius: 50%;
         display: inline-flex;
         align-items: center;
         justify-content: center;
         margin-bottom: 20px;
-        box-shadow: 0 8px 20px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 20px rgba(52, 152, 219, 0.3);
       }
       .logo-icon i {
         font-size: 32px;
@@ -90,13 +90,13 @@
         color: #cbd5e0;
       }
       .form-control:focus {
-        border-color: #667eea;
+        border-color: #3498db;
         background-color: #ffffff;
-        box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        box-shadow: 0 0 0 4px rgba(52, 152, 219, 0.1);
         outline: none;
       }
       .form-control:focus + .input-icon {
-        color: #667eea;
+        color: #3498db;
       }
       .password-toggle {
         position: absolute;
@@ -110,7 +110,7 @@
         transition: color 0.3s ease;
       }
       .password-toggle:hover {
-        color: #667eea;
+        color: #3498db;
       }
       .form-options {
         display: flex;
@@ -131,19 +131,19 @@
         cursor: pointer;
       }
       .forgot-password {
-        color: #667eea;
+        color: #3498db;
         text-decoration: none;
         font-weight: 500;
         transition: color 0.3s ease;
       }
       .forgot-password:hover {
-        color: #5a67d8;
+        color: #2980b9;
         text-decoration: underline;
       }
       .btn-login {
         width: 100%;
         padding: 14px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: #3498db;
         color: white;
         border: none;
         border-radius: 10px;
@@ -152,11 +152,12 @@
         cursor: pointer;
         margin-bottom: 25px;
         transition: all 0.3s ease;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3);
       }
       .btn-login:hover {
+        background: #2980b9;
         transform: translateY(-2px);
-        box-shadow: 0 6px 25px rgba(102, 126, 234, 0.5);
+        box-shadow: 0 6px 25px rgba(52, 152, 219, 0.4);
       }
       .btn-login:active {
         transform: translateY(0);
@@ -189,13 +190,13 @@
         font-size: 14px;
       }
       .signup-link a {
-        color: #667eea;
+        color: #3498db;
         text-decoration: none;
         font-weight: 600;
         transition: color 0.3s ease;
       }
       .signup-link a:hover {
-        color: #5a67d8;
+        color: #2980b9;
         text-decoration: underline;
       }
       @media (max-width: 480px) {
