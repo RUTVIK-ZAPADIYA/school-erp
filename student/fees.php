@@ -37,20 +37,20 @@ $_SESSION['student_name'] = 'Rahul Sharma';
   
   <div class="main-content">
     <div class="header">
-      <h2><i class="fas fa-dollar-sign"></i> Fees Management</h2>
+      <h2><i class="fas fa-rupee-sign"></i> Fees Management</h2>
     </div>
     
     <div class="fee-summary">
       <div class="summary-item">
-        <div class="summary-value">$2000</div>
+        <div class="summary-value">₹2000</div>
         <div class="summary-label">Total Fees</div>
       </div>
       <div class="summary-item">
-        <div class="summary-value">$1500</div>
+        <div class="summary-value">₹1500</div>
         <div class="summary-label">Paid Amount</div>
       </div>
       <div class="summary-item">
-        <div class="summary-value">$500</div>
+        <div class="summary-value">₹500</div>
         <div class="summary-label">Pending Amount</div>
       </div>
       <div class="summary-item">
@@ -78,7 +78,7 @@ $_SESSION['student_name'] = 'Rahul Sharma';
               <td>#FEE001</td>
               <td>Nov 15, 2024</td>
               <td>Tuition Fee - Semester 1</td>
-              <td>$1000</td>
+              <td>₹1000</td>
               <td><span class="badge bg-success">Paid</span></td>
               <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-download"></i> Receipt</button></td>
             </tr>
@@ -86,7 +86,7 @@ $_SESSION['student_name'] = 'Rahul Sharma';
               <td>#FEE002</td>
               <td>Oct 10, 2024</td>
               <td>Library Fee</td>
-              <td>$200</td>
+              <td>₹200</td>
               <td><span class="badge bg-success">Paid</span></td>
               <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-download"></i> Receipt</button></td>
             </tr>
@@ -94,7 +94,7 @@ $_SESSION['student_name'] = 'Rahul Sharma';
               <td>#FEE003</td>
               <td>Sep 05, 2024</td>
               <td>Lab Fee</td>
-              <td>$300</td>
+              <td>₹300</td>
               <td><span class="badge bg-success">Paid</span></td>
               <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-download"></i> Receipt</button></td>
             </tr>
@@ -102,7 +102,7 @@ $_SESSION['student_name'] = 'Rahul Sharma';
               <td>#FEE004</td>
               <td>Due: Dec 31, 2024</td>
               <td>Tuition Fee - Semester 2</td>
-              <td>$500</td>
+              <td>₹500</td>
               <td><span class="badge bg-warning">Pending</span></td>
               <td><button class="btn btn-sm btn-pay"><i class="fas fa-credit-card"></i> Pay Now</button></td>
             </tr>

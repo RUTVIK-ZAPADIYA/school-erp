@@ -22,7 +22,7 @@ if (!isset($_SESSION['admin_id'])) {
     <a href="teachers.php" class="nav-item"><i class="fas fa-chalkboard-teacher"></i> Teachers</a>
     <a href="classes.php" class="nav-item"><i class="fas fa-school"></i> Classes</a>
     <a href="subjects.php" class="nav-item"><i class="fas fa-book"></i> Subjects</a>
-    <a href="fees.php" class="nav-item"><i class="fas fa-dollar-sign"></i> Fee Management</a>
+    <a href="fees.php" class="nav-item"><i class="fas fa-rupee-sign"></i> Fee Management</a>
     <a href="attendance.php" class="nav-item"><i class="fas fa-calendar-check"></i> Attendance</a>
     <a href="exams.php" class="nav-item"><i class="fas fa-file-alt"></i> Exams</a>
     <a href="reports.php" class="nav-item"><i class="fas fa-chart-line"></i> Reports</a>

@@ -20,7 +20,7 @@ if (!isset($_SESSION['student_id'])) {
     <a href="dashboard.php" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
     <a href="attendance.php" class="nav-item"><i class="fas fa-calendar-check"></i> View Attendance</a>
     <a href="marks.php" class="nav-item"><i class="fas fa-chart-bar"></i> View Marks</a>
-    <a href="fees.php" class="nav-item"><i class="fas fa-dollar-sign"></i> Fees</a>
+    <a href="fees.php" class="nav-item"><i class="fas fa-rupee-sign"></i> Fees</a>
     <a href="leave.php" class="nav-item"><i class="fas fa-file-alt"></i> Leave Application</a>
     <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
     <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>

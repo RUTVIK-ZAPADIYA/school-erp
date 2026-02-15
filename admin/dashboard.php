@@ -59,8 +59,8 @@ $_SESSION['admin_name'] = 'Admin';
         <div class="stat-label">Total Teachers</div>
       </div>
       <div class="stat-card warning">
-        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
-        <div class="stat-value">$125K</div>
+        <div class="stat-icon"><i class="fas fa-rupee-sign"></i></div>
+        <div class="stat-value">₹125K</div>
         <div class="stat-label">Pending Fees</div>
       </div>
       <div class="stat-card danger">
@@ -87,7 +87,7 @@ $_SESSION['admin_name'] = 'Admin';
                 <strong>Fee Payment Received</strong>
                 <small class="text-muted">1 hour ago</small>
               </div>
-              <p class="mb-0 text-muted">$5000 received from 10 students</p>
+              <p class="mb-0 text-muted">₹5000 received from 10 students</p>
             </div>
             <div class="list-group-item">
               <div class="d-flex justify-content-between">

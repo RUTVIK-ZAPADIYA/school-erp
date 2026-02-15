@@ -59,7 +59,7 @@ $_SESSION['student_name'] = 'Rahul Sharma';
       </div>
       <div class="stat-card warning">
         <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
-        <div class="stat-value">$500</div>
+        <div class="stat-value">₹500</div>
         <div class="stat-label">Pending Fees</div>
       </div>
       <div class="stat-card danger">

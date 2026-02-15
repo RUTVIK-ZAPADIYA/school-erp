@@ -27,12 +27,12 @@
   <?php include 'sidebar.php'; ?>
   <div class="main-content">
     <div class="header">
-      <h2><i class="fas fa-dollar-sign"></i> Fee Management</h2>
+      <h2><i class="fas fa-rupee-sign"></i> Fee Management</h2>
     </div>
     <div class="stats-grid">
-      <div class="summary-item"><div class="summary-value">$500K</div><div class="summary-label">Total Collected</div></div>
-      <div class="summary-item"><div class="summary-value">$125K</div><div class="summary-label">Pending</div></div>
-      <div class="summary-item"><div class="summary-value">$25K</div><div class="summary-label">Overdue</div></div>
+      <div class="summary-item"><div class="summary-value">₹500K</div><div class="summary-label">Total Collected</div></div>
+      <div class="summary-item"><div class="summary-value">₹125K</div><div class="summary-label">Pending</div></div>
+      <div class="summary-item"><div class="summary-value">₹25K</div><div class="summary-label">Overdue</div></div>
       <div class="summary-item"><div class="summary-value">80%</div><div class="summary-label">Collection Rate</div></div>
     </div>
     <div class="content-card">
@@ -43,9 +43,9 @@
             <tr><th>Receipt No</th><th>Student Name</th><th>Class</th><th>Amount</th><th>Date</th><th>Status</th></tr>
           </thead>
           <tbody>
-            <tr><td>#FEE001</td><td>Rahul Sharma</td><td>Grade 10A</td><td>$1000</td><td>Dec 10, 2024</td><td><span class="badge bg-success">Paid</span></td></tr>
-            <tr><td>#FEE002</td><td>Priya Verma</td><td>Grade 10B</td><td>$1000</td><td>Dec 09, 2024</td><td><span class="badge bg-success">Paid</span></td></tr>
-            <tr><td>#FEE003</td><td>Amit Kumar</td><td>Grade 12</td><td>$1200</td><td>Dec 08, 2024</td><td><span class="badge bg-warning">Pending</span></td></tr>
+            <tr><td>#FEE001</td><td>Rahul Sharma</td><td>Grade 10A</td><td>₹1000</td><td>Dec 10, 2024</td><td><span class="badge bg-success">Paid</span></td></tr>
+            <tr><td>#FEE002</td><td>Priya Verma</td><td>Grade 10B</td><td>₹1000</td><td>Dec 09, 2024</td><td><span class="badge bg-success">Paid</span></td></tr>
+            <tr><td>#FEE003</td><td>Amit Kumar</td><td>Grade 12</td><td>₹1200</td><td>Dec 08, 2024</td><td><span class="badge bg-warning">Pending</span></td></tr>
           </tbody>
         </table>
       </div>
