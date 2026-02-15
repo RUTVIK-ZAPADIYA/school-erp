@@ -1,7 +1,7 @@
 <?php
 session_start();
 $_SESSION['student_id'] = 1;
-$_SESSION['student_name'] = 'John Doe';
+$_SESSION['student_name'] = 'Rahul Sharma';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,6 +11,7 @@ $_SESSION['student_name'] = 'John Doe';
   <title>Leave Application</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }

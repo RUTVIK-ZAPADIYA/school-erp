@@ -11,6 +11,7 @@ $_SESSION['admin_name'] = 'Admin';
   <title>Admin Dashboard</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -79,7 +80,7 @@ $_SESSION['admin_name'] = 'Admin';
                 <strong>New Student Admission</strong>
                 <small class="text-muted">10 min ago</small>
               </div>
-              <p class="mb-0 text-muted">John Smith enrolled in Grade 10A</p>
+              <p class="mb-0 text-muted">Rohan Mehta enrolled in Grade 10A</p>
             </div>
             <div class="list-group-item">
               <div class="d-flex justify-content-between">

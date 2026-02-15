@@ -1,0 +1,23 @@
+/* Global Responsive Styles */
+@media (max-width: 768px) {
+  .main-content { margin-left: 0 !important; padding: 80px 15px 15px !important; }
+  .header { padding: 15px 20px !important; }
+  .header h2 { font-size: 1.5rem !important; }
+  .content-card { padding: 15px !important; }
+  .stats-grid, .fee-summary, .marks-summary, .attendance-summary { grid-template-columns: repeat(2, 1fr) !important; gap: 10px !important; }
+  .summary-item, .stat-card { padding: 15px !important; }
+  .summary-value, .stat-value { font-size: 1.5rem !important; }
+  .table { font-size: 0.85rem !important; }
+  .btn { font-size: 0.85rem !important; padding: 6px 12px !important; }
+  .info-row { flex-direction: column !important; }
+  .info-label { width: 100% !important; margin-bottom: 5px !important; }
+}
+@media (max-width: 480px) {
+  .main-content { padding: 70px 10px 10px !important; }
+  .header h2 { font-size: 1.25rem !important; }
+  .stats-grid, .fee-summary, .marks-summary, .attendance-summary { grid-template-columns: 1fr !important; }
+  .summary-value, .stat-value { font-size: 1.25rem !important; }
+  .table { font-size: 0.75rem !important; }
+  .hero-buttons { flex-direction: column !important; }
+  .btn-hero { margin: 5px 0 !important; width: 100% !important; }
+}

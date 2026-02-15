@@ -11,6 +11,7 @@ $_SESSION['admin_name'] = 'Admin';
   <title>Manage Teachers</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -51,7 +52,7 @@ $_SESSION['admin_name'] = 'Admin';
           <tbody>
             <tr>
               <td>TCH001</td>
-              <td>Prof. Sarah Johnson</td>
+              <td>Prof. Priya Patel</td>
               <td>Mathematics</td>
               <td>sarah@school.com</td>
               <td>+1 234 567 8900</td>
@@ -64,7 +65,7 @@ $_SESSION['admin_name'] = 'Admin';
             </tr>
             <tr>
               <td>TCH002</td>
-              <td>Dr. Michael Brown</td>
+              <td>Dr. Rajesh Kumar</td>
               <td>Physics</td>
               <td>michael@school.com</td>
               <td>+1 234 567 8901</td>
@@ -77,7 +78,7 @@ $_SESSION['admin_name'] = 'Admin';
             </tr>
             <tr>
               <td>TCH003</td>
-              <td>Ms. Emily Davis</td>
+              <td>Ms. Anjali Gupta</td>
               <td>English</td>
               <td>emily@school.com</td>
               <td>+1 234 567 8902</td>

@@ -1,7 +1,7 @@
 <?php
 session_start();
 $_SESSION['student_id'] = 1;
-$_SESSION['student_name'] = 'John Doe';
+$_SESSION['student_name'] = 'Rahul Sharma';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,10 +11,14 @@ $_SESSION['student_name'] = 'John Doe';
   <title>Fees</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
-    .main-content { margin-left: 280px; padding: 30px; }
+    .main-content { margin-left: 280px; padding: 30px; transition: margin-left 0.3s; }
+    @media (max-width: 768px) {
+      .main-content { margin-left: 0; padding: 80px 15px 15px; }
+    }
     .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
     .header h2 { color: #2c3e50; margin: 0; font-weight: 700; }
     .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }

@@ -1,7 +1,7 @@
 <?php
 session_start();
 $_SESSION['teacher_id'] = 1;
-$_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
+$_SESSION['teacher_name'] = 'Prof. Priya Patel';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,6 +11,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
   <title>Manage Grades</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -75,7 +76,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
           <tbody>
             <tr>
               <td>001</td>
-              <td>John Doe</td>
+              <td>Rahul Sharma</td>
               <td>100</td>
               <td><input type="number" class="grade-input" value="85"></td>
               <td>A</td>
@@ -83,7 +84,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>002</td>
-              <td>Jane Smith</td>
+              <td>Priya Verma</td>
               <td>100</td>
               <td><input type="number" class="grade-input" value="78"></td>
               <td>B+</td>
@@ -91,7 +92,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>003</td>
-              <td>Mike Johnson</td>
+              <td>Amit Kumar</td>
               <td>100</td>
               <td><input type="number" class="grade-input" value="92"></td>
               <td>A+</td>
@@ -99,7 +100,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>004</td>
-              <td>Emily Davis</td>
+              <td>Sneha Reddy</td>
               <td>100</td>
               <td><input type="number" class="grade-input" value="68"></td>
               <td>C+</td>
@@ -107,7 +108,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>005</td>
-              <td>Robert Brown</td>
+              <td>Arjun Singh</td>
               <td>100</td>
               <td><input type="number" class="grade-input" value="88"></td>
               <td>A</td>

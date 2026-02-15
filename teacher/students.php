@@ -1,7 +1,7 @@
 <?php
 session_start();
 $_SESSION['teacher_id'] = 1;
-$_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
+$_SESSION['teacher_name'] = 'Prof. Priya Patel';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,6 +11,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
   <title>My Students</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -51,7 +52,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
           <tbody>
             <tr>
               <td>001</td>
-              <td>John Doe</td>
+              <td>Rahul Sharma</td>
               <td>Grade 10A</td>
               <td>92%</td>
               <td>85</td>
@@ -60,7 +61,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>002</td>
-              <td>Jane Smith</td>
+              <td>Priya Verma</td>
               <td>Grade 10A</td>
               <td>88%</td>
               <td>78</td>
@@ -69,7 +70,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>003</td>
-              <td>Mike Johnson</td>
+              <td>Amit Kumar</td>
               <td>Grade 10B</td>
               <td>95%</td>
               <td>92</td>
@@ -78,7 +79,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>004</td>
-              <td>Emily Davis</td>
+              <td>Sneha Reddy</td>
               <td>Grade 10B</td>
               <td>75%</td>
               <td>68</td>
@@ -87,7 +88,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
             </tr>
             <tr>
               <td>005</td>
-              <td>Robert Brown</td>
+              <td>Arjun Singh</td>
               <td>Grade 12</td>
               <td>90%</td>
               <td>88</td>

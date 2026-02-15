@@ -1,7 +1,7 @@
 <?php
 session_start();
 $_SESSION['teacher_id'] = 1;
-$_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
+$_SESSION['teacher_name'] = 'Prof. Priya Patel';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -11,6 +11,7 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
   <title>Profile</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <link rel="stylesheet" href="../assets/css/responsive.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -41,14 +42,14 @@ $_SESSION['teacher_name'] = 'Prof. Sarah Johnson';
     <div class="content-card">
       <div class="profile-header">
         <div class="profile-avatar"><i class="fas fa-user"></i></div>
-        <div class="profile-name">Prof. Sarah Johnson</div>
+        <div class="profile-name">Prof. Priya Patel</div>
         <div class="profile-id">Teacher ID: TCH2024001</div>
       </div>
       
       <h5 class="mb-3">Personal Information</h5>
       <div class="info-row">
         <div class="info-label">Full Name</div>
-        <div class="info-value">Prof. Sarah Johnson</div>
+        <div class="info-value">Prof. Priya Patel</div>
       </div>
       <div class="info-row">
         <div class="info-label">Email</div>

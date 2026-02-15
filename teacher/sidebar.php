@@ -4,7 +4,7 @@ if (!isset($_SESSION['teacher_id'])) {
     exit();
 }
 ?>
-<div class="sidebar">
+<div class="sidebar" id="sidebar">
   <div class="logo-section">
     <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
     <h4>Teacher Portal</h4>
@@ -27,8 +27,10 @@ if (!isset($_SESSION['teacher_id'])) {
     <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
   </nav>
 </div>
+<div class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
 <style>
-  .sidebar { width: 280px; background: #2c3e50; height: 100vh; position: fixed; left: 0; top: 0; color: white; overflow-y: auto; }
+  .sidebar { width: 280px; background: #2c3e50; height: 100vh; position: fixed; left: 0; top: 0; color: white; overflow-y: auto; z-index: 1000; transition: transform 0.3s; }
   .logo-section { text-align: center; padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
   .logo-icon { width: 60px; height: 60px; background: #3498db; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
   .logo-icon i { font-size: 1.8rem; }
@@ -43,4 +45,19 @@ if (!isset($_SESSION['teacher_id'])) {
   .nav-item:hover, .nav-item.active { background: rgba(52,152,219,0.1); border-left-color: #3498db; color: #3498db; }
   .nav-item.logout { color: #e74c3c; margin-top: 20px; }
   .nav-item.logout:hover { background: rgba(231,76,60,0.1); border-left-color: #e74c3c; }
+  .mobile-toggle { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: #3498db; color: white; width: 45px; height: 45px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
+  .mobile-toggle i { font-size: 1.2rem; }
+  .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.active { transform: translateX(0); }
+    .mobile-toggle { display: flex; }
+    .sidebar-overlay.active { display: block; }
+  }
 </style>
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('active');
+  document.getElementById('sidebarOverlay').classList.toggle('active');
+}
+</script>
