@@ -1,0 +1,35 @@
+/* New Theme Colors */
+:root {
+  --primary-dark: #192a56;
+  --primary-gold: #f7d794;
+  --primary-black: #000000;
+  --primary-white: #fcfbfb;
+}
+
+/* Override existing colors */
+body { background: var(--primary-white) !important; }
+.sidebar { background: var(--primary-dark) !important; }
+.logo-icon { background: var(--primary-gold) !important; }
+.logo-icon i { color: var(--primary-dark) !important; }
+.user-info i { color: var(--primary-gold) !important; }
+.nav-item:hover, .nav-item.active { background: rgba(247, 215, 148, 0.1) !important; border-left-color: var(--primary-gold) !important; color: var(--primary-gold) !important; }
+.mobile-toggle { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
+.btn-add, .btn-submit, .btn-register, .btn-login, .btn-save, .btn-edit, .btn-pay, .btn-create, .btn-primary, .btn-hero { background: var(--primary-gold) !important; color: var(--primary-dark) !important; border: none !important; }
+.btn-add:hover, .btn-submit:hover, .btn-register:hover, .btn-login:hover, .btn-save:hover, .btn-edit:hover, .btn-pay:hover, .btn-create:hover, .btn-primary:hover, .btn-hero:hover { background: #e5c682 !important; }
+.header h2 { color: var(--primary-dark) !important; }
+.summary-value, .stat-value { color: var(--primary-gold) !important; }
+.stat-icon { background: rgba(247, 215, 148, 0.2) !important; }
+.stat-icon i { color: var(--primary-gold) !important; }
+.stat-card { border-left-color: var(--primary-gold) !important; }
+.stat-card.success { border-left-color: #27ae60 !important; }
+.stat-card.warning { border-left-color: #f39c12 !important; }
+.stat-card.danger { border-left-color: #e74c3c !important; }
+.table th { background: rgba(247, 215, 148, 0.1) !important; color: var(--primary-dark) !important; }
+.badge.bg-primary { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
+.form-control:focus, .form-select:focus { border-color: var(--primary-gold) !important; box-shadow: 0 0 0 3px rgba(247, 215, 148, 0.2) !important; }
+.hero { background: var(--primary-dark) !important; }
+.btn-outline { border-color: var(--primary-gold) !important; color: var(--primary-gold) !important; }
+.btn-outline:hover { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
+a { color: var(--primary-gold) !important; }
+.forgot-password, .signup-link a, .login-link a { color: var(--primary-gold) !important; }
+.forgot-password:hover, .signup-link a:hover, .login-link a:hover { color: #e5c682 !important; }
