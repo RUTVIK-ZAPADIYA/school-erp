@@ -33,7 +33,7 @@ $_SESSION['admin_name'] = 'Admin';
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-user-graduate"></i> Manage Students</h2>
-      <button class="btn-add"><i class="fas fa-plus"></i> Add New Student</button>
+      <button class="btn-add" onclick="window.location.href='add-student.php'"><i class="fas fa-plus"></i> Add New Student</button>
     </div>
     
     <div class="content-card">

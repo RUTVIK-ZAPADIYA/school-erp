@@ -13,7 +13,7 @@
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
     .main-content { margin-left: 280px; padding: 30px; }
-    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); display: flex; justify-content: space-between; align-items: center; }
     .header h2 { color: #2c3e50; margin: 0; font-weight: 700; }
     .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
     .summary-item { text-align: center; padding: 20px; background: white; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
@@ -29,6 +29,7 @@
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-rupee-sign"></i> Fee Management</h2>
+      <button class="btn-add" onclick="window.location.href='add-fee.php'" style="background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer;"><i class="fas fa-plus"></i> Add Fee Record</button>
     </div>
     <div class="stats-grid">
       <div class="summary-item"><div class="summary-value">₹500K</div><div class="summary-label">Total Collected</div></div>

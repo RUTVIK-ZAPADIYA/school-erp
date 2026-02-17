@@ -26,7 +26,7 @@
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-file-alt"></i> Manage Exams</h2>
-      <button class="btn-add"><i class="fas fa-plus"></i> Schedule New Exam</button>
+      <button class="btn-add" onclick="window.location.href='add-exam.php'"><i class="fas fa-plus"></i> Schedule New Exam</button>
     </div>
     <div class="content-card">
       <div class="table-responsive">

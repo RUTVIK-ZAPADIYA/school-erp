@@ -25,7 +25,7 @@
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-book"></i> Manage Subjects</h2>
-      <button class="btn-add"><i class="fas fa-plus"></i> Add New Subject</button>
+      <button class="btn-add" onclick="window.location.href='add-subject.php'"><i class="fas fa-plus"></i> Add New Subject</button>
     </div>
     <div class="content-card">
       <div class="table-responsive">

@@ -78,7 +78,7 @@
         z-index: 1;
       }
       .form-control {
-        padding: 14px 16px 14px 45px;
+        padding: 14px 45px 14px 45px;
         border: 2px solid #e2e8f0;
         border-radius: 10px;
         font-size: 15px;
@@ -113,7 +113,7 @@
       }
       .password-toggle {
         position: absolute;
-        right: 16px;
+        right: 12px;
         top: 50%;
         transform: translateY(-50%);
         color: #a0aec0;
