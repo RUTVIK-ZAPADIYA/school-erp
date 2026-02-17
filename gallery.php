@@ -68,7 +68,7 @@
       
 
         <div class="carousel-item">
-          <img src="Images/6.jpg" alt="Graduation Ceremony" loading="lazy">
+          <img src="Images/4.jpg" alt="Graduation Ceremony" loading="lazy">
           <div class="carousel-caption d-none d-md-block">
             <h5>Graduation Ceremony</h5>
             <p>July 2023</p>
@@ -78,7 +78,7 @@
         
 
         <div class="carousel-item">
-          <img src="Images/8.jpg" alt="Music Festival" loading="lazy">
+          <img src="Images/5.jpg" alt="Music Festival" loading="lazy">
           <div class="carousel-caption d-none d-md-block">
             <h5>Music Festival</h5>
             <p>May 2023</p>
@@ -86,7 +86,7 @@
         </div>
 
         <div class="carousel-item">
-          <img src="Images/9.jpg" alt="Field Trip" loading="lazy">
+          <img src="Images/6.jpg" alt="Field Trip" loading="lazy">
           <div class="carousel-caption d-none d-md-block">
             <h5>Field Trip</h5>
             <p>April 2023</p>
