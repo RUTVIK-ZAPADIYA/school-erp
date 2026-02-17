@@ -50,7 +50,7 @@
       </div>
 
       <h2 style="text-align: center; color: #192a56; font-weight: 700; margin: 60px 0 40px;">Our Team</h2>
-      <div class="row">
+      <div class="row justify-content-center">
         <div class="col-md-3">
           <div class="team-member">
             <div class="team-avatar"><i class="fas fa-user"></i></div>

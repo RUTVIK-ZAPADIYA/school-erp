@@ -55,7 +55,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>TCH001</td>
               <td>Prof. Priya Patel</td>
               <td>Mathematics</td>
-              <td>sarah@school.com</td>
+              <td>priya@school.com</td>
               <td>+1 234 567 8900</td>
               <td>12 Years</td>
               <td><span class="badge bg-success">Active</span></td>
@@ -68,7 +68,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>TCH002</td>
               <td>Dr. Rajesh Kumar</td>
               <td>Physics</td>
-              <td>michael@school.com</td>
+              <td>rajesh@school.com</td>
               <td>+1 234 567 8901</td>
               <td>15 Years</td>
               <td><span class="badge bg-success">Active</span></td>
@@ -81,7 +81,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>TCH003</td>
               <td>Ms. Anjali Gupta</td>
               <td>English</td>
-              <td>emily@school.com</td>
+              <td>anjali@school.com</td>
               <td>+1 234 567 8902</td>
               <td>8 Years</td>
               <td><span class="badge bg-success">Active</span></td>
