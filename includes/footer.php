@@ -10,12 +10,7 @@
           <h5 style="color: white; margin: 0; font-weight: 700; font-size: 1.5rem;">School ERP</h5>
         </div>
         <p style="color: #bdc3c7; line-height: 1.7; margin-bottom: 20px;">Comprehensive school management system designed for modern educational institutions to streamline operations.</p>
-        <div style="margin-top: 20px;">
-          <a href="#" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(52,152,219,0.1); border-radius: 50%; color: #3498db; margin-right: 10px; text-decoration: none;"><i class="fab fa-facebook-f"></i></a>
-          <a href="#" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(52,152,219,0.1); border-radius: 50%; color: #3498db; margin-right: 10px; text-decoration: none;"><i class="fab fa-twitter"></i></a>
-          <a href="#" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(52,152,219,0.1); border-radius: 50%; color: #3498db; margin-right: 10px; text-decoration: none;"><i class="fab fa-linkedin-in"></i></a>
-          <a href="#" style="display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(52,152,219,0.1); border-radius: 50%; color: #3498db; text-decoration: none;"><i class="fab fa-instagram"></i></a>
-        </div>
+        
       </div>
       <div class="col-lg-2 col-md-6 mb-4">
         <h5 style="color: white; margin-bottom: 25px; font-weight: 600; font-size: 1.1rem;">Quick Links</h5>
@@ -54,7 +49,7 @@
           </div>
           <div>
             <p style="color: #95a5a6; margin: 0; font-size: 0.85rem;">Phone</p>
-            <a href="tel:+12345678900" style="color: #bdc3c7; text-decoration: none;">+1 234 567 8900</a>
+            <a href="tel:+12345678900" style="color: #bdc3c7; text-decoration: none;">+91 9999999999</a>
           </div>
         </div>
         <div style="display: flex; align-items: start;">
@@ -63,7 +58,7 @@
           </div>
           <div>
             <p style="color: #95a5a6; margin: 0; font-size: 0.85rem;">Address</p>
-            <p style="color: #bdc3c7; margin: 0;">123 Education St, City</p>
+            <p style="color: #bdc3c7; margin: 0;">Rajkot City</p>
           </div>
         </div>
       </div>
@@ -71,10 +66,7 @@
     <hr style="border-color: rgba(255,255,255,0.1); margin: 40px 0 0;">
     <div style="padding: 25px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
       <p style="color: #95a5a6; margin: 0; font-size: 0.9rem;">&copy; 2024 School ERP System. All rights reserved.</p>
-      <div>
-        <a href="#" style="color: #95a5a6; text-decoration: none; margin-left: 20px; font-size: 0.9rem;">Privacy Policy</a>
-        <a href="#" style="color: #95a5a6; text-decoration: none; margin-left: 20px; font-size: 0.9rem;">Terms of Service</a>
-      </div>
+      
     </div>
   </div>
 </footer>

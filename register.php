@@ -7,24 +7,24 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
-    body { background: #2c3e50; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; }
+    body { background: #192a56; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; }
     .register-container { max-width: 600px; margin: 0 auto; background: white; padding: 50px 45px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
     .logo-section { text-align: center; margin-bottom: 35px; }
-    .logo-icon { width: 70px; height: 70px; background: #3498db; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(52,152,219,0.3); }
-    .logo-icon i { font-size: 32px; color: white; }
+    .logo-icon { width: 70px; height: 70px; background: #f7d794; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 20px; box-shadow: 0 8px 20px rgba(247,215,148,0.3); }
+    .logo-icon i { font-size: 32px; color: #192a56; }
     h1 { font-size: 28px; color: #2d3748; text-align: center; margin-bottom: 8px; font-weight: 700; }
     .subtitle { text-align: center; color: #718096; margin-bottom: 35px; font-size: 14px; }
     .form-label { color: #2d3748; font-weight: 500; margin-bottom: 8px; }
     .form-control { padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 10px; font-size: 15px; transition: all 0.3s; background-color: #f7fafc; }
-    .form-control:focus { border-color: #3498db; background-color: white; box-shadow: 0 0 0 4px rgba(52,152,219,0.1); outline: none; }
+    .form-control:focus { border-color: #f7d794; background-color: white; box-shadow: 0 0 0 4px rgba(247,215,148,0.2); outline: none; }
     .form-control.is-invalid { border-color: #e74c3c; }
     .form-control.is-invalid:focus { box-shadow: 0 0 0 4px rgba(231,76,60,0.1); }
     .invalid-feedback { display: block; color: #e74c3c; font-size: 13px; margin-top: 5px; }
-    .btn-register { width: 100%; padding: 14px; background: #3498db; color: white; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; margin-top: 20px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(52,152,219,0.3); }
-    .btn-register:hover { background: #2980b9; transform: translateY(-2px); box-shadow: 0 6px 25px rgba(52,152,219,0.4); }
+    .btn-register { width: 100%; padding: 14px; background: #f7d794; color: #192a56; border: none; border-radius: 10px; font-size: 16px; font-weight: 600; margin-top: 20px; transition: all 0.3s; box-shadow: 0 4px 15px rgba(247,215,148,0.3); }
+    .btn-register:hover { background: #e5c682; transform: translateY(-2px); box-shadow: 0 6px 25px rgba(247,215,148,0.4); }
     .login-link { text-align: center; color: #718096; font-size: 14px; margin-top: 20px; }
-    .login-link a { color: #3498db; text-decoration: none; font-weight: 600; }
-    .login-link a:hover { color: #2980b9; text-decoration: underline; }
+    .login-link a { color: #f7d794; text-decoration: none; font-weight: 600; }
+    .login-link a:hover { color: #e5c682; text-decoration: underline; }
   </style>
 </head>
 <body>

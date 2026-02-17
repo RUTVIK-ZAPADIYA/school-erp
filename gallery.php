@@ -8,14 +8,14 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <style>
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ecf0f1; }
-    .page-header { background: #2c3e50; color: white; padding: 80px 0; text-align: center; }
+    .page-header { background: #192a56; color: white; padding: 80px 0; text-align: center; }
     .page-header h1 { font-size: 3rem; font-weight: 700; margin-bottom: 15px; }
     .page-header p { font-size: 1.2rem; color: #bdc3c7; }
     .gallery-section { padding: 60px 0; }
     .gallery-item { position: relative; margin-bottom: 30px; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: transform 0.3s; cursor: pointer; }
     .gallery-item:hover { transform: scale(1.05); }
-    .gallery-img { width: 100%; height: 250px; background: #3498db; display: flex; align-items: center; justify-content: center; color: white; font-size: 4rem; }
-    .gallery-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(44,62,80,0.9); color: white; padding: 15px; transform: translateY(100%); transition: transform 0.3s; }
+    .gallery-img { width: 100%; height: 250px; background: #f7d794; display: flex; align-items: center; justify-content: center; color: #192a56; font-size: 4rem; }
+    .gallery-overlay { position: absolute; bottom: 0; left: 0; right: 0; background: rgba(25,42,86,0.9); color: white; padding: 15px; transform: translateY(100%); transition: transform 0.3s; }
     .gallery-item:hover .gallery-overlay { transform: translateY(0); }
     .gallery-overlay h5 { margin: 0; font-size: 1.1rem; font-weight: 600; }
     .gallery-overlay p { margin: 5px 0 0; font-size: 0.9rem; color: #bdc3c7; }
