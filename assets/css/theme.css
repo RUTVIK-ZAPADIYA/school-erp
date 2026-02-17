@@ -1,4 +1,3 @@
-/* New Theme Colors */
 :root {
   --primary-dark: #192a56;
   --primary-gold: #f7d794;
@@ -6,30 +5,39 @@
   --primary-white: #fcfbfb;
 }
 
-/* Override existing colors */
-body { background: var(--primary-white) !important; }
+body { background: var(--primary-white) !important; color: var(--primary-black) !important; }
 .sidebar { background: var(--primary-dark) !important; }
 .logo-icon { background: var(--primary-gold) !important; }
 .logo-icon i { color: var(--primary-dark) !important; }
 .user-info i { color: var(--primary-gold) !important; }
-.nav-item:hover, .nav-item.active { background: rgba(247, 215, 148, 0.1) !important; border-left-color: var(--primary-gold) !important; color: var(--primary-gold) !important; }
+.nav-item:hover, .nav-item.active { background: rgba(247, 215, 148, 0.15) !important; border-left-color: var(--primary-gold) !important; color: var(--primary-gold) !important; }
 .mobile-toggle { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
-.btn-add, .btn-submit, .btn-register, .btn-login, .btn-save, .btn-edit, .btn-pay, .btn-create, .btn-primary, .btn-hero { background: var(--primary-gold) !important; color: var(--primary-dark) !important; border: none !important; }
-.btn-add:hover, .btn-submit:hover, .btn-register:hover, .btn-login:hover, .btn-save:hover, .btn-edit:hover, .btn-pay:hover, .btn-create:hover, .btn-primary:hover, .btn-hero:hover { background: #e5c682 !important; }
+.btn-add, .btn-submit, .btn-register, .btn-login, .btn-save, .btn-edit, .btn-pay, .btn-create, .btn-primary, .btn-hero { background: var(--primary-gold) !important; color: var(--primary-dark) !important; border: none !important; font-weight: 600 !important; }
+.btn-add:hover, .btn-submit:hover, .btn-register:hover, .btn-login:hover, .btn-save:hover, .btn-edit:hover, .btn-pay:hover, .btn-create:hover, .btn-primary:hover, .btn-hero:hover { background: #e5c682 !important; color: var(--primary-dark) !important; }
+.header { background: white !important; border-bottom: 3px solid var(--primary-gold) !important; }
 .header h2 { color: var(--primary-dark) !important; }
-.summary-value, .stat-value { color: var(--primary-gold) !important; }
+.summary-value, .stat-value, .stat-number { color: var(--primary-gold) !important; }
 .stat-icon { background: rgba(247, 215, 148, 0.2) !important; }
 .stat-icon i { color: var(--primary-gold) !important; }
-.stat-card { border-left-color: var(--primary-gold) !important; }
+.stat-card { border-left: 4px solid var(--primary-gold) !important; }
 .stat-card.success { border-left-color: #27ae60 !important; }
 .stat-card.warning { border-left-color: #f39c12 !important; }
 .stat-card.danger { border-left-color: #e74c3c !important; }
-.table th { background: rgba(247, 215, 148, 0.1) !important; color: var(--primary-dark) !important; }
+.table th { background: rgba(25, 42, 86, 0.05) !important; color: var(--primary-dark) !important; font-weight: 600 !important; }
 .badge.bg-primary { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
-.form-control:focus, .form-select:focus { border-color: var(--primary-gold) !important; box-shadow: 0 0 0 3px rgba(247, 215, 148, 0.2) !important; }
+.form-control:focus, .form-select:focus { border-color: var(--primary-gold) !important; box-shadow: 0 0 0 3px rgba(247, 215, 148, 0.25) !important; }
 .hero { background: var(--primary-dark) !important; }
-.btn-outline { border-color: var(--primary-gold) !important; color: var(--primary-gold) !important; }
+.cta-section { background: var(--primary-dark) !important; }
+.btn-outline { border: 2px solid var(--primary-gold) !important; color: var(--primary-gold) !important; background: transparent !important; }
 .btn-outline:hover { background: var(--primary-gold) !important; color: var(--primary-dark) !important; }
+.feature-icon { background: rgba(247, 215, 148, 0.15) !important; }
+.feature-icon i { color: var(--primary-gold) !important; }
+.feature-card:hover .feature-icon { background: var(--primary-gold) !important; }
+.feature-card:hover .feature-icon i { color: var(--primary-dark) !important; }
+.feature-card:hover { border-color: var(--primary-gold) !important; box-shadow: 0 15px 40px rgba(247, 215, 148, 0.2) !important; }
+.section-title { color: var(--primary-dark) !important; }
+.feature-card h4 { color: var(--primary-dark) !important; }
 a { color: var(--primary-gold) !important; }
 .forgot-password, .signup-link a, .login-link a { color: var(--primary-gold) !important; }
 .forgot-password:hover, .signup-link a:hover, .login-link a:hover { color: #e5c682 !important; }
+.content-card { background: white !important; border-top: 3px solid var(--primary-gold) !important; }

@@ -42,7 +42,7 @@
        HERO SECTION
        ======================================== */
     .hero {
-      background-color: #2c3e50;
+      background-color: #192a56;
       color: white;
       padding: 120px 0 100px;
       position: relative;
@@ -56,7 +56,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%233498db" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,138.7C960,139,1056,117,1152,101.3C1248,85,1344,75,1392,69.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
+      background: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1440 320"><path fill="%23f7d794" fill-opacity="0.1" d="M0,96L48,112C96,128,192,160,288,160C384,160,480,128,576,122.7C672,117,768,139,864,138.7C960,139,1056,117,1152,101.3C1248,85,1344,75,1392,69.3L1440,64L1440,320L1392,320C1344,320,1248,320,1152,320C1056,320,960,320,864,320C768,320,672,320,576,320C480,320,384,320,288,320C192,320,96,320,48,320L0,320Z"></path></svg>') no-repeat bottom;
       background-size: cover;
     }
 
@@ -104,30 +104,31 @@
     }
 
     .btn-primary {
-      background-color: #3498db;
+      background-color: #f7d794;
       border: none;
-      color: white;
+      color: #192a56;
+      font-weight: 600;
     }
 
     .btn-primary:hover {
-      background-color: #2980b9;
+      background-color: #e5c682;
       transform: translateY(-3px);
-      box-shadow: 0 10px 25px rgba(52, 152, 219, 0.3);
-      color: white;
+      box-shadow: 0 10px 25px rgba(247, 215, 148, 0.4);
+      color: #192a56;
       text-decoration: none;
     }
 
     .btn-outline {
       background: transparent;
-      border: 2px solid #3498db;
-      color: #3498db;
+      border: 2px solid #f7d794;
+      color: #f7d794;
     }
 
     .btn-outline:hover {
-      background: #3498db;
-      color: white;
+      background: #f7d794;
+      color: #192a56;
       transform: translateY(-3px);
-      box-shadow: 0 10px 25px rgba(52, 152, 219, 0.3);
+      box-shadow: 0 10px 25px rgba(247, 215, 148, 0.4);
       text-decoration: none;
     }
 
@@ -156,7 +157,7 @@
     .stat-number {
       font-size: 2.5rem;
       font-weight: 700;
-      color: #3498db;
+      color: #f7d794;
       margin-bottom: 10px;
     }
 
@@ -174,7 +175,7 @@
     }
 
     .section-title {
-      color: #2c3e50;
+      color: #192a56;
       font-weight: 700;
       font-size: 2.5rem;
       margin-bottom: 15px;
@@ -202,14 +203,14 @@
 
     .feature-card:hover {
       transform: translateY(-10px);
-      box-shadow: 0 15px 40px rgba(52, 152, 219, 0.2);
-      border-color: #3498db;
+      box-shadow: 0 15px 40px rgba(247, 215, 148, 0.3);
+      border-color: #f7d794;
     }
 
     .feature-icon {
       width: 80px;
       height: 80px;
-      background-color: #e3f2fd;
+      background-color: rgba(247, 215, 148, 0.15);
       border-radius: 50%;
       display: inline-flex;
       align-items: center;
@@ -219,22 +220,22 @@
     }
 
     .feature-card:hover .feature-icon {
-      background-color: #3498db;
+      background-color: #f7d794;
       transform: scale(1.1);
     }
 
     .feature-icon i {
       font-size: 2rem;
-      color: #3498db;
+      color: #f7d794;
       transition: color 0.3s ease;
     }
 
     .feature-card:hover .feature-icon i {
-      color: white;
+      color: #192a56;
     }
 
     .feature-card h4 {
-      color: #2c3e50;
+      color: #192a56;
       margin-bottom: 15px;
       font-weight: 600;
       font-size: 1.3rem;
@@ -251,7 +252,7 @@
        CTA SECTION
        ======================================== */
     .cta-section {
-      background-color: #2c3e50;
+      background-color: #192a56;
       color: white;
       padding: 80px 0;
       text-align: center;
