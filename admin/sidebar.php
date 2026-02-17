@@ -26,6 +26,7 @@ if (!isset($_SESSION['admin_id'])) {
     <a href="attendance.php" class="nav-item"><i class="fas fa-calendar-check"></i> Attendance</a>
     <a href="exams.php" class="nav-item"><i class="fas fa-file-alt"></i> Exams</a>
     <a href="reports.php" class="nav-item"><i class="fas fa-chart-line"></i> Reports</a>
+    <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
     <a href="settings.php" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
     <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
   </nav>

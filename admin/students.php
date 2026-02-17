@@ -58,7 +58,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>STU001</td>
               <td>Rahul Sharma</td>
               <td>Grade 10A</td>
-              <td>john@school.com</td>
+              <td>rahul@school.com</td>
               <td>+1 234 567 8900</td>
               <td><span class="badge bg-success">Active</span></td>
               <td>
@@ -70,7 +70,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>STU002</td>
               <td>Priya Verma</td>
               <td>Grade 10B</td>
-              <td>jane@school.com</td>
+              <td>priya@school.com</td>
               <td>+1 234 567 8901</td>
               <td><span class="badge bg-success">Active</span></td>
               <td>
@@ -82,7 +82,7 @@ $_SESSION['admin_name'] = 'Admin';
               <td>STU003</td>
               <td>Amit Kumar</td>
               <td>Grade 12</td>
-              <td>mike@school.com</td>
+              <td>amit@school.com</td>
               <td>+1 234 567 8902</td>
               <td><span class="badge bg-success">Active</span></td>
               <td>

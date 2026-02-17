@@ -15,21 +15,21 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
   <link rel="stylesheet" href="../assets/css/theme.css">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
+    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fcfbfb; }
     .main-content { margin-left: 280px; padding: 30px; }
-    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .header h2 { color: #2c3e50; margin: 0; font-weight: 700; }
-    .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
+    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #f7d794; }
+    .header h2 { color: #192a56; margin: 0; font-weight: 700; }
+    .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 3px solid #f7d794; }
     .profile-header { text-align: center; padding: 30px; background: #f8f9fa; border-radius: 10px; margin-bottom: 30px; }
-    .profile-avatar { width: 120px; height: 120px; background: #3498db; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
-    .profile-avatar i { font-size: 4rem; color: white; }
-    .profile-name { font-size: 1.8rem; font-weight: 700; color: #2c3e50; margin-bottom: 5px; }
+    .profile-avatar { width: 120px; height: 120px; background: #f7d794; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
+    .profile-avatar i { font-size: 4rem; color: #192a56; }
+    .profile-name { font-size: 1.8rem; font-weight: 700; color: #192a56; margin-bottom: 5px; }
     .profile-id { color: #7f8c8d; }
     .info-row { display: flex; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
-    .info-label { font-weight: 600; color: #2c3e50; width: 200px; }
+    .info-label { font-weight: 600; color: #192a56; width: 200px; }
     .info-value { color: #7f8c8d; }
-    .btn-edit { background: #3498db; color: white; padding: 10px 25px; border: none; border-radius: 8px; }
-    .btn-edit:hover { background: #2980b9; }
+    .btn-edit { background: #f7d794; color: #192a56; padding: 10px 25px; border: none; border-radius: 8px; font-weight: 600; }
+    .btn-edit:hover { background: #e5c682; }
   </style>
 </head>
 <body>
