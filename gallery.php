@@ -39,7 +39,7 @@
 
   <main class="carousel-wrapper">
     <!-- Bootstrap carousel: autoplay enabled, pauses on hover -->
-    <div id="lightCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="3500" data-bs-pause="hover">
+    <div id="lightCarousel" class="carousel slide" data-bs-ride="carousel" data-bs-interval="1000" data-bs-pause="hover">
       <div class="carousel-inner">
         <div class="carousel-item active">
           <img src="Images/1.jpg" alt="Annual Day Celebration" loading="lazy">
