@@ -24,19 +24,7 @@
       color: #333;
     }
 
-    /* ========================================
-       ANIMATIONS
-       ======================================== */
-    @keyframes fadeInUp {
-      from {
-        opacity: 0;
-        transform: translateY(30px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
+
 
     /* ========================================
        HERO SECTION
@@ -69,7 +57,6 @@
       font-size: 3.5rem;
       font-weight: 700;
       margin-bottom: 20px;
-      animation: fadeInUp 1s ease-out;
       line-height: 1.2;
     }
 
@@ -80,12 +67,7 @@
       max-width: 600px;
       margin-left: auto;
       margin-right: auto;
-      animation: fadeInUp 1.2s ease-out;
       line-height: 1.6;
-    }
-
-    .hero-buttons {
-      animation: fadeInUp 1.4s ease-out;
     }
 
     /* ========================================
@@ -171,7 +153,7 @@
        FEATURES SECTION
        ======================================== */
     .features-section {
-      padding: 80px 0;
+      padding: 100px 0;
     }
 
     .section-title {
@@ -192,17 +174,17 @@
 
     .feature-card {
       background-color: white;
-      padding: 40px 30px;
+      padding: 50px 40px;
       border-radius: 15px;
       box-shadow: 0 5px 20px rgba(0, 0, 0, 0.08);
-      margin-bottom: 30px;
-      transition: all 0.3s cubic-bezier(0.23, 1, 0.32, 1);
+      margin-bottom: 50px;
+      transition: all 0.3s ease;
       border: 2px solid transparent;
       height: 100%;
     }
 
     .feature-card:hover {
-      transform: translateY(-10px);
+      transform: translateY(-5px);
       box-shadow: 0 15px 40px rgba(247, 215, 148, 0.3);
       border-color: #f7d794;
     }
@@ -215,13 +197,12 @@
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      margin-bottom: 25px;
+      margin-bottom: 30px;
       transition: all 0.3s ease;
     }
 
     .feature-card:hover .feature-icon {
       background-color: #f7d794;
-      transform: scale(1.1);
     }
 
     .feature-icon i {
@@ -366,7 +347,7 @@
     <div class="container">
       <h2 class="section-title">Powerful Features</h2>
       <p class="section-subtitle">Everything you need to manage your school efficiently</p>
-      <div class="row">
+      <div class="row g-5">
         <div class="col-lg-4 col-md-6">
           <div class="feature-card text-center">
             <div class="feature-icon"><i class="fas fa-users"></i></div>
