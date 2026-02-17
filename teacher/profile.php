@@ -54,11 +54,11 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
       </div>
       <div class="info-row">
         <div class="info-label">Email</div>
-        <div class="info-value">sarah.johnson@school.com</div>
+        <div class="info-value">priya.patel@school.com</div>
       </div>
       <div class="info-row">
         <div class="info-label">Phone Number</div>
-        <div class="info-value">+1 234 567 8900</div>
+        <div class="info-value">+91 9999999999</div>
       </div>
       <div class="info-row">
         <div class="info-label">Date of Birth</div>
@@ -70,7 +70,7 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
       </div>
       <div class="info-row">
         <div class="info-label">Address</div>
-        <div class="info-value">456 Oak Avenue, City, State 54321</div>
+        <div class="info-value">Rajkot</div>
       </div>
       
       <h5 class="mt-4 mb-3">Professional Information</h5>
