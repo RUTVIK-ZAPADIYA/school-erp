@@ -72,35 +72,35 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
           <tbody>
             <tr>
               <td>001</td>
-              <td>John Doe</td>
+              <td>satyam</td>
               <td><input type="radio" name="attendance_1" value="present" checked></td>
               <td><input type="radio" name="attendance_1" value="absent"></td>
               <td><input type="radio" name="attendance_1" value="late"></td>
             </tr>
             <tr>
               <td>002</td>
-              <td>Jane Smith</td>
+              <td>Rutvik Shira</td>
               <td><input type="radio" name="attendance_2" value="present" checked></td>
               <td><input type="radio" name="attendance_2" value="absent"></td>
               <td><input type="radio" name="attendance_2" value="late"></td>
             </tr>
             <tr>
               <td>003</td>
-              <td>Mike Johnson</td>
+              <td>Hardip Zapadiya</td>
               <td><input type="radio" name="attendance_3" value="present" checked></td>
               <td><input type="radio" name="attendance_3" value="absent"></td>
               <td><input type="radio" name="attendance_3" value="late"></td>
             </tr>
             <tr>
               <td>004</td>
-              <td>Emily Davis</td>
+              <td>Deep Ramani</td>
               <td><input type="radio" name="attendance_4" value="present"></td>
               <td><input type="radio" name="attendance_4" value="absent" checked></td>
               <td><input type="radio" name="attendance_4" value="late"></td>
             </tr>
             <tr>
               <td>005</td>
-              <td>Robert Brown</td>
+              <td>Pranshu jr.</td>
               <td><input type="radio" name="attendance_5" value="present" checked></td>
               <td><input type="radio" name="attendance_5" value="absent"></td>
               <td><input type="radio" name="attendance_5" value="late"></td>
