@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <nav class="navbar navbar-expand-lg navbar-dark sticky-top" style="background-color: #2c3e50; box-shadow: 0 2px 15px rgba(0,0,0,0.1); padding: 15px 0;">
   <div class="container">
     <a class="navbar-brand d-flex align-items-center" href="index.php" style="font-weight: 700; font-size: 1.5rem; color: #fff !important;">

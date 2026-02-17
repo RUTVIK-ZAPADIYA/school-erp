@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 <footer style="background: linear-gradient(180deg, #1a252f 0%, #2c3e50 100%); color: #ecf0f1; padding: 60px 0 0; margin-top: 80px; position: relative;">
   <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #3498db;"></div>
   <div class="container">
