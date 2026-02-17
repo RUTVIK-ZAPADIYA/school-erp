@@ -6,6 +6,7 @@
     <title>Login - School ERP System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <style>
       * {
         margin: 0;
@@ -234,16 +235,16 @@
         
         <form method="POST" action="">
           <div class="input-group-custom">
-            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required minlength="3" title="Username or email must be at least 3 characters">
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" data-validation="required,min" data-min="3">
             <i class="fas fa-user input-icon"></i>
-            <div class="invalid-feedback"></div>
+            <div id="username_error" class="invalid-feedback"></div>
           </div>
           
           <div class="input-group-custom">
-            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required minlength="6" title="Password must be at least 6 characters">
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" data-validation="required,min" data-min="6">
             <i class="fas fa-lock input-icon"></i>
             <i class="fas fa-eye password-toggle" id="togglePassword"></i>
-            <div class="invalid-feedback"></div>
+            <div id="password_error" class="invalid-feedback"></div>
           </div>
           
           <div class="form-options">
@@ -270,25 +271,17 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="js/validate.js"></script>
     <script>
+      // Password toggle functionality
       const togglePassword = document.getElementById('togglePassword');
       const passwordInput = document.getElementById('password');
-      const loginForm = document.querySelector('form');
       
       togglePassword.addEventListener('click', function() {
         const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
         passwordInput.setAttribute('type', type);
         this.classList.toggle('fa-eye');
         this.classList.toggle('fa-eye-slash');
-      });
-
-      loginForm.addEventListener('submit', function(e) {
-        // HTML5 validation will handle it automatically
-        if (!this.checkValidity()) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-        this.classList.add('was-validated');
       });
     </script>
   </body>

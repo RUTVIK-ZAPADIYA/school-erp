@@ -6,6 +6,7 @@
   <title>Register - School ERP System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <style>
     body { background: #192a56; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 40px 20px; }
     .register-container { max-width: 600px; margin: 0 auto; background: white; padding: 50px 45px; border-radius: 16px; box-shadow: 0 20px 60px rgba(0,0,0,0.3); }
@@ -39,39 +40,39 @@
       <div class="row">
         <div class="col-md-6 mb-3">
           <label class="form-label">First Name</label>
-          <input type="text" class="form-control" id="first_name" name="first_name" required>
-          <div class="invalid-feedback"></div>
+          <input type="text" class="form-control" id="first_name" name="first_name" data-validation="required,min,alphabetic" data-min="2">
+          <div id="first_name_error" class="invalid-feedback"></div>
         </div>
         <div class="col-md-6 mb-3">
           <label class="form-label">Last Name</label>
-          <input type="text" class="form-control" id="last_name" name="last_name" required>
-          <div class="invalid-feedback"></div>
+          <input type="text" class="form-control" id="last_name" name="last_name" data-validation="required,min,alphabetic" data-min="2">
+          <div id="last_name_error" class="invalid-feedback"></div>
         </div>
       </div>
       <div class="mb-3">
         <label class="form-label">Email Address</label>
-        <input type="email" class="form-control" id="email" name="email" required>
-        <div class="invalid-feedback"></div>
+        <input type="email" class="form-control" id="email" name="email" data-validation="required,email">
+        <div id="email_error" class="invalid-feedback"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Phone Number</label>
-        <input type="tel" class="form-control" id="phone" name="phone" required>
-        <div class="invalid-feedback"></div>
+        <input type="tel" class="form-control" id="phone" name="phone" data-validation="required,number" data-min="10" data-max="15">
+        <div id="phone_error" class="invalid-feedback"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Username</label>
-        <input type="text" class="form-control" id="username" name="username" required>
-        <div class="invalid-feedback"></div>
+        <input type="text" class="form-control" id="username" name="username" data-validation="required,min" data-min="4">
+        <div id="username_error" class="invalid-feedback"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" name="password" required>
-        <div class="invalid-feedback"></div>
+        <input type="password" class="form-control" id="password" name="password" data-validation="required,min,strongPassword" data-min="8">
+        <div id="password_error" class="invalid-feedback"></div>
       </div>
       <div class="mb-3">
         <label class="form-label">Confirm Password</label>
-        <input type="password" class="form-control" id="confirm_password" name="confirm_password" required>
-        <div class="invalid-feedback"></div>
+        <input type="password" class="form-control" id="confirm_password" name="confirm_password" data-validation="required,confirmPassword">
+        <div id="confirm_password_error" class="invalid-feedback"></div>
       </div>
       <button type="submit" class="btn-register"><i class="fas fa-user-plus"></i> Register</button>
     </form>
@@ -82,118 +83,6 @@
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    const registerForm = document.getElementById('registerForm');
-    
-    registerForm.addEventListener('submit', function(e) {
-      e.preventDefault();
-      let isValid = true;
-      
-      const firstName = document.getElementById('first_name');
-      const lastName = document.getElementById('last_name');
-      const email = document.getElementById('email');
-      const phone = document.getElementById('phone');
-      const username = document.getElementById('username');
-      const password = document.getElementById('password');
-      const confirmPassword = document.getElementById('confirm_password');
-      
-      // Clear previous errors
-      [firstName, lastName, email, phone, username, password, confirmPassword].forEach(field => {
-        field.classList.remove('is-invalid');
-        field.nextElementSibling.textContent = '';
-      });
-      
-      // Validate first name
-      if (firstName.value.trim() === '') {
-        firstName.classList.add('is-invalid');
-        firstName.nextElementSibling.textContent = 'First name is required';
-        isValid = false;
-      } else if (firstName.value.trim().length < 2) {
-        firstName.classList.add('is-invalid');
-        firstName.nextElementSibling.textContent = 'First name must be at least 2 characters';
-        isValid = false;
-      }
-      
-      // Validate last name
-      if (lastName.value.trim() === '') {
-        lastName.classList.add('is-invalid');
-        lastName.nextElementSibling.textContent = 'Last name is required';
-        isValid = false;
-      } else if (lastName.value.trim().length < 2) {
-        lastName.classList.add('is-invalid');
-        lastName.nextElementSibling.textContent = 'Last name must be at least 2 characters';
-        isValid = false;
-      }
-      
-      // Validate email
-      const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (email.value.trim() === '') {
-        email.classList.add('is-invalid');
-        email.nextElementSibling.textContent = 'Email is required';
-        isValid = false;
-      } else if (!emailPattern.test(email.value)) {
-        email.classList.add('is-invalid');
-        email.nextElementSibling.textContent = 'Please enter a valid email address';
-        isValid = false;
-      }
-      
-      // Validate phone
-      const phonePattern = /^[0-9]{10,15}$/;
-      if (phone.value.trim() === '') {
-        phone.classList.add('is-invalid');
-        phone.nextElementSibling.textContent = 'Phone number is required';
-        isValid = false;
-      } else if (!phonePattern.test(phone.value.replace(/[\s-]/g, ''))) {
-        phone.classList.add('is-invalid');
-        phone.nextElementSibling.textContent = 'Please enter a valid phone number (10-15 digits)';
-        isValid = false;
-      }
-      
-      // Validate username
-      if (username.value.trim() === '') {
-        username.classList.add('is-invalid');
-        username.nextElementSibling.textContent = 'Username is required';
-        isValid = false;
-      } else if (username.value.trim().length < 4) {
-        username.classList.add('is-invalid');
-        username.nextElementSibling.textContent = 'Username must be at least 4 characters';
-        isValid = false;
-      } else if (!/^[a-zA-Z0-9_]+$/.test(username.value)) {
-        username.classList.add('is-invalid');
-        username.nextElementSibling.textContent = 'Username can only contain letters, numbers, and underscores';
-        isValid = false;
-      }
-      
-      // Validate password
-      if (password.value === '') {
-        password.classList.add('is-invalid');
-        password.nextElementSibling.textContent = 'Password is required';
-        isValid = false;
-      } else if (password.value.length < 8) {
-        password.classList.add('is-invalid');
-        password.nextElementSibling.textContent = 'Password must be at least 8 characters';
-        isValid = false;
-      } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])/.test(password.value)) {
-        password.classList.add('is-invalid');
-        password.nextElementSibling.textContent = 'Password must contain uppercase, lowercase, and number';
-        isValid = false;
-      }
-      
-      // Validate confirm password
-      if (confirmPassword.value === '') {
-        confirmPassword.classList.add('is-invalid');
-        confirmPassword.nextElementSibling.textContent = 'Please confirm your password';
-        isValid = false;
-      } else if (password.value !== confirmPassword.value) {
-        confirmPassword.classList.add('is-invalid');
-        confirmPassword.nextElementSibling.textContent = 'Passwords do not match';
-        isValid = false;
-      }
-      
-      if (isValid) {
-        this.submit();
-      }
-    });
-  </script>
+  <script src="js/validate.js"></script>
 </body>
 </html>
