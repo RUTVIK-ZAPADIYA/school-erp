@@ -13,6 +13,8 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="../assets/css/responsive.css">
   <link rel="stylesheet" href="../assets/css/theme.css">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
@@ -35,28 +37,34 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
     </div>
     
     <div class="content-card">
-      <div class="row mb-4">
-        <div class="col-md-4">
-          <label class="form-label">Select Class</label>
-          <select class="form-select">
-            <option>Grade 10A</option>
-            <option>Grade 10B</option>
-            <option>Grade 12</option>
-          </select>
+      <form id="attendanceForm">
+        <div class="row mb-4">
+          <div class="col-md-4">
+            <label class="form-label">Select Class</label>
+            <select class="form-select" name="class" data-validation="required select">
+              <option value="">-- Select Class --</option>
+              <option>Grade 10A</option>
+              <option>Grade 10B</option>
+              <option>Grade 12</option>
+            </select>
+            <div id="class_error"></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Select Date</label>
+            <input type="date" class="form-control" name="date" data-validation="required" value="<?php echo date('Y-m-d'); ?>">
+            <div id="date_error"></div>
+          </div>
+          <div class="col-md-4">
+            <label class="form-label">Subject</label>
+            <select class="form-select" name="subject" data-validation="required select">
+              <option value="">-- Select Subject --</option>
+              <option>Mathematics</option>
+              <option>Physics</option>
+              <option>Chemistry</option>
+            </select>
+            <div id="subject_error"></div>
+          </div>
         </div>
-        <div class="col-md-4">
-          <label class="form-label">Select Date</label>
-          <input type="date" class="form-control" value="<?php echo date('Y-m-d'); ?>">
-        </div>
-        <div class="col-md-4">
-          <label class="form-label">Subject</label>
-          <select class="form-select">
-            <option>Mathematics</option>
-            <option>Physics</option>
-            <option>Chemistry</option>
-          </select>
-        </div>
-      </div>
       
       <div class="table-responsive">
         <table class="table">
@@ -109,7 +117,8 @@ $_SESSION['teacher_name'] = 'Prof. Priya Patel';
         </table>
       </div>
       
-      <button class="btn-submit"><i class="fas fa-save"></i> Submit Attendance</button>
+      <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Submit Attendance</button>
+      </form>
     </div>
   </div>
   

@@ -24,7 +24,7 @@ if (!isset($_SESSION['teacher_id'])) {
     <a href="schedule.php" class="nav-item"><i class="fas fa-calendar-alt"></i> Class Schedule</a>
     <a href="assignments.php" class="nav-item"><i class="fas fa-tasks"></i> Assignments</a>
     <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    
   </nav>
 </div>
 <div class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>

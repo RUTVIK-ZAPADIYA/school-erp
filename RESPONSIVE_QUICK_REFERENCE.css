@@ -1,0 +1,319 @@
+/* ============================================================================
+   QUICK REFERENCE CARD - AI-DRIVEN RESPONSIVE SYSTEM
+   ============================================================================ */
+
+/* BREAKPOINTS
+   ====================================================================== */
+xs  → 0px      (small phones)
+sm  → 640px    (phones)
+md  → 768px    (tablets)
+lg  → 1024px   (desktops)
+xl  → 1280px   (large desktops)
+2xl → 1536px   (ultra-wide)
+
+
+/* CSS CLASSES (Applied to <html> element)
+   ====================================================================== */
+bp-xs          - Current breakpoint: extra small
+bp-sm          - Current breakpoint: small
+bp-md          - Current breakpoint: medium
+bp-lg          - Current breakpoint: large
+bp-xl          - Current breakpoint: extra large
+bp-2xl         - Current breakpoint: 2x large
+
+device-mobile  - Mobile device detected
+device-tablet  - Tablet device detected
+device-desktop - Desktop device detected
+
+orient-portrait  - Portrait mode
+orient-landscape - Landscape mode
+
+touch-device   - Touch input supported
+reduce-motion  - User prefers reduced motion
+
+
+/* CSS USAGE PATTERNS
+   ====================================================================== */
+
+/* Mobile-first approach */
+html.device-mobile .sidebar {
+  display: none;
+}
+
+/* Desktop styles */
+html.device-desktop .sidebar {
+  display: block;
+  width: 280px;
+}
+
+/* Specific breakpoint */
+html.bp-lg .content {
+  max-width: 1200px;
+  padding: 30px;
+}
+
+/* Touch device optimization */
+html.touch-device button {
+  min-height: 44px;
+  padding: 12px 16px;
+}
+
+/* Responsive typography */
+html.bp-xs .heading { font-size: 16px; }
+html.bp-sm .heading { font-size: 18px; }
+html.bp-md .heading { font-size: 24px; }
+html.bp-lg .heading { font-size: 32px; }
+
+/* Responsive grid */
+html.bp-xs .grid { grid-template-columns: 1fr; }
+html.bp-md .grid { grid-template-columns: repeat(2, 1fr); }
+html.bp-lg .grid { grid-template-columns: repeat(4, 1fr); }
+
+/* Accessibility */
+html.reduce-motion * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+
+/* JAVASCRIPT API
+   ====================================================================== */
+
+// Get current state
+window.responsiveManager.getState()
+// Returns: { breakpoint, deviceType, width, height, orientation, isTouchDevice, isReducedMotion }
+
+// Check exact breakpoint
+window.responsiveManager.isBreakpoint('lg')  // → true/false
+
+// Check if at least a breakpoint
+window.responsiveManager.isAtLeast('md')     // → true/false
+
+// Check if less than a breakpoint
+window.responsiveManager.isLessThan('xl')    // → true/false
+
+// Listen for responsive changes
+window.responsiveManager.onResponsiveChange((state) => {
+  console.log(state);
+});
+
+// Custom event listener
+window.addEventListener('responsiveChange', (e) => {
+  const { breakpoint, deviceType, width } = e.detail;
+});
+
+
+/* COMMON PATTERNS
+   ====================================================================== */
+
+/* Toggle sidebar on mobile */
+window.responsiveManager.onResponsiveChange((state) => {
+  const sidebar = document.querySelector('.sidebar');
+  sidebar.style.display = state.deviceType === 'mobile' ? 'none' : 'block';
+});
+
+/* Load features conditionally */
+if (window.responsiveManager.isAtLeast('lg')) {
+  loadAdvancedCharts();  // Desktop only
+}
+
+/* Responsive tables */
+window.responsiveManager.onResponsiveChange((state) => {
+  const tables = document.querySelectorAll('table');
+  if (state.deviceType === 'mobile') {
+    tables.forEach(t => t.classList.add('horizontal-scroll'));
+  }
+});
+
+/* Responsive modal/dialog */
+const isDesktop = window.responsiveManager.getState().deviceType === 'desktop';
+const modalWidth = isDesktop ? '800px' : '100%';
+
+
+/* HTML EXAMPLES
+   ====================================================================== */
+
+<!-- Mobile only -->
+<div class="mobile-menu">Menu</div>
+<style>html.device-mobile .mobile-menu { display: block; }</style>
+<style>html.device-desktop .mobile-menu { display: none; }</style>
+
+<!-- Responsive grid -->
+<div class="grid">
+  <div class="grid-item">Item 1</div>
+  <div class="grid-item">Item 2</div>
+  <div class="grid-item">Item 3</div>
+  <div class="grid-item">Item 4</div>
+</div>
+<style>
+  html.bp-xs .grid { grid-template-columns: 1fr; }
+  html.bp-md .grid { grid-template-columns: repeat(2, 1fr); }
+  html.bp-lg .grid { grid-template-columns: repeat(4, 1fr); }
+</style>
+
+<!-- Responsive columns -->
+<div class="flex-container">
+  <div class="col">Content 1</div>
+  <div class="col">Content 2</div>
+</div>
+<style>
+  html.bp-xs .flex-container { flex-direction: column; }
+  html.bp-lg .flex-container { flex-direction: row; }
+</style>
+
+
+/* RESPONSIVE STATE REFERENCE
+   ====================================================================== */
+
+Example output from getState():
+{
+  breakpoint: 'lg',           // Current breakpoint name
+  deviceType: 'desktop',      // 'mobile', 'tablet', or 'desktop'
+  width: 1920,                // Current viewport width in pixels
+  height: 1080,               // Current viewport height in pixels
+  orientation: 'landscape',   // 'portrait' or 'landscape'
+  isTouchDevice: false,       // Boolean
+  isReducedMotion: false,     // Boolean
+  isLandscape: true           // Boolean
+}
+
+
+/* MIGRATION CHECKLIST
+   ====================================================================== */
+
+OLD WAY (Media Queries):
+@media (max-width: 768px) {
+  .content { padding: 10px; }
+}
+
+NEW WAY (Responsive Classes):
+html.bp-md .content { padding: 10px; }
+
+BENEFITS:
+✓ No nesting needed
+✓ Works in JavaScript
+✓ Consistent naming
+✓ Performance optimized
+✓ Easier to debug
+
+
+/* FILE LOCATIONS
+   ====================================================================== */
+
+/js/responsive.js              - Main system (include in header)
+/assets/css/responsive.css     - CSS patterns and styles
+/js/RESPONSIVE_GUIDE.md        - Detailed documentation
+/responsive-demo.html          - Interactive demo & testing
+/RESPONSIVE_SYSTEM_README.md   - Complete overview
+
+
+/* INCLUDE IN YOUR PAGE
+   ====================================================================== */
+
+<!-- Add to <head> or before </body> -->
+<script src="../js/responsive.js"></script>
+
+<!-- Already included in navbar.php -->
+<!-- No extra action needed if navbar.php is included -->
+
+
+/* TESTING CHECKLIST
+   ====================================================================== */
+
+□ Check console: window.responsiveManager should be defined
+□ Check HTML element: should have classes like bp-lg device-desktop
+□ Resize window: classes should update
+□ Test on mobile: device-mobile class should appear
+□ Test on tablet: device-tablet class should appear
+□ Check CSS: media queries can be replaced with responsive class selectors
+□ Test with touch: should detect touch-device class
+□ Test accessibility: reduce-motion should be respected
+
+
+/* PERFORMANCE TIPS
+   ====================================================================== */
+
+1. Group responsive listeners to avoid redundant updates
+2. Use CSS classes instead of JavaScript when possible
+3. Lazy load components based on breakpoint (JavaScript)
+4. Debounce window resize events (already done in system)
+5. Use touch-device class to optimize touch interactions
+6. Monitor with DevTools Performance tab
+
+
+/* BROWSER SUPPORT SUMMARY
+   ====================================================================== */
+
+Modern Browsers:     ✅ Full support (Chrome, Firefox, Safari, Edge)
+Mobile Browsers:     ✅ Full support (iOS Safari, Chrome Mobile, Firefox Mobile)
+IE 11:              ⚠️  Partial support (uses data attributes)
+IE 10 & below:      ⚠️  Limited support (fallback polyfill available)
+
+For IE10+, use data attributes:
+html[data-breakpoint="lg"] .content { ... }
+html[data-device="mobile"] .content { ... }
+
+
+/* DEBUGGING COMMANDS
+   ====================================================================== */
+
+// Get full state
+console.log(window.responsiveManager.getState());
+
+// Check if specific breakpoint
+console.log(window.responsiveManager.isAtLeast('md'));
+
+// View classes on html element
+console.log(document.documentElement.className);
+
+// Check data attributes (legacy)
+console.log(document.documentElement.getAttribute('data-breakpoint'));
+
+// Monitor changes in real-time
+window.responsiveManager.onResponsiveChange(s => console.table(s));
+
+
+/* QUICK EXAMPLES
+   ====================================================================== */
+
+Example 1: Show different content on mobile vs desktop
+html.device-mobile .desktop-only { display: none; }
+html.device-desktop .mobile-only { display: none; }
+
+Example 2: Adjust font size by breakpoint
+html.bp-sm .title { font-size: 18px; }
+html.bp-lg .title { font-size: 32px; }
+
+Example 3: Responsive padding with breakpoints
+html.bp-xs { --padding: 8px; }
+html.bp-md { --padding: 16px; }
+html.bp-lg { --padding: 32px; }
+.content { padding: var(--padding); }
+
+Example 4: Conditional JavaScript execution
+if (window.responsiveManager.isAtLeast('lg')) {
+  initializeAdvancedFeatures();
+}
+
+
+/* RECOMMENDED READING
+   ====================================================================== */
+
+1. /RESPONSIVE_SYSTEM_README.md - Full documentation
+2. /js/RESPONSIVE_GUIDE.md - Detailed API guide
+3. /responsive-demo.html - Interactive examples
+4. /assets/css/responsive.css - CSS implementation
+
+
+/* SUPPORT & QUESTIONS
+   ====================================================================== */
+
+For detailed information, see:
+- RESPONSIVE_SYSTEM_README.md (main overview)
+- js/RESPONSIVE_GUIDE.md (API & examples)
+- responsive-demo.html (interactive testing)
+
+Version: 1.0
+Last Updated: February 18, 2026
+
+============================================================================ */
