@@ -3,11 +3,19 @@ if (!isset($_SESSION['admin_id'])) {
     header("Location: ../login.php");
     exit();
 }
+
+$currentPage = basename($_SERVER['PHP_SELF']);
+
+function isActive($page, $currentPage)
+{
+    return $page === $currentPage ? 'active' : '';
+}
 ?>
 <div class="sidebar" id="sidebar">
   <div class="logo-section">
     <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
-    <h4>Admin Panel</h4>
+    <h4>Academic Excellence</h4>
+    <p style="margin:6px 0 0;font-size:12px;opacity:.7;">Admin Portal</p>
   </div>
   <div class="user-info">
     <i class="fas fa-user-shield"></i>
@@ -17,18 +25,18 @@ if (!isset($_SESSION['admin_id'])) {
     </div>
   </div>
   <nav class="nav-menu">
-    <a href="dashboard.php" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
-    <a href="students.php" class="nav-item"><i class="fas fa-user-graduate"></i> Students</a>
-    <a href="teachers.php" class="nav-item"><i class="fas fa-chalkboard-teacher"></i> Teachers</a>
-    <a href="classes.php" class="nav-item"><i class="fas fa-school"></i> Classes</a>
-    <a href="subjects.php" class="nav-item"><i class="fas fa-book"></i> Subjects</a>
-    <a href="fees.php" class="nav-item"><i class="fas fa-rupee-sign"></i> Fee Management</a>
-    <a href="attendance.php" class="nav-item"><i class="fas fa-calendar-check"></i> Attendance</a>
-    <a href="exams.php" class="nav-item"><i class="fas fa-file-alt"></i> Exams</a>
-    <a href="reports.php" class="nav-item"><i class="fas fa-chart-line"></i> Reports</a>
-    <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    <a href="settings.php" class="nav-item"><i class="fas fa-cog"></i> Settings</a>
-   
+    <a href="dashboard.php" class="nav-item <?php echo isActive('dashboard.php', $currentPage); ?>"><i class="fas fa-home"></i> Dashboard</a>
+    <a href="students.php" class="nav-item <?php echo isActive('students.php', $currentPage); ?>"><i class="fas fa-user-graduate"></i> Student Directory</a>
+    <a href="teachers.php" class="nav-item <?php echo isActive('teachers.php', $currentPage); ?>"><i class="fas fa-chalkboard-teacher"></i> Faculty Directory</a>
+    <a href="classes.php" class="nav-item <?php echo isActive('classes.php', $currentPage); ?>"><i class="fas fa-school"></i> Class Management</a>
+    <a href="subjects.php" class="nav-item <?php echo isActive('subjects.php', $currentPage); ?>"><i class="fas fa-book"></i> Subject Management</a>
+    <a href="fees.php" class="nav-item <?php echo isActive('fees.php', $currentPage); ?>"><i class="fas fa-rupee-sign"></i> Fee Management</a>
+    <a href="attendance.php" class="nav-item <?php echo isActive('attendance.php', $currentPage); ?>"><i class="fas fa-calendar-check"></i> Attendance</a>
+    <a href="exams.php" class="nav-item <?php echo isActive('exams.php', $currentPage); ?>"><i class="fas fa-file-alt"></i> Exams & Results</a>
+    <a href="reports.php" class="nav-item <?php echo isActive('reports.php', $currentPage); ?>"><i class="fas fa-chart-line"></i> Reports</a>
+    <a href="profile.php" class="nav-item <?php echo isActive('profile.php', $currentPage); ?>"><i class="fas fa-user"></i> Profile</a>
+    <a href="settings.php" class="nav-item <?php echo isActive('settings.php', $currentPage); ?>"><i class="fas fa-cog"></i> Settings</a>
+    <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
   </nav>
 </div>
 <div class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
