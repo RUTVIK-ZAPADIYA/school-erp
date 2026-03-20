@@ -6,21 +6,8 @@
   <title>About Us - School ERP System</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #ecf0f1; }
-    .page-header { background: #192a56; color: white; padding: 80px 0; text-align: center; }
-    .page-header h1 { font-size: 3rem; font-weight: 700; margin-bottom: 15px; }
-    .page-header p { font-size: 1.2rem; color: #bdc3c7; }
-    .content-section { padding: 60px 0; }
-    .about-card { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 30px; }
-    .about-card h3 { color: #192a56; margin-bottom: 20px; font-weight: 700; }
-    .about-card p { color: #7f8c8d; line-height: 1.8; }
-    .team-member { text-align: center; margin-bottom: 30px; }
-    .team-avatar { width: 120px; height: 120px; background: #f7d794; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
-    .team-avatar i { font-size: 50px; color: #192a56; }
-    .team-member h5 { color: #192a56; font-weight: 600; margin-bottom: 5px; }
-    .team-member p { color: #7f8c8d; font-size: 14px; }
-  </style>
+  <link rel="stylesheet" href="assets/css/theme.css">
+  <link rel="stylesheet" href="assets/css/public-pages.css">
 </head>
 <body>
   <?php include 'includes/navbar.php'; ?>
@@ -49,7 +36,7 @@
         <p>Our system offers comprehensive features including student management, attendance tracking, grade management, parent communication, financial management, and detailed analytics. We provide 24/7 support and regular updates to ensure your school runs smoothly.</p>
       </div>
 
-      <h2 style="text-align: center; color: #192a56; font-weight: 700; margin: 60px 0 40px;">Our Team</h2>
+      <h2 class="team-title">Our Team</h2>
       <div class="row justify-content-center">
         <div class="col-md-3">
           <div class="team-member">

@@ -6,27 +6,8 @@
   <title>Photo Gallery</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <style>
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:#ecf0f1; }
-    .page-header { background:#192a56; color:#fff; padding:60px 0; text-align:center; }
-    .page-header h1 { margin:0; font-size:2.5rem; font-weight:700; }
-    .carousel-wrapper { max-width:1100px; margin:40px auto; }
-    .carousel-item { border-radius:10px; overflow:hidden; box-shadow:0 6px 18px rgba(0,0,0,0.12); }
-    .carousel-item img {
-      width:100%;
-      height:480px;
-      object-fit:cover;
-      display:block;
-    }
-    .carousel-caption {
-      background:rgba(25,42,86,0.75);
-      border-radius:8px;
-      padding:8px 12px;
-      bottom:18px;
-    }
-    @media (max-width:992px) { .carousel-item img { height:380px; } }
-    @media (max-width:576px) { .carousel-item img { height:220px; } }
-  </style>
+  <link rel="stylesheet" href="assets/css/theme.css">
+  <link rel="stylesheet" href="assets/css/public-pages.css">
 </head>
 <body>
   <?php include 'includes/navbar.php'; ?>
@@ -34,7 +15,7 @@
   <header class="page-header">
     <div class="container">
       <h1>Photo Gallery</h1>
-      <p style="color:#bdc3c7; margin-top:6px;">Explore our school moments and events</p>
+      <p>Explore our school moments and events</p>
     </div>
   </header>
 
@@ -93,6 +74,8 @@
             <p>April 2023</p>
           </div>
         </div>
+
+      </div>
 
 
       <!-- Controls (kept minimal) -->

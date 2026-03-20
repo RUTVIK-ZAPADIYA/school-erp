@@ -1,73 +1,183 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-<footer style="background: linear-gradient(180deg, #1a252f 0%, #2c3e50 100%); color: #ecf0f1; padding: 60px 0 0; margin-top: 80px; position: relative;">
-  <div style="position: absolute; top: 0; left: 0; right: 0; height: 4px; background: #3498db;"></div>
-  <div class="container">
-    <div class="row">
-      <div class="col-lg-4 col-md-6 mb-4">
-        <div style="display: flex; align-items: center; margin-bottom: 20px;">
-          <div style="width: 50px; height: 50px; background: #3498db; border-radius: 12px; display: flex; align-items: center; justify-content: center; margin-right: 15px;">
-            <i class="fas fa-graduation-cap" style="font-size: 1.5rem; color: white;"></i>
-          </div>
-          <h5 style="color: white; margin: 0; font-weight: 700; font-size: 1.5rem;">School ERP</h5>
+
+<footer class="site-footer">
+  <div class="footer-glow"></div>
+  <div class="container py-5">
+    <div class="row g-4">
+      <div class="col-lg-4 col-md-6">
+        <div class="footer-brand mb-3">
+          <span class="footer-brand-icon"><i class="fas fa-graduation-cap"></i></span>
+          <h5>School ERP</h5>
         </div>
-        <p style="color: #bdc3c7; line-height: 1.7; margin-bottom: 20px;">Comprehensive school management system designed for modern educational institutions to streamline operations.</p>
-        
+        <p class="footer-muted">A smart school management platform that keeps administration, teachers, students, and parents connected in one place.</p>
       </div>
-      <div class="col-lg-2 col-md-6 mb-4">
-        <h5 style="color: white; margin-bottom: 25px; font-weight: 600; font-size: 1.1rem;">Quick Links</h5>
-        <ul style="list-style: none; padding: 0;">
-          <li style="margin-bottom: 12px;"><a href="index.php" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Home</a></li>
-          <li style="margin-bottom: 12px;"><a href="about.php" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>About Us</a></li>
-          <li style="margin-bottom: 12px;"><a href="gallery.php" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Gallery</a></li>
-          <li style="margin-bottom: 12px;"><a href="register.php" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Register</a></li>
-          <li style="margin-bottom: 12px;"><a href="login.php" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Login</a></li>
+
+      <div class="col-lg-2 col-md-6">
+        <h6 class="footer-title">Quick Links</h6>
+        <ul class="footer-links">
+          <li><a href="index.php">Home</a></li>
+          <li><a href="about.php">About Us</a></li>
+          <li><a href="gallery.php">Gallery</a></li>
+          <li><a href="register.php">Register</a></li>
+          <li><a href="login.php">Login</a></li>
         </ul>
       </div>
-      <div class="col-lg-3 col-md-6 mb-4">
-        <h5 style="color: white; margin-bottom: 25px; font-weight: 600; font-size: 1.1rem;">Features</h5>
-        <ul style="list-style: none; padding: 0;">
-          <li style="margin-bottom: 12px;"><a href="#" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Student Management</a></li>
-          <li style="margin-bottom: 12px;"><a href="#" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Teacher Portal</a></li>
-          <li style="margin-bottom: 12px;"><a href="#" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Attendance System</a></li>
-          <li style="margin-bottom: 12px;"><a href="#" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Fee Management</a></li>
-          <li style="margin-bottom: 12px;"><a href="#" style="color: #bdc3c7; text-decoration: none; display: inline-block;"><i class="fas fa-chevron-right" style="font-size: 0.7rem; margin-right: 8px;"></i>Reports & Analytics</a></li>
+
+      <div class="col-lg-3 col-md-6">
+        <h6 class="footer-title">Core Modules</h6>
+        <ul class="footer-links">
+          <li><span>Student Management</span></li>
+          <li><span>Teacher Portal</span></li>
+          <li><span>Attendance Tracking</span></li>
+          <li><span>Fee Management</span></li>
+          <li><span>Reports and Analytics</span></li>
         </ul>
       </div>
-      <div class="col-lg-3 col-md-6 mb-4">
-        <h5 style="color: white; margin-bottom: 25px; font-weight: 600; font-size: 1.1rem;">Contact Info</h5>
-        <div style="margin-bottom: 15px; display: flex; align-items: start;">
-          <div style="width: 35px; height: 35px; background: rgba(52,152,219,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-            <i class="fas fa-envelope" style="color: #3498db;"></i>
-          </div>
-          <div>
-            <p style="color: #95a5a6; margin: 0; font-size: 0.85rem;">Email</p>
-            <a href="mailto:info@schoolerp.com" style="color: #bdc3c7; text-decoration: none;">info@schoolerp.com</a>
-          </div>
+
+      <div class="col-lg-3 col-md-6">
+        <h6 class="footer-title">Contact</h6>
+        <div class="footer-contact-item">
+          <i class="fas fa-envelope"></i>
+          <a href="mailto:info@schoolerp.com">info@schoolerp.com</a>
         </div>
-        <div style="margin-bottom: 15px; display: flex; align-items: start;">
-          <div style="width: 35px; height: 35px; background: rgba(52,152,219,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-            <i class="fas fa-phone" style="color: #3498db;"></i>
-          </div>
-          <div>
-            <p style="color: #95a5a6; margin: 0; font-size: 0.85rem;">Phone</p>
-            <a href="tel:+12345678900" style="color: #bdc3c7; text-decoration: none;">+91 9999999999</a>
-          </div>
+        <div class="footer-contact-item">
+          <i class="fas fa-phone"></i>
+          <a href="tel:+919999999999">+91 9999999999</a>
         </div>
-        <div style="display: flex; align-items: start;">
-          <div style="width: 35px; height: 35px; background: rgba(52,152,219,0.1); border-radius: 8px; display: flex; align-items: center; justify-content: center; margin-right: 12px; flex-shrink: 0;">
-            <i class="fas fa-map-marker-alt" style="color: #3498db;"></i>
-          </div>
-          <div>
-            <p style="color: #95a5a6; margin: 0; font-size: 0.85rem;">Address</p>
-            <p style="color: #bdc3c7; margin: 0;">Rajkot City</p>
-          </div>
+        <div class="footer-contact-item">
+          <i class="fas fa-map-marker-alt"></i>
+          <span>Rajkot City</span>
         </div>
       </div>
     </div>
-    <hr style="border-color: rgba(255,255,255,0.1); margin: 40px 0 0;">
-    <div style="padding: 25px 0; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
-      <p style="color: #95a5a6; margin: 0; font-size: 0.9rem;">&copy; 2024 School ERP System. All rights reserved.</p>
-      
+
+    <div class="footer-bottom">
+      <p>&copy; 2026 School ERP System. All rights reserved.</p>
     </div>
   </div>
 </footer>
+
+<style>
+  .site-footer {
+    position: relative;
+    margin-top: 72px;
+    color: #d4deee;
+    background: linear-gradient(165deg, #101b33 0%, #152846 55%, #1a3459 100%);
+    overflow: hidden;
+  }
+
+  .footer-glow {
+    position: absolute;
+    top: -80px;
+    right: -30px;
+    width: 260px;
+    height: 260px;
+    background: radial-gradient(circle, rgba(31, 201, 166, 0.25), transparent 65%);
+    pointer-events: none;
+  }
+
+  .footer-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .footer-brand h5 {
+    margin: 0;
+    color: #f2f9ff;
+    font-weight: 800;
+  }
+
+  .footer-brand-icon {
+    width: 46px;
+    height: 46px;
+    border-radius: 12px;
+    background: linear-gradient(140deg, #2ac8a2, #17856d);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #ecfffb;
+    box-shadow: 0 10px 20px rgba(19, 167, 133, 0.32);
+  }
+
+  .footer-title {
+    color: #f1f7ff;
+    margin-bottom: 18px;
+    font-weight: 700;
+  }
+
+  .footer-muted {
+    color: #b7c6da;
+    line-height: 1.75;
+    max-width: 380px;
+  }
+
+  .footer-links {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 10px;
+  }
+
+  .footer-links a,
+  .footer-links span {
+    color: #c6d3e6;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .footer-links a:hover {
+    color: #f0fffb;
+  }
+
+  .footer-contact-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+    color: #c8d4e8;
+  }
+
+  .footer-contact-item i {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: #d7fff6;
+    background: rgba(42, 200, 162, 0.24);
+  }
+
+  .footer-contact-item a {
+    color: #c8d4e8;
+    text-decoration: none;
+  }
+
+  .footer-contact-item a:hover {
+    color: #f0fffb;
+  }
+
+  .footer-bottom {
+    margin-top: 24px;
+    padding-top: 20px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    color: #9fb3cf;
+    font-size: 0.95rem;
+  }
+
+  .footer-bottom p {
+    margin: 0;
+  }
+
+  @media (max-width: 768px) {
+    .site-footer {
+      margin-top: 52px;
+    }
+
+    .footer-bottom {
+      text-align: center;
+    }
+  }
+</style>

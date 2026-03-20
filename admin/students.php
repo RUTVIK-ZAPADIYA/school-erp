@@ -1,7 +1,44 @@
 <?php
 session_start();
+include '../dbconfig.php';
+
 $_SESSION['admin_id'] = 1;
 $_SESSION['admin_name'] = 'Admin';
+
+$message = '';
+$message_type = '';
+
+// Handle Delete Operation
+if (isset($_GET['action']) && $_GET['action'] == 'delete' && isset($_GET['id'])) {
+    $student_id = intval($_GET['id']);
+    $delete_sql = "DELETE FROM students WHERE id = $student_id";
+    
+    if ($connection->query($delete_sql) === TRUE) {
+        $message = "Student deleted successfully!";
+        $message_type = "success";
+    } else {
+        $message = "Error deleting student: " . $connection->error;
+        $message_type = "danger";
+    }
+}
+
+// Fetch all students from database
+$sql = "SELECT * FROM students";
+$search = '';
+
+if (isset($_GET['search']) && !empty($_GET['search'])) {
+    $search = $connection->real_escape_string($_GET['search']);
+    $sql = "SELECT * FROM students WHERE roll_no LIKE '%$search%' OR name LIKE '%$search%' OR class LIKE '%$search%'";
+}
+
+$result = $connection->query($sql);
+$students = [];
+
+if ($result && $result->num_rows > 0) {
+    while ($row = $result->fetch_assoc()) {
+        $students[] = $row;
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -36,9 +73,18 @@ $_SESSION['admin_name'] = 'Admin';
       <button class="btn-add" onclick="window.location.href='add-student.php'"><i class="fas fa-plus"></i> Add New Student</button>
     </div>
     
+    <?php if ($message): ?>
+      <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
+        <?php echo $message; ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
+    
     <div class="content-card">
       <div class="search-box">
-        <input type="text" class="form-control" placeholder="Search students by name, roll number, or class...">
+        <form method="GET" action="">
+          <input type="text" class="form-control" name="search" placeholder="Search students by name, roll number, or class..." value="<?php echo htmlspecialchars($search); ?>">
+        </form>
       </div>
       <div class="table-responsive">
         <table class="table table-hover">
@@ -54,42 +100,32 @@ $_SESSION['admin_name'] = 'Admin';
             </tr>
           </thead>
           <tbody>
-            <tr>
-              <td>STU001</td>
-              <td>Rahul Sharma</td>
-              <td>Grade 10A</td>
-              <td>rahul@school.com</td>
-              <td>+1 234 567 8900</td>
-              <td><span class="badge bg-success">Active</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-            <tr>
-              <td>STU002</td>
-              <td>Priya Verma</td>
-              <td>Grade 10B</td>
-              <td>priya@school.com</td>
-              <td>+1 234 567 8901</td>
-              <td><span class="badge bg-success">Active</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
-            <tr>
-              <td>STU003</td>
-              <td>Amit Kumar</td>
-              <td>Grade 12</td>
-              <td>amit@school.com</td>
-              <td>+1 234 567 8902</td>
-              <td><span class="badge bg-success">Active</span></td>
-              <td>
-                <button class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></button>
-                <button class="btn btn-sm btn-outline-danger"><i class="fas fa-trash"></i></button>
-              </td>
-            </tr>
+            <?php if (count($students) > 0): ?>
+              <?php foreach ($students as $student): ?>
+                <tr>
+                  <td><?php echo htmlspecialchars($student['roll_no']); ?></td>
+                  <td><?php echo htmlspecialchars($student['name']); ?></td>
+                  <td><?php echo htmlspecialchars($student['class']); ?></td>
+                  <td><?php echo htmlspecialchars($student['email']); ?></td>
+                  <td><?php echo htmlspecialchars($student['phone']); ?></td>
+                  <td>
+                    <?php 
+                      $status = isset($student['status']) ? $student['status'] : 'Active';
+                      $badge_class = ($status == 'Active') ? 'bg-success' : 'bg-danger';
+                    ?>
+                    <span class="badge <?php echo $badge_class; ?>"><?php echo htmlspecialchars($status); ?></span>
+                  </td>
+                  <td>
+                    <a href="edit-student.php?id=<?php echo $student['id']; ?>" class="btn btn-sm btn-outline-primary"><i class="fas fa-edit"></i></a>
+                    <a href="students.php?action=delete&id=<?php echo $student['id']; ?>" class="btn btn-sm btn-outline-danger" onclick="return confirm('Are you sure you want to delete this student?');"><i class="fas fa-trash"></i></a>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="7" class="text-center text-muted">No students found</td>
+              </tr>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>

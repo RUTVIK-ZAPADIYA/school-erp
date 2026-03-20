@@ -1,0 +1,91 @@
+/* Shared responsive behaviors for admin/student/teacher panels */
+
+html,
+body {
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+img,
+svg,
+video,
+canvas {
+  max-width: 100%;
+  height: auto;
+}
+
+.table-responsive {
+  border-radius: 12px;
+}
+
+@media (max-width: 992px) {
+  .sidebar {
+    transform: translateX(-100%);
+  }
+
+  .sidebar.active {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay.active {
+    display: block;
+  }
+
+  .mobile-toggle {
+    display: inline-flex !important;
+  }
+
+  .main-content {
+    margin-left: 0 !important;
+    width: 100%;
+  }
+
+  .header h2 {
+    font-size: 1.2rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .stats-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .row > [class*='col-'] {
+    margin-bottom: 14px;
+  }
+
+  .table {
+    min-width: 640px;
+  }
+
+  .content-card {
+    overflow: hidden;
+  }
+
+  .btn,
+  .btn-add,
+  .btn-submit,
+  .btn-register,
+  .btn-login,
+  .btn-save,
+  .btn-edit,
+  .btn-pay,
+  .btn-create {
+    min-height: 44px;
+  }
+}
+
+@media (max-width: 576px) {
+  .header,
+  .content-card,
+  .stat-card {
+    border-radius: 10px !important;
+  }
+
+  .mobile-toggle {
+    top: 12px;
+    left: 12px;
+    width: 42px;
+    height: 42px;
+  }
+}

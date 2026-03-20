@@ -1,7 +1,50 @@
 <?php
 session_start();
+include '../dbconfig.php';
+
 $_SESSION['admin_id'] = 1;
 $_SESSION['admin_name'] = 'Admin';
+
+$message = '';
+$message_type = '';
+
+// Handle Form Submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $roll_no = $connection->real_escape_string($_POST['roll_no']);
+    $name = $connection->real_escape_string($_POST['name']);
+    $class = $connection->real_escape_string($_POST['class']);
+    $email = $connection->real_escape_string($_POST['email']);
+    $phone = $connection->real_escape_string($_POST['phone']);
+    $status = $connection->real_escape_string($_POST['status']);
+    
+    // Validation
+    if (empty($roll_no) || empty($name) || empty($class)) {
+        $message = "Please fill in all required fields!";
+        $message_type = "danger";
+    } else {
+        // Check if roll_no already exists
+        $check_sql = "SELECT id FROM students WHERE roll_no = '$roll_no'";
+        $check_result = $connection->query($check_sql);
+        
+        if ($check_result->num_rows > 0) {
+            $message = "Roll number already exists!";
+            $message_type = "danger";
+        } else {
+            $sql = "INSERT INTO students (roll_no, name, class, email, phone, status) 
+                    VALUES ('$roll_no', '$name', '$class', '$email', '$phone', '$status')";
+            
+            if ($connection->query($sql) === TRUE) {
+                $message = "Student added successfully!";
+                $message_type = "success";
+                // Redirect after 2 seconds
+                header("refresh:2;url=students.php");
+            } else {
+                $message = "Error: " . $connection->error;
+                $message_type = "danger";
+            }
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,86 +80,47 @@ $_SESSION['admin_name'] = 'Admin';
     </div>
     
     <div class="form-card">
+      <?php if ($message): ?>
+        <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
+          <?php echo $message; ?>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <?php endif; ?>
+      
       <form method="POST" action="">
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">First Name *</label>
-            <input type="text" class="form-control" name="first_name" data-validation="required,alphabetic,min" data-min="2">
-            <div id="first_name_error" class="invalid-feedback"></div>
+            <label class="form-label">Roll Number *</label>
+            <input type="text" class="form-control" name="roll_no" required value="<?php echo isset($_POST['roll_no']) ? htmlspecialchars($_POST['roll_no']) : ''; ?>">
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Last Name *</label>
-            <input type="text" class="form-control" name="last_name" data-validation="required,alphabetic,min" data-min="2">
-            <div id="last_name_error" class="invalid-feedback"></div>
-          </div>
-        </div>
-        
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Date of Birth *</label>
-            <input type="date" class="form-control" name="dob" data-validation="required">
-            <div id="dob_error" class="invalid-feedback"></div>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Gender *</label>
-            <select class="form-select" name="gender" data-validation="required,select">
-              <option value="">Select Gender</option>
-              <option value="Male">Male</option>
-              <option value="Female">Female</option>
-              <option value="Other">Other</option>
-            </select>
-            <div id="gender_error" class="invalid-feedback"></div>
-          </div>
-        </div>
-        
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Email *</label>
-            <input type="text" class="form-control" name="email" data-validation="required,email">
-            <div id="email_error" class="invalid-feedback"></div>
-          </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Phone Number *</label>
-            <input type="text" class="form-control" name="phone" data-validation="required,number,min" data-min="10">
-            <div id="phone_error" class="invalid-feedback"></div>
+            <label class="form-label">Student Name *</label>
+            <input type="text" class="form-control" name="name" required value="<?php echo isset($_POST['name']) ? htmlspecialchars($_POST['name']) : ''; ?>">
           </div>
         </div>
         
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Class *</label>
-            <select class="form-select" name="class" data-validation="required,select">
-              <option value="">Select Class</option>
-              <option value="Grade 1">Grade 1</option>
-              <option value="Grade 2">Grade 2</option>
-              <option value="Grade 10">Grade 10</option>
-              <option value="Grade 12">Grade 12</option>
-            </select>
-            <div id="class_error" class="invalid-feedback"></div>
+            <input type="text" class="form-control" name="class" placeholder="e.g., Grade 10A" required value="<?php echo isset($_POST['class']) ? htmlspecialchars($_POST['class']) : ''; ?>">
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Roll Number *</label>
-            <input type="text" class="form-control" name="roll_number" data-validation="required,min" data-min="1">
-            <div id="roll_number_error" class="invalid-feedback"></div>
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" value="<?php echo isset($_POST['email']) ? htmlspecialchars($_POST['email']) : ''; ?>">
           </div>
-        </div>
-        
-        <div class="mb-3">
-          <label class="form-label">Address *</label>
-          <textarea class="form-control" name="address" rows="3" data-validation="required,min" data-min="5"></textarea>
-          <div id="address_error" class="invalid-feedback"></div>
         </div>
         
         <div class="row">
           <div class="col-md-6 mb-3">
-            <label class="form-label">Parent/Guardian Name *</label>
-            <input type="text" class="form-control" name="parent_name" data-validation="required,alphabetic,min" data-min="3">
-            <div id="parent_name_error" class="invalid-feedback"></div>
+            <label class="form-label">Phone Number</label>
+            <input type="tel" class="form-control" name="phone" value="<?php echo isset($_POST['phone']) ? htmlspecialchars($_POST['phone']) : ''; ?>">
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Parent Contact *</label>
-            <input type="text" class="form-control" name="parent_contact" data-validation="required,number,min" data-min="10">
-            <div id="parent_contact_error" class="invalid-feedback"></div>
+            <label class="form-label">Status</label>
+            <select class="form-select" name="status">
+              <option value="Active" <?php echo (isset($_POST['status']) && $_POST['status'] == 'Active') ? 'selected' : ''; ?>>Active</option>
+              <option value="Inactive" <?php echo (isset($_POST['status']) && $_POST['status'] == 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
+            </select>
           </div>
         </div>
         
