@@ -1,7 +1,55 @@
 <?php
 session_start();
-$_SESSION['admin_id'] = 1;
-$_SESSION['admin_name'] = 'Admin';
+
+// Check if admin is logged in
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'admin') {
+    header("Location: ../login.php");
+    exit();
+}
+
+// Include database connection
+include '../includes/db_connect.php';
+
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $first_name = mysqli_real_escape_string($conn, $_POST['first_name']);
+    $last_name = mysqli_real_escape_string($conn, $_POST['last_name']);
+    $name = $first_name . ' ' . $last_name;
+    $dob = $_POST['dob'];
+    $gender = $_POST['gender'];
+    $email = mysqli_real_escape_string($conn, $_POST['email']);
+    $phone = mysqli_real_escape_string($conn, $_POST['phone']);
+    $class_name = $_POST['class'];
+    $roll_no = mysqli_real_escape_string($conn, $_POST['roll_number']);
+    $address = mysqli_real_escape_string($conn, $_POST['address']);
+    
+    // Get class_id from class name
+    $sql_class = "SELECT id FROM classes WHERE name = '$class_name'";
+    $result_class = mysqli_query($conn, $sql_class);
+    if (mysqli_num_rows($result_class) > 0) {
+        $class_id = mysqli_fetch_assoc($result_class)['id'];
+        
+        // Insert student
+        $sql = "INSERT INTO students (roll_no, name, class_id, email, phone, date_of_birth, gender, address) 
+                VALUES ('$roll_no', '$name', $class_id, '$email', '$phone', '$dob', '$gender', '$address')";
+        
+        if (mysqli_query($conn, $sql)) {
+            $success = "Student added successfully!";
+        } else {
+            $error = "Error adding student: " . mysqli_error($conn);
+        }
+    } else {
+        $error = "Class not found!";
+    }
+}
+
+// Get classes for dropdown
+$sql_classes = "SELECT name FROM classes";
+$result_classes = mysqli_query($conn, $sql_classes);
+$classes = [];
+while ($row = mysqli_fetch_assoc($result_classes)) {
+    $classes[] = $row['name'];
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -37,6 +85,13 @@ $_SESSION['admin_name'] = 'Admin';
     </div>
     
     <div class="form-card">
+      <?php if (isset($success)): ?>
+      <div class="alert alert-success"><?php echo $success; ?></div>
+      <?php endif; ?>
+      <?php if (isset($error)): ?>
+      <div class="alert alert-danger"><?php echo $error; ?></div>
+      <?php endif; ?>
+      
       <form method="POST" action="">
         <div class="row">
           <div class="col-md-6 mb-3">
@@ -87,10 +142,9 @@ $_SESSION['admin_name'] = 'Admin';
             <label class="form-label">Class *</label>
             <select class="form-select" name="class" data-validation="required,select">
               <option value="">Select Class</option>
-              <option value="Grade 1">Grade 1</option>
-              <option value="Grade 2">Grade 2</option>
-              <option value="Grade 10">Grade 10</option>
-              <option value="Grade 12">Grade 12</option>
+              <?php foreach ($classes as $class): ?>
+              <option value="<?php echo $class; ?>"><?php echo $class; ?></option>
+              <?php endforeach; ?>
             </select>
             <div id="class_error" class="invalid-feedback"></div>
           </div>

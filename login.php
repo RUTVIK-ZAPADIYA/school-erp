@@ -1,4 +1,47 @@
 <!doctype html>
+<?php
+session_start();
+
+// Include database connection
+include 'includes/db_connect.php';
+
+// Check if form is submitted
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = mysqli_real_escape_string($conn, $_POST['username']);
+    $password = $_POST['password'];
+    
+    // Query to get user from database
+    $sql = "SELECT id, username, password, role, name FROM users WHERE username = '$username' OR email = '$username'";
+    $result = mysqli_query($conn, $sql);
+    
+    if (mysqli_num_rows($result) == 1) {
+        $user = mysqli_fetch_assoc($result);
+        
+        // Verify password
+        if (password_verify($password, $user['password'])) {
+            // Set session variables
+            $_SESSION['user_id'] = $user['id'];
+            $_SESSION['username'] = $user['username'];
+            $_SESSION['role'] = $user['role'];
+            $_SESSION['name'] = $user['name'];
+            
+            // Redirect based on role
+            if ($user['role'] == 'admin') {
+                header("Location: admin/dashboard.php");
+            } elseif ($user['role'] == 'teacher') {
+                header("Location: teacher/dashboard.php");
+            } elseif ($user['role'] == 'student') {
+                header("Location: student/dashboard.php");
+            }
+            exit();
+        } else {
+            $error = "Invalid password";
+        }
+    } else {
+        $error = "User not found";
+    }
+}
+?>
 <html lang="en">
   <head>
     <meta charset="utf-8">
@@ -232,6 +275,12 @@
           <h1>School ERP System</h1>
           <p class="subtitle">Sign in to access your account</p>
         </div>
+        
+        <?php if (isset($error)): ?>
+        <div class="alert alert-danger" role="alert">
+          <?php echo $error; ?>
+        </div>
+        <?php endif; ?>
         
         <form method="POST" action="">
           <div class="input-group-custom">
