@@ -43,32 +43,37 @@ $_SESSION['student_name'] = 'Rahul Sharma';
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Leave Type</label>
-            <select class="form-select" name="leave_type" required>
+            <select class="form-select" name="leave_type" data-validation="required select">
               <option value="">Select Type</option>
               <option value="sick">Sick Leave</option>
               <option value="casual">Casual Leave</option>
               <option value="emergency">Emergency Leave</option>
               <option value="other">Other</option>
             </select>
+            <div id="leave_type_error" class="small text-danger mt-2" style="display:none;"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Number of Days</label>
-            <input type="number" class="form-control" name="days" min="1" required>
+            <input type="number" class="form-control" name="days" min="1" data-validation="required number" data-min="1">
+            <div id="days_error" class="small text-danger mt-2" style="display:none;"></div>
           </div>
         </div>
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">From Date</label>
-            <input type="date" class="form-control" name="from_date" required>
+            <input type="date" class="form-control" name="from_date" data-validation="required">
+            <div id="from_date_error" class="small text-danger mt-2" style="display:none;"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">To Date</label>
-            <input type="date" class="form-control" name="to_date" required>
+            <input type="date" class="form-control" name="to_date" data-validation="required">
+            <div id="to_date_error" class="small text-danger mt-2" style="display:none;"></div>
           </div>
         </div>
         <div class="mb-3">
           <label class="form-label">Reason</label>
-          <textarea class="form-control" name="reason" rows="4" required></textarea>
+          <textarea class="form-control" name="reason" rows="4" data-validation="required min" data-min="10"></textarea>
+          <div id="reason_error" class="small text-danger mt-2" style="display:none;"></div>
         </div>
         <button type="submit" class="btn-submit"><i class="fas fa-paper-plane"></i> Submit Application</button>
       </form>
@@ -124,6 +129,8 @@ $_SESSION['student_name'] = 'Rahul Sharma';
   </div>
   
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     document.querySelectorAll('.nav-item').forEach(item => {
       if (item.href === window.location.href) item.classList.add('active');

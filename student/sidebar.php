@@ -23,7 +23,7 @@ if (!isset($_SESSION['student_id'])) {
     <a href="fees.php" class="nav-item"><i class="fas fa-rupee-sign"></i> Fees</a>
     <a href="leave.php" class="nav-item"><i class="fas fa-file-alt"></i> Leave Application</a>
     <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    <a href="logout.php" class="nav-item logout"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    
   </nav>
 </div>
 <div class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
