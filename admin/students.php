@@ -1,9 +1,6 @@
 <?php
-session_start();
+require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
-
-$_SESSION['admin_id'] = 1;
-$_SESSION['admin_name'] = 'Admin';
 
 // Handle Create Action
 if (isset($_POST['action']) && $_POST['action'] === 'create') {

@@ -1,87 +1,184 @@
--- Create Students Table
-CREATE TABLE IF NOT EXISTS students (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    roll_no VARCHAR(50) UNIQUE NOT NULL,
-    name VARCHAR(100) NOT NULL,
-    class VARCHAR(50) NOT NULL,
-    email VARCHAR(100),
-    phone VARCHAR(20),
+CREATE DATABASE IF NOT EXISTS school_erp CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE school_erp;
+
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(100) NOT NULL,
+    password VARCHAR(255) NOT NULL,
+    role ENUM('admin','teacher','student') NOT NULL DEFAULT 'student',
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NULL,
+    phone VARCHAR(30) NULL,
     status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_users_username (username),
+    UNIQUE KEY uniq_users_email (email)
 );
 
--- Create Teachers Table
 CREATE TABLE IF NOT EXISTS teachers (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    name VARCHAR(100) NOT NULL,
-    email VARCHAR(100) UNIQUE,
-    phone VARCHAR(20),
-    subject VARCHAR(50),
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NULL,
+    name VARCHAR(150) NOT NULL,
+    email VARCHAR(150) NULL,
+    phone VARCHAR(30) NULL,
+    subject VARCHAR(100) NULL,
     status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_teachers_email (email)
 );
 
--- Create Classes Table
 CREATE TABLE IF NOT EXISTS classes (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    class_name VARCHAR(50) UNIQUE NOT NULL,
-    section VARCHAR(10),
-    teacher_id INT,
-    status VARCHAR(20) DEFAULT 'Active',
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (teacher_id) REFERENCES teachers(id)
-);
-
--- Create Subjects Table
-CREATE TABLE IF NOT EXISTS subjects (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    subject_name VARCHAR(100) NOT NULL,
-    code VARCHAR(20) UNIQUE,
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NULL,
+    class_name VARCHAR(100) NULL,
+    section VARCHAR(20) NULL,
+    teacher_id INT NULL,
     status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Create Exams Table
-CREATE TABLE IF NOT EXISTS exams (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    exam_name VARCHAR(100) NOT NULL,
-    exam_date DATE,
-    class_id INT,
-    subject_id INT,
+CREATE TABLE IF NOT EXISTS students (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    roll_no VARCHAR(50) NOT NULL,
+    name VARCHAR(150) NOT NULL,
+    class VARCHAR(100) NULL,
+    class_id INT NULL,
+    email VARCHAR(150) NULL,
+    phone VARCHAR(30) NULL,
+    address TEXT NULL,
+    date_of_birth DATE NULL,
+    gender ENUM('Male','Female','Other') NULL,
     status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (class_id) REFERENCES classes(id),
-    FOREIGN KEY (subject_id) REFERENCES subjects(id)
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uniq_students_roll (roll_no)
 );
 
--- Create Fees Table
-CREATE TABLE IF NOT EXISTS fees (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    student_id INT NOT NULL,
-    amount DECIMAL(10, 2),
-    fee_type VARCHAR(50),
-    due_date DATE,
-    status VARCHAR(20) DEFAULT 'Pending',
+CREATE TABLE IF NOT EXISTS subjects (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(150) NULL,
+    subject_name VARCHAR(150) NULL,
+    code VARCHAR(30) NULL,
+    status VARCHAR(20) DEFAULT 'Active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES students(id)
+    UNIQUE KEY uniq_subjects_code (code)
 );
 
--- Create Attendance Table
+CREATE TABLE IF NOT EXISTS assignments (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT NULL,
+    teacher_id INT NULL,
+    subject_id INT NULL,
+    class_id INT NULL,
+    due_date DATE NULL,
+    total_marks INT DEFAULT 100,
+    total_points INT DEFAULT 100,
+    allow_late_submissions BOOLEAN DEFAULT FALSE,
+    file_path VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS assignment_submissions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    assignment_id INT NULL,
+    student_id INT NULL,
+    submission_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    file_path VARCHAR(255) NULL,
+    marks_obtained DECIMAL(10,2) NULL,
+    grade DECIMAL(10,2) NULL,
+    remarks TEXT NULL,
+    status ENUM('pending','submitted','graded','late') DEFAULT 'submitted'
+);
+
 CREATE TABLE IF NOT EXISTS attendance (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    student_id INT NOT NULL,
-    class_id INT,
-    attendance_date DATE,
-    status VARCHAR(20),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (student_id) REFERENCES students(id),
-    FOREIGN KEY (class_id) REFERENCES classes(id)
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NULL,
+    class_id INT NULL,
+    date DATE NULL,
+    attendance_date DATE NULL,
+    status VARCHAR(20) NULL,
+    subject_id INT NULL,
+    teacher_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
--- Insert Sample Students
-INSERT INTO students (roll_no, name, class, email, phone, status) VALUES
-('STU001', 'Rahul Sharma', 'Grade 10A', 'rahul@school.com', '+1 234 567 8900', 'Active'),
-('STU002', 'Priya Verma', 'Grade 10B', 'priya@school.com', '+1 234 567 8901', 'Active'),
-('STU003', 'Amit Kumar', 'Grade 12', 'amit@school.com', '+1 234 567 8902', 'Active');
+CREATE TABLE IF NOT EXISTS grades (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NULL,
+    subject_id INT NULL,
+    exam_type VARCHAR(60) NULL,
+    total_marks INT DEFAULT 100,
+    obtained_marks INT NULL,
+    grade VARCHAR(10) NULL,
+    remarks TEXT NULL,
+    teacher_id INT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS marks (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NULL,
+    subject_id INT NULL,
+    teacher_id INT NULL,
+    marks INT NULL,
+    date DATE NULL,
+    exam_type VARCHAR(60) NULL,
+    remarks TEXT NULL
+);
+
+CREATE TABLE IF NOT EXISTS fees (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    student_id INT NULL,
+    amount DECIMAL(10,2) DEFAULT 0,
+    fee_type VARCHAR(80) NULL,
+    due_date DATE NULL,
+    status VARCHAR(30) DEFAULT 'Pending',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS schedule (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    teacher_id INT NULL,
+    class_id INT NULL,
+    subject_id INT NULL,
+    day_of_week VARCHAR(20) NULL,
+    start_time TIME NULL,
+    end_time TIME NULL,
+    room VARCHAR(60) NULL
+);
+
+CREATE TABLE IF NOT EXISTS exams (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    exam_name VARCHAR(120) NOT NULL,
+    exam_date DATE NULL,
+    class_id INT NULL,
+    subject_id INT NULL,
+    status VARCHAR(20) DEFAULT 'Active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT IGNORE INTO users (username, password, role, name, email, phone) VALUES
+('admin', 'admin123', 'admin', 'Admin User', 'admin@school.com', '+1000000001'),
+('teacher1', 'teacher123', 'teacher', 'Prof. Priya Patel', 'teacher1@school.com', '+1000000002'),
+('student1', 'student123', 'student', 'Rahul Sharma', 'student1@school.com', '+1000000003');
+
+INSERT IGNORE INTO teachers (id, user_id, name, email, phone, subject, status) VALUES
+(2, 2, 'Prof. Priya Patel', 'teacher1@school.com', '+1000000002', 'Mathematics', 'Active');
+
+INSERT IGNORE INTO subjects (name, subject_name, code, status) VALUES
+('Mathematics', 'Mathematics', 'MATH', 'Active'),
+('Physics', 'Physics', 'PHY', 'Active'),
+('Chemistry', 'Chemistry', 'CHEM', 'Active');
+
+INSERT IGNORE INTO classes (id, name, class_name, section, teacher_id, status) VALUES
+(1, 'Grade 10A', 'Grade 10A', 'A', 2, 'Active'),
+(2, 'Grade 10B', 'Grade 10B', 'B', 2, 'Active'),
+(3, 'Grade 12', 'Grade 12', 'A', 2, 'Active');
+
+INSERT IGNORE INTO students (roll_no, name, class, class_id, email, phone, status) VALUES
+('STU001', 'Rahul Sharma', 'Grade 10A', 1, 'rahul@school.com', '+1 234 567 8900', 'Active'),
+('STU002', 'Priya Verma', 'Grade 10B', 2, 'priya@school.com', '+1 234 567 8901', 'Active'),
+('STU003', 'Amit Kumar', 'Grade 12', 3, 'amit@school.com', '+1 234 567 8902', 'Active');

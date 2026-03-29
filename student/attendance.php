@@ -1,7 +1,13 @@
 <?php
 session_start();
-$_SESSION['student_id'] = 1;
-$_SESSION['student_name'] = 'Rahul Sharma';
+if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
+  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
+  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
+}
+if (!isset($_SESSION['student_id'])) {
+  header("Location: ../login.php");
+  exit();
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

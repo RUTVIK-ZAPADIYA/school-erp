@@ -1,3 +1,101 @@
+<?php
+session_start();
+
+include 'includes/db_connect.php';
+
+function clear_role_sessions()
+{
+  unset($_SESSION['admin_id'], $_SESSION['admin_name']);
+  unset($_SESSION['student_id'], $_SESSION['student_name']);
+}
+
+function redirect_by_role($role)
+{
+  if ($role === 'admin') {
+    header('Location: admin/dashboard.php');
+    exit();
+  }
+  if ($role === 'teacher') {
+    header('Location: teacher/dashboard.php');
+    exit();
+  }
+  if ($role === 'student') {
+    header('Location: student/dashboard.php');
+    exit();
+  }
+}
+
+if (isset($_SESSION['user_id'], $_SESSION['role'])) {
+  redirect_by_role($_SESSION['role']);
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $username = trim($_POST['username'] ?? '');
+  $password = (string) ($_POST['password'] ?? '');
+
+  if ($username === '' || $password === '') {
+    $error = 'Please enter username/email and password.';
+  } else {
+    $sql = 'SELECT id, username, password, role, name, email FROM users WHERE username = ? OR email = ? LIMIT 1';
+    $stmt = mysqli_prepare($conn, $sql);
+
+    if (!$stmt) {
+      $error = 'Login is temporarily unavailable. Please try again.';
+    } else {
+      mysqli_stmt_bind_param($stmt, 'ss', $username, $username);
+      mysqli_stmt_execute($stmt);
+      $result = mysqli_stmt_get_result($stmt);
+
+      if ($result && mysqli_num_rows($result) === 1) {
+        $user = mysqli_fetch_assoc($result);
+        $storedPassword = (string) ($user['password'] ?? '');
+
+        $isPasswordValid = password_verify($password, $storedPassword) || hash_equals($storedPassword, $password);
+
+        if ($isPasswordValid) {
+          // Upgrade plain-text legacy passwords to hashed form.
+          if (strpos($storedPassword, '$2y$') !== 0 && strpos($storedPassword, '$argon2') !== 0) {
+            $newHash = password_hash($password, PASSWORD_DEFAULT);
+            $updateStmt = mysqli_prepare($conn, 'UPDATE users SET password = ? WHERE id = ?');
+            if ($updateStmt) {
+              $userIdForUpdate = (int) $user['id'];
+              mysqli_stmt_bind_param($updateStmt, 'si', $newHash, $userIdForUpdate);
+              mysqli_stmt_execute($updateStmt);
+              mysqli_stmt_close($updateStmt);
+            }
+          }
+
+          session_regenerate_id(true);
+          clear_role_sessions();
+
+          $_SESSION['user_id'] = (int) $user['id'];
+          $_SESSION['username'] = $user['username'];
+          $_SESSION['role'] = $user['role'];
+          $_SESSION['name'] = $user['name'];
+
+          if ($user['role'] === 'admin') {
+            $_SESSION['admin_id'] = (int) $user['id'];
+            $_SESSION['admin_name'] = $user['name'];
+          } elseif ($user['role'] === 'student') {
+            $_SESSION['student_id'] = (int) $user['id'];
+            $_SESSION['student_name'] = $user['name'];
+          }
+
+          mysqli_stmt_close($stmt);
+          redirect_by_role($user['role']);
+          $error = 'Your account role is not recognized.';
+        } else {
+          $error = 'Invalid password.';
+        }
+      } else {
+        $error = 'User not found.';
+      }
+
+      mysqli_stmt_close($stmt);
+    }
+  }
+}
+?>
 <!doctype html>
 <html lang="en">
   <head>
@@ -18,6 +116,12 @@
           <h1>School ERP System</h1>
           <p class="subtitle">Sign in to access your account</p>
         </div>
+        
+        <?php if (isset($error)): ?>
+        <div class="alert alert-danger" role="alert">
+          <?php echo $error; ?>
+        </div>
+        <?php endif; ?>
         
         <form method="POST" action="">
           <div class="input-group-custom">

@@ -1,4 +1,4 @@
-<?php session_start(); $_SESSION['admin_id'] = 1; $_SESSION['admin_name'] = 'Admin'; ?>
+<?php require_once __DIR__ . '/auth.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
