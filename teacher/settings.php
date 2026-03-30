@@ -162,7 +162,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" novalidate>
                     <div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl">
                         <div class="flex items-center gap-3">
                             <span class="material-symbols-outlined text-on-surface-variant">mail</span>
@@ -223,24 +223,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" novalidate>
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Theme</label>
-                        <select name="theme" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <select name="theme" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,select">
                             <option value="light">Light Theme</option>
                             <option value="dark">Dark Theme</option>
                             <option value="auto">Auto (System)</option>
                         </select>
+                        <p id="theme_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Language</label>
-                        <select name="language" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <select name="language" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,select">
                             <option value="en">English</option>
                             <option value="es">Spanish</option>
                             <option value="fr">French</option>
                             <option value="de">German</option>
                         </select>
+                        <p id="language_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <button type="submit" name="update_theme" class="w-full bg-primary text-white py-3 rounded-xl font-semibold hover:bg-primary/90">
@@ -261,20 +263,23 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" novalidate>
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Current Password</label>
-                        <input type="password" name="current_password" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="password" name="current_password" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" data-validation="required">
+                        <p id="current_password_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">New Password</label>
-                        <input type="password" name="new_password" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="password" name="new_password" id="new_password" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" data-validation="required,strongPassword,confirmPassword">
+                        <p id="new_password_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Confirm New Password</label>
-                        <input type="password" name="confirm_password" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <input type="password" name="confirm_password" id="new_password_confirm" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" data-validation="required">
+                        <p id="confirm_password_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <button type="submit" name="change_password" class="w-full bg-red-600 text-white py-3 rounded-xl font-semibold hover:bg-red-700">
@@ -295,23 +300,25 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                     </div>
                 </div>
 
-                <form method="POST" class="space-y-4">
+                <form method="POST" class="space-y-4" novalidate>
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Academic Year</label>
-                        <select name="academic_year" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <select name="academic_year" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" data-validation="required,select">
                             <option value="2023-2024">2023-2024</option>
                             <option value="2024-2025" selected>2024-2025</option>
                             <option value="2025-2026">2025-2026</option>
                         </select>
+                        <p id="academic_year_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div>
                         <label class="block text-sm font-semibold text-on-surface mb-2">Current Semester</label>
-                        <select name="semester" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+                        <select name="semester" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" data-validation="required,select">
                             <option value="fall">Fall Semester</option>
                             <option value="spring" selected>Spring Semester</option>
                             <option value="summer">Summer Semester</option>
                         </select>
+                        <p id="semester_error" class="text-sm text-red-600 hidden"></p>
                     </div>
 
                     <div class="flex items-center justify-between p-4 bg-surface-container-low rounded-xl">
@@ -373,5 +380,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
     </style>
+    <script src="../js/jquery.js"></script>
+    <script src="../js/validate.js"></script>
 </body>
 </html>

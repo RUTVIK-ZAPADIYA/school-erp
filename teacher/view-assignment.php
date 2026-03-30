@@ -566,17 +566,19 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
         </div>
       </div>
 
-      <form method="POST" class="space-y-6">
+      <form method="POST" class="space-y-6" novalidate>
         <input type="hidden" name="submission_id" id="gradeSubmissionId">
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Grade (out of <?php echo $assignment['total_points']; ?>)</label>
-          <input type="number" name="grade" id="gradeInput" min="0" max="<?php echo $assignment['total_points']; ?>" step="0.5" required class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+          <input type="number" name="grade" id="gradeInput" step="0.5" class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,number">
+          <p id="grade_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Remarks (Optional)</label>
-          <textarea name="remarks" id="gradeRemarks" rows="4" class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="Add feedback or comments..."></textarea>
+          <textarea name="remarks" id="gradeRemarks" rows="4" class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" placeholder="Add feedback or comments..." data-validation="max" data-max="300"></textarea>
+          <p id="remarks_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
         <div class="flex justify-end gap-3 pt-4">
@@ -591,6 +593,8 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
     </div>
   </div>
 
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     // Grade Distribution Chart
     <?php if ($graded_count > 0): ?>

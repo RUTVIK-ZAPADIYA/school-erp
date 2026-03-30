@@ -250,28 +250,31 @@ $stats = mysqli_fetch_assoc($result_stats);
         </div>
       </div>
 
-      <form method="POST" class="p-6 space-y-6" id="attendanceForm">
+      <form method="POST" class="p-6 space-y-6" id="attendanceForm" novalidate>
         <!-- Form Controls -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Select Class</label>
-            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="class_id" required onchange="this.form.submit()">
+            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="class_id" data-validation="required,select" onchange="this.form.submit()">
               <?php foreach ($classes as $class): ?>
               <option value="<?php echo $class['id']; ?>" <?php echo ($selected_class == $class['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($class['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="class_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Date</label>
-            <input type="date" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="date" value="<?php echo $selected_date; ?>" required onchange="this.form.submit()">
+            <input type="date" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="date" value="<?php echo $selected_date; ?>" data-validation="required" onchange="this.form.submit()">
+            <p id="date_error" class="text-sm text-red-600 hidden"></p>
           </div>
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Subject</label>
-            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="subject_id" required onchange="this.form.submit()">
+            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="subject_id" data-validation="required,select" onchange="this.form.submit()">
               <?php foreach ($subjects as $subject): ?>
               <option value="<?php echo $subject['id']; ?>" <?php echo ($selected_subject == $subject['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($subject['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="subject_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
         </div>
 
@@ -380,6 +383,8 @@ $stats = mysqli_fetch_assoc($result_stats);
     </section>
   </main>
 
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     // Search functionality
     const searchInput = document.getElementById('searchInput');
