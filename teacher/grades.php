@@ -245,7 +245,7 @@ while ($row = mysqli_fetch_assoc($result_students)) {
         </div>
       </div>
 
-      <form method="POST" class="p-6 space-y-6" id="gradeForm">
+      <form method="POST" class="p-6 space-y-6" id="gradeForm" novalidate>
         <!-- Form Controls -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
@@ -297,7 +297,7 @@ while ($row = mysqli_fetch_assoc($result_students)) {
                   <span class="text-xs font-bold text-on-surface"><?php echo htmlspecialchars($student['name']); ?></span>
                 </td>
                 <td class="px-6 py-4">
-                  <input type="number" class="w-20 px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-center" name="marks_<?php echo $student['id']; ?>" value="<?php echo $student['obtained_marks'] ?? ''; ?>" max="100" min="0" placeholder="0" data-validation="number">
+                  <input type="number" class="w-20 px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-center" name="marks_<?php echo $student['id']; ?>" value="<?php echo $student['obtained_marks'] ?? ''; ?>" max="100" min="0" placeholder="0" data-validation="required,number">
                   <p id="marks_<?php echo $student['id']; ?>_error" class="text-xs text-red-600 hidden mt-1"></p>
                 </td>
                 <td class="px-6 py-4">
