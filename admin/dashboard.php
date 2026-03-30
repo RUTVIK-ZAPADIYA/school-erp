@@ -1,28 +1,28 @@
 <?php
 require_once __DIR__ . '/auth.php';
-include '../dbconfig.php';
+include '../includes/db_connect.php';
 
-function tableExists($connection, $tableName)
+function tableExists($conn, $tableName)
 {
-  $safeTable = mysqli_real_escape_string($connection, $tableName);
-  $result = mysqli_query($connection, "SHOW TABLES LIKE '{$safeTable}'");
+  $safeTable = mysqli_real_escape_string($conn, $tableName);
+  $result = mysqli_query($conn, "SHOW TABLES LIKE '{$safeTable}'");
   return $result && mysqli_num_rows($result) > 0;
 }
 
-function columnExists($connection, $tableName, $columnName)
+function columnExists($conn, $tableName, $columnName)
 {
-  if (!tableExists($connection, $tableName)) {
+  if (!tableExists($conn, $tableName)) {
     return false;
   }
-  $safeTable = mysqli_real_escape_string($connection, $tableName);
-  $safeColumn = mysqli_real_escape_string($connection, $columnName);
-  $result = mysqli_query($connection, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+  $safeTable = mysqli_real_escape_string($conn, $tableName);
+  $safeColumn = mysqli_real_escape_string($conn, $columnName);
+  $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
   return $result && mysqli_num_rows($result) > 0;
 }
 
-function scalarValue($connection, $sql, $defaultValue = 0)
+function scalarValue($conn, $sql, $defaultValue = 0)
 {
-  $result = mysqli_query($connection, $sql);
+  $result = mysqli_query($conn, $sql);
   if (!$result) {
     return $defaultValue;
   }
@@ -48,8 +48,8 @@ function formatCompactCurrency($amount)
   return '₹' . number_format($amount, 0);
 }
 
-$totalStudents = tableExists($connection, 'students') ? (int) scalarValue($connection, "SELECT COUNT(*) FROM students", 0) : 0;
-$totalTeachers = tableExists($connection, 'teachers') ? (int) scalarValue($connection, "SELECT COUNT(*) FROM teachers", 0) : 0;
+$totalStudents = tableExists($conn, 'students') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM students", 0) : 0;
+$totalTeachers = tableExists($conn, 'teachers') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM teachers", 0) : 0;
 
 $teacherRatio = $totalTeachers > 0 ? '1:' . max(1, (int) round($totalStudents / $totalTeachers)) : 'N/A';
 
@@ -60,22 +60,22 @@ $sportsPct = 15;
 $labPct = 12;
 $infraPct = 5;
 
-if (tableExists($connection, 'fees')) {
+if (tableExists($conn, 'fees')) {
   $feesPaid = (float) scalarValue(
-    $connection,
+    $conn,
     "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(status,'')) IN ('paid','completed')",
     0
   );
   $feesPending = (float) scalarValue(
-    $connection,
+    $conn,
     "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(status,'')) IN ('pending','unpaid','due')",
     0
   );
 
-  $tuitionAmount = (float) scalarValue($connection, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%tuition%'", 0);
-  $sportsAmount = (float) scalarValue($connection, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%sport%'", 0);
-  $labAmount = (float) scalarValue($connection, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%lab%' OR LOWER(COALESCE(fee_type,'')) LIKE '%tech%'", 0);
-  $infraAmount = (float) scalarValue($connection, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%infra%'", 0);
+  $tuitionAmount = (float) scalarValue($conn, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%tuition%'", 0);
+  $sportsAmount = (float) scalarValue($conn, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%sport%'", 0);
+  $labAmount = (float) scalarValue($conn, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%lab%' OR LOWER(COALESCE(fee_type,'')) LIKE '%tech%'", 0);
+  $infraAmount = (float) scalarValue($conn, "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(fee_type,'')) LIKE '%infra%'", 0);
 
   $streamTotal = $tuitionAmount + $sportsAmount + $labAmount + $infraAmount;
   if ($streamTotal > 0) {
@@ -90,13 +90,13 @@ $totalFeeTarget = $feesPaid + $feesPending;
 $feeCollectionPct = $totalFeeTarget > 0 ? (int) round(($feesPaid / $totalFeeTarget) * 100) : 0;
 
 $attendancePct = 84.2;
-if (tableExists($connection, 'attendance')) {
+if (tableExists($conn, 'attendance')) {
   $presentCount = (int) scalarValue(
-    $connection,
+    $conn,
     "SELECT COUNT(*) FROM attendance WHERE LOWER(COALESCE(status,'')) IN ('present','p')",
     0
   );
-  $attendanceCount = (int) scalarValue($connection, "SELECT COUNT(*) FROM attendance", 0);
+  $attendanceCount = (int) scalarValue($conn, "SELECT COUNT(*) FROM attendance", 0);
   if ($attendanceCount > 0) {
     $attendancePct = round(($presentCount / $attendanceCount) * 100, 1);
   }
@@ -106,9 +106,9 @@ $currentYear = date('Y');
 $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 $monthValues = array_fill(0, 12, 0);
 
-if (tableExists($connection, 'students') && columnExists($connection, 'students', 'created_at')) {
+if (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
   $monthlyResult = mysqli_query(
-    $connection,
+    $conn,
     "SELECT MONTH(created_at) AS month_no, COUNT(*) AS total
      FROM students
      WHERE YEAR(created_at) = {$currentYear}

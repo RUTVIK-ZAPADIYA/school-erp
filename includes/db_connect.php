@@ -224,6 +224,22 @@ if (!function_exists('ensure_school_erp_schema')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
+        mysqli_query($conn, "
+            CREATE TABLE IF NOT EXISTS support_tickets (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                student_id INT NOT NULL,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                category VARCHAR(50) DEFAULT 'Technical Issue',
+                status VARCHAR(20) DEFAULT 'Open',
+                admin_reply TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                replied_at TIMESTAMP NULL,
+                FOREIGN KEY (student_id) REFERENCES users(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
         ensure_school_erp_column($conn, 'classes', 'name', "VARCHAR(100) NULL");
         ensure_school_erp_column($conn, 'classes', 'class_name', "VARCHAR(100) NULL");
         ensure_school_erp_column($conn, 'students', 'class', "VARCHAR(100) NULL");

@@ -26,42 +26,50 @@ try {
     // Get total students
     $sql_students = "SELECT COUNT(*) as count FROM students WHERE class_id IN (SELECT id FROM classes WHERE teacher_id = ?)";
     $stmt = mysqli_prepare($conn, $sql_students);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $row = mysqli_fetch_assoc($result);
-    $stats['total_students'] = $row['count'] ?? 0;
-    mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($result);
+        $stats['total_students'] = $row['count'] ?? 0;
+        mysqli_stmt_close($stmt);
+    }
 
     // Get total assignments
     $sql_assignments = "SELECT COUNT(*) as count FROM assignments WHERE teacher_id = ?";
     $stmt = mysqli_prepare($conn, $sql_assignments);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $row = mysqli_fetch_assoc($result);
-    $stats['total_assignments'] = $row['count'] ?? 0;
-    mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($result);
+        $stats['total_assignments'] = $row['count'] ?? 0;
+        mysqli_stmt_close($stmt);
+    }
 
     // Get graded submissions
     $sql_graded = "SELECT COUNT(*) as count FROM assignment_submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE teacher_id = ?) AND status = 'graded'";
     $stmt = mysqli_prepare($conn, $sql_graded);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $row = mysqli_fetch_assoc($result);
-    $stats['graded_submissions'] = $row['count'] ?? 0;
-    mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($result);
+        $stats['graded_submissions'] = $row['count'] ?? 0;
+        mysqli_stmt_close($stmt);
+    }
 
     // Get today's attendance
     $sql_attendance = "SELECT COUNT(*) as count FROM attendance WHERE teacher_id = ? AND DATE(date) = CURDATE()";
     $stmt = mysqli_prepare($conn, $sql_attendance);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    $row = mysqli_fetch_assoc($result);
-    $stats['today_attendance'] = $row['count'] ?? 0;
-    mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        $row = mysqli_fetch_assoc($result);
+        $stats['today_attendance'] = $row['count'] ?? 0;
+        mysqli_stmt_close($stmt);
+    }
 
 } catch (Exception $e) {
     // If queries fail, use default values
@@ -78,13 +86,15 @@ try {
                    GROUP BY a.id
                    ORDER BY a.created_at DESC LIMIT 5";
     $stmt = mysqli_prepare($conn, $sql_recent);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    while ($row = mysqli_fetch_assoc($result)) {
-        $recent_assignments[] = $row;
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        while ($row = mysqli_fetch_assoc($result)) {
+            $recent_assignments[] = $row;
+        }
+        mysqli_stmt_close($stmt);
     }
-    mysqli_stmt_close($stmt);
 } catch (Exception $e) {
     // If query fails, use empty array
     error_log("Recent assignments query error: " . $e->getMessage());
@@ -99,13 +109,15 @@ try {
                   GROUP BY DATE(date)
                   ORDER BY date";
     $stmt = mysqli_prepare($conn, $sql_trend);
-    mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-    mysqli_stmt_execute($stmt);
-    $result = mysqli_stmt_get_result($stmt);
-    while ($row = mysqli_fetch_assoc($result)) {
-        $attendance_trend[] = $row;
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        while ($row = mysqli_fetch_assoc($result)) {
+            $attendance_trend[] = $row;
+        }
+        mysqli_stmt_close($stmt);
     }
-    mysqli_stmt_close($stmt);
 } catch (Exception $e) {
     // If query fails, use empty array
     error_log("Attendance trend query error: " . $e->getMessage());
