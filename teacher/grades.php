@@ -245,32 +245,35 @@ while ($row = mysqli_fetch_assoc($result_students)) {
         </div>
       </div>
 
-      <form method="POST" class="p-6 space-y-6" id="gradeForm">
+      <form method="POST" class="p-6 space-y-6" id="gradeForm" novalidate>
         <!-- Form Controls -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Select Class</label>
-            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="class_id" required onchange="this.form.submit()">
+            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="class_id" data-validation="required,select" onchange="this.form.submit()">
               <?php foreach ($classes as $class): ?>
               <option value="<?php echo $class['id']; ?>" <?php echo ($selected_class == $class['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($class['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="class_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Exam Type</label>
-            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="exam_type" required onchange="this.form.submit()">
+            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="exam_type" data-validation="required,select" onchange="this.form.submit()">
               <option value="Mid-term" <?php echo ($selected_exam == 'Mid-term') ? 'selected' : ''; ?>>Mid-term Examination</option>
               <option value="Final" <?php echo ($selected_exam == 'Final') ? 'selected' : ''; ?>>Final Examination</option>
               <option value="Quiz" <?php echo ($selected_exam == 'Quiz') ? 'selected' : ''; ?>>Quiz Assessment</option>
             </select>
+            <p id="exam_type_error" class="text-sm text-red-600 hidden"></p>
           </div>
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Subject</label>
-            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="subject_id" required onchange="this.form.submit()">
+            <select class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="subject_id" data-validation="required,select" onchange="this.form.submit()">
               <?php foreach ($subjects as $subject): ?>
               <option value="<?php echo $subject['id']; ?>" <?php echo ($selected_subject == $subject['id']) ? 'selected' : ''; ?>><?php echo htmlspecialchars($subject['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="subject_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
         </div>
 
@@ -294,7 +297,8 @@ while ($row = mysqli_fetch_assoc($result_students)) {
                   <span class="text-xs font-bold text-on-surface"><?php echo htmlspecialchars($student['name']); ?></span>
                 </td>
                 <td class="px-6 py-4">
-                  <input type="number" class="w-20 px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-center" name="marks_<?php echo $student['id']; ?>" value="<?php echo $student['obtained_marks'] ?? ''; ?>" max="100" min="0" placeholder="0">
+                  <input type="number" class="w-20 px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm text-center" name="marks_<?php echo $student['id']; ?>" value="<?php echo $student['obtained_marks'] ?? ''; ?>" max="100" min="0" placeholder="0" data-validation="required,number">
+                  <p id="marks_<?php echo $student['id']; ?>_error" class="text-xs text-red-600 hidden mt-1"></p>
                 </td>
                 <td class="px-6 py-4">
                   <?php if (!empty($student['grade'])): ?>
@@ -313,7 +317,8 @@ while ($row = mysqli_fetch_assoc($result_students)) {
                   <?php endif; ?>
                 </td>
                 <td class="px-6 py-4">
-                  <input type="text" class="w-full px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="remarks_<?php echo $student['id']; ?>" value="<?php echo htmlspecialchars($student['remarks'] ?? ''); ?>" placeholder="Add remarks...">
+                    <input type="text" class="w-full px-3 py-2 bg-white border border-outline-variant rounded-lg focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" name="remarks_<?php echo $student['id']; ?>" value="<?php echo htmlspecialchars($student['remarks'] ?? ''); ?>" placeholder="Add remarks..." data-validation="max" data-max="200">
+                    <p id="remarks_<?php echo $student['id']; ?>_error" class="text-xs text-red-600 hidden mt-1"></p>
                 </td>
               </tr>
               <?php endforeach; ?>
@@ -347,6 +352,8 @@ while ($row = mysqli_fetch_assoc($result_students)) {
     </section>
   </main>
 
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     // Search functionality
     const searchInput = document.getElementById('searchInput');
