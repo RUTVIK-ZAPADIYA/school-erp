@@ -3,8 +3,7 @@ require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
 
-mysqli_query(
-  $connection,
+$connection->query(
   "CREATE TABLE IF NOT EXISTS system_settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     setting_key VARCHAR(120) NOT NULL UNIQUE,
@@ -38,14 +37,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   if ($errorMessage === '') {
     $upsertSql = 'INSERT INTO system_settings (setting_key, setting_value) VALUES (?, ?) ON DUPLICATE KEY UPDATE setting_value = VALUES(setting_value)';
-    $upsertStmt = mysqli_prepare($connection, $upsertSql);
+    $upsertStmt = $connection->prepare( $upsertSql);
 
     if ($upsertStmt) {
       foreach ($submittedSettings as $key => $value) {
-        mysqli_stmt_bind_param($upsertStmt, 'ss', $key, $value);
-        mysqli_stmt_execute($upsertStmt);
+        $upsertStmt->bind_param( 'ss', $key, $value);
+        $upsertStmt->execute();
       }
-      mysqli_stmt_close($upsertStmt);
+      $upsertStmt->close();
       admin_set_flash('success', 'Settings updated successfully.');
     } else {
       admin_set_flash('danger', 'Unable to save settings right now.');
@@ -61,9 +60,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $settings = $defaultSettings;
-$settingsResult = mysqli_query($connection, 'SELECT setting_key, setting_value FROM system_settings');
+$settingsResult = $connection->query( 'SELECT setting_key, setting_value FROM system_settings');
 if ($settingsResult) {
-  while ($settingRow = mysqli_fetch_assoc($settingsResult)) {
+  while ($settingRow = $settingsResult->fetch_assoc()) {
     $settings[$settingRow['setting_key']] = (string) ($settingRow['setting_value'] ?? '');
   }
 }

@@ -15,16 +15,16 @@ $profile = [
 ];
 
 if ($adminUserId > 0 && admin_table_exists($connection, 'users')) {
-  $fetchStmt = mysqli_prepare($connection, "SELECT id, username, name, email, phone, status, created_at FROM users WHERE id = ? AND role = 'admin' LIMIT 1");
+  $fetchStmt = $connection->prepare( "SELECT id, username, name, email, phone, status, created_at FROM users WHERE id = ? AND role = 'admin' LIMIT 1");
   if ($fetchStmt) {
-    mysqli_stmt_bind_param($fetchStmt, 'i', $adminUserId);
-    mysqli_stmt_execute($fetchStmt);
-    $fetchResult = mysqli_stmt_get_result($fetchStmt);
-    $fetchRow = $fetchResult ? mysqli_fetch_assoc($fetchResult) : null;
+    $fetchStmt->bind_param( 'i', $adminUserId);
+    $fetchStmt->execute();
+    $fetchResult = $fetchStmt->get_result();
+    $fetchRow = $fetchResult ? $fetchResult->fetch_assoc() : null;
     if ($fetchRow) {
       $profile = array_merge($profile, $fetchRow);
     }
-    mysqli_stmt_close($fetchStmt);
+    $fetchStmt->close();
   }
 }
 
@@ -52,8 +52,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $adminUserId > 0) {
     $types .= 'i';
     $params[] = $adminUserId;
 
-    $updateStmt = mysqli_prepare($connection, $updateSql);
-    if ($updateStmt && admin_bind_dynamic_params($updateStmt, $types, $params) && mysqli_stmt_execute($updateStmt)) {
+    $updateStmt = $connection->prepare( $updateSql);
+    if ($updateStmt && admin_bind_dynamic_params($updateStmt, $types, $params) && $updateStmt->execute()) {
       $_SESSION['admin_name'] = $name;
       $_SESSION['name'] = $name;
       admin_set_flash('success', 'Profile updated successfully.');
@@ -62,7 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $adminUserId > 0) {
     }
 
     if ($updateStmt) {
-      mysqli_stmt_close($updateStmt);
+      $updateStmt->close();
     }
   }
 

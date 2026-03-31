@@ -1,6 +1,7 @@
 <?php
 require_once __DIR__ . '/auth.php';
 include '../includes/db_connect.php';
+require_once __DIR__ . '/db_helpers.php';
 
 // Handle Create Action
 if (isset($_POST['action']) && $_POST['action'] === 'create') {
@@ -75,18 +76,72 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
 
 // Handle Delete Action
 if (isset($_POST['action']) && $_POST['action'] === 'delete') {
-    $student_id = intval($_POST['student_id']);
+  $student_id = intval($_POST['student_id'] ?? 0);
+  $delete_error = '';
+  $transaction_started = false;
 
-    $delete_sql = "DELETE FROM students WHERE id = ?";
-    $delete_stmt = $conn->prepare($delete_sql);
-    $delete_stmt->bind_param("i", $student_id);
-
-    if ($delete_stmt->execute()) {
-        setcookie('success', 'Student deleted successfully!', time() + 5);
-    } else {
-        setcookie('error', 'Failed to delete student. Please try again.', time() + 5);
+  if ($student_id <= 0) {
+    $delete_error = 'Invalid student record selected for deletion.';
+  } else {
+    if ($conn->begin_transaction()) {
+      $transaction_started = true;
     }
-    $delete_stmt->close();
+
+    $nullify_targets = [
+      ['attendance', 'student_id', true],
+      ['grades', 'student_id', true],
+      ['marks', 'student_id', true],
+      ['fees', 'student_id', true],
+      ['assignment_submissions', 'student_id', true],
+      ['leave_applications', 'student_id', true],
+    ];
+
+    foreach ($nullify_targets as $target) {
+      [$table_name, $column_name, $allow_delete_fallback] = $target;
+      $reference_error = '';
+
+      if (!admin_clear_reference($conn, $table_name, $column_name, $student_id, $allow_delete_fallback, $reference_error)) {
+        $delete_error = 'Unable to clear related student data in ' . $table_name . '.';
+        if ($reference_error !== '') {
+          $delete_error .= ' ' . $reference_error;
+        }
+        break;
+      }
+    }
+
+    if ($delete_error === '') {
+      $delete_sql = "DELETE FROM students WHERE id = ?";
+      $delete_stmt = $conn->prepare($delete_sql);
+
+      if (!$delete_stmt) {
+        $delete_error = 'Unable to process student delete request.';
+      } else {
+        $delete_stmt->bind_param("i", $student_id);
+
+        if (!$delete_stmt->execute()) {
+          $delete_error = 'Failed to delete student. Please try again.';
+        } elseif ($delete_stmt->affected_rows < 1) {
+          $delete_error = 'Student record was not found.';
+        }
+
+        $delete_stmt->close();
+      }
+    }
+
+    if ($delete_error === '' && $transaction_started && !$conn->commit()) {
+      $delete_error = 'Unable to finalize student deletion. Please try again.';
+    }
+  }
+
+  if ($delete_error !== '') {
+    if ($transaction_started) {
+      $conn->rollback();
+    }
+    setcookie('error', $delete_error, time() + 5);
+  } else {
+    setcookie('success', 'Student deleted successfully!', time() + 5);
+  }
+
     header("Location: " . $_SERVER['PHP_SELF']);
     exit();
 }
@@ -162,9 +217,9 @@ if ($result && $result->num_rows > 0) {
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-user-graduate"></i> Manage Students</h2>
-      <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal">
+      <a href="add-student.php" class="btn btn-success">
         <i class="fas fa-plus"></i> Add New Student
-      </button>
+      </a>
     </div>
     
     <!-- Display success and error Messages -->
@@ -294,19 +349,11 @@ if ($result && $result->num_rows > 0) {
                       data-status="<?php echo htmlspecialchars((string) ($student['status'] ?? 'Active'), ENT_QUOTES); ?>">
                       <i class="fas fa-eye"></i>
                     </button>
-                    <button
-                      class="btn btn-sm btn-outline-warning js-edit-student"
-                      data-bs-toggle="modal"
-                      data-bs-target="#editStudentModal"
-                      data-id="<?php echo (int) $student['id']; ?>"
-                      data-roll-no="<?php echo htmlspecialchars($student['roll_no'], ENT_QUOTES); ?>"
-                      data-name="<?php echo htmlspecialchars($student['name'], ENT_QUOTES); ?>"
-                      data-class="<?php echo htmlspecialchars($student['class'], ENT_QUOTES); ?>"
-                      data-email="<?php echo htmlspecialchars((string) ($student['email'] ?? ''), ENT_QUOTES); ?>"
-                      data-phone="<?php echo htmlspecialchars((string) ($student['phone'] ?? ''), ENT_QUOTES); ?>"
-                      data-status="<?php echo htmlspecialchars((string) ($student['status'] ?? 'Active'), ENT_QUOTES); ?>">
+                    <a
+                      class="btn btn-sm btn-outline-warning"
+                      href="edit-student.php?id=<?php echo (int) $student['id']; ?>">
                       <i class="fas fa-edit"></i>
-                    </button>
+                    </a>
                     <button
                       class="btn btn-sm btn-outline-danger js-delete-student"
                       data-bs-toggle="modal"

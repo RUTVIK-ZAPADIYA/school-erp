@@ -1,18 +1,9 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-// Include database connection
-include '../includes/db_connect.php';
-
-$student_id = $_SESSION['student_id'];
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['student_id'] ?? 0);
+$studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get fee records
 $fee_records = [];
@@ -20,20 +11,22 @@ $total_fees = 0;
 $paid_amount = 0;
 
 try {
-    $sql = "SELECT receipt_no, date, description, amount, status FROM fees WHERE student_id = ? ORDER BY date DESC LIMIT 10";
-    $stmt = mysqli_prepare($conn, $sql);
+  $sql = "SELECT receipt_no, date, description, amount, status FROM fees WHERE {$studentFilter['sql']} ORDER BY date DESC LIMIT 10";
+    $stmt = $conn->prepare( $sql);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $fee_records[] = $row;
-            $total_fees += $row['amount'];
-            if ($row['status'] === 'paid') {
-                $paid_amount += $row['amount'];
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      while ($row = $result->fetch_assoc()) {
+        $fee_records[] = $row;
+        $total_fees += $row['amount'];
+        if (strtolower((string) ($row['status'] ?? '')) === 'paid') {
+          $paid_amount += $row['amount'];
+        }
             }
         }
-        mysqli_stmt_close($stmt);
+        $stmt->close();
     }
 } catch (Exception $e) {
     error_log("Fees query error: " . $e->getMessage());
@@ -117,7 +110,7 @@ $payment_percentage = $total_fees > 0 ? round(($paid_amount / $total_fees) * 100
                   <td class="px-6 py-4 text-sm text-stone-700"><?php echo htmlspecialchars($record['description']); ?></td>
                   <td class="px-6 py-4 text-sm text-stone-700">₹<?php echo number_format($record['amount'], 2); ?></td>
                   <td class="px-6 py-4">
-                    <?php if ($record['status'] === 'paid'): ?>
+                    <?php if (strtolower((string) ($record['status'] ?? '')) === 'paid'): ?>
                       <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
                         <span class="material-symbols-outlined text-sm">done</span>
                         Paid
@@ -130,7 +123,7 @@ $payment_percentage = $total_fees > 0 ? round(($paid_amount / $total_fees) * 100
                     <?php endif; ?>
                   </td>
                   <td class="px-6 py-4">
-                    <?php if ($record['status'] === 'paid'): ?>
+                    <?php if (strtolower((string) ($record['status'] ?? '')) === 'paid'): ?>
                       <button class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded transition">
                         <span class="material-symbols-outlined text-sm">download</span>
                         Receipt

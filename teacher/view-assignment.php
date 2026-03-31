@@ -1,16 +1,52 @@
-﻿<?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+<?php
+require_once __DIR__ . '/auth.php';
 
 include '../includes/db_connect.php';
 
-$teacher_id = (int)$_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string($tableName);
+  $result = $conn->query("SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string($tableName);
+  $safeColumn = $conn->real_escape_string($columnName);
+  $result = $conn->query("SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
+$studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
+$assignmentPointsColumn = teacher_first_existing_column($conn, 'assignments', ['total_points', 'total_marks']);
+$assignmentPointsExpr = $assignmentPointsColumn !== null ? "a.`{$assignmentPointsColumn}`" : '0';
 
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
   header("Location: assignments.php");
@@ -19,22 +55,27 @@ if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
 
 $assignment_id = (int)$_GET['id'];
 
-$sql_assignment = "SELECT a.*, c.name as class_name, s.name as subject_name
+$classNameExpr = $classNameColumn !== null ? "c.`{$classNameColumn}`" : "CONCAT('Class ', c.id)";
+$subjectNameExpr = $subjectNameColumn !== null ? "s.`{$subjectNameColumn}`" : "CONCAT('Subject ', s.id)";
+$sql_assignment = "SELECT a.*, {$assignmentPointsExpr} AS total_points,
+           {$classNameExpr} AS class_name, {$subjectNameExpr} AS subject_name
            FROM assignments a
            JOIN classes c ON a.class_id = c.id
            JOIN subjects s ON a.subject_id = s.id
-           WHERE a.id = ? AND a.teacher_id = ?";
-$stmt_assignment = mysqli_prepare($conn, $sql_assignment);
-mysqli_stmt_bind_param($stmt_assignment, "ii", $assignment_id, $teacher_id);
-mysqli_stmt_execute($stmt_assignment);
-$result_assignment = mysqli_stmt_get_result($stmt_assignment);
-$assignment = mysqli_fetch_assoc($result_assignment);
-mysqli_stmt_close($stmt_assignment);
+           WHERE a.id = ? AND a.teacher_id IN ({$teacher_ids_sql})";
+$stmt_assignment = $conn->prepare( $sql_assignment);
+$stmt_assignment->bind_param( "i", $assignment_id);
+$stmt_assignment->execute();
+$result_assignment = $stmt_assignment->get_result();
+$assignment = $result_assignment->fetch_assoc();
+$stmt_assignment->close();
 
 if (!$assignment) {
   header("Location: assignments.php");
   exit();
 }
+
+$assignmentMaxPoints = (float) ($assignment['total_points'] ?? 0);
 
 $success = null;
 $error = null;
@@ -44,29 +85,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['grade_submission'])) 
   $grade = isset($_POST['grade']) ? (float)$_POST['grade'] : -1;
   $remarks = isset($_POST['remarks']) ? trim($_POST['remarks']) : '';
 
-  if ($submission_id > 0 && $grade >= 0 && $grade <= (float)$assignment['total_points']) {
+  if ($submission_id > 0 && $grade >= 0 && $grade <= $assignmentMaxPoints) {
     $sql_update = "UPDATE assignment_submissions
              SET marks_obtained = ?, remarks = ?, status = 'graded'
              WHERE id = ? AND assignment_id = ?";
-    $stmt_update = mysqli_prepare($conn, $sql_update);
-    mysqli_stmt_bind_param($stmt_update, "dsii", $grade, $remarks, $submission_id, $assignment_id);
+    $stmt_update = $conn->prepare( $sql_update);
+    $stmt_update->bind_param( "dsii", $grade, $remarks, $submission_id, $assignment_id);
 
-    if (mysqli_stmt_execute($stmt_update)) {
+    if ($stmt_update->execute()) {
       $success = "Grade submitted successfully!";
     } else {
       $error = "Error submitting grade.";
     }
 
-    mysqli_stmt_close($stmt_update);
+    $stmt_update->close();
   } else {
     $error = "Invalid grade or submission ID.";
   }
 }
 
+$rollSelectExpr = $studentRollColumn !== null ? "st.`{$studentRollColumn}` AS roll_no" : "'' AS roll_no";
+$class_id = (int)($assignment['class_id'] ?? 0);
+$assignmentClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
+$studentClassWhere = teacher_auth_student_class_where_sql($conn, 'st', $class_id, $assignmentClassLabel);
+
 $sql_submissions = "SELECT
           st.id as student_id,
           st.name as student_name,
-          st.roll_no,
+          {$rollSelectExpr},
           sub.id,
           sub.submission_date,
           CASE
@@ -80,26 +126,24 @@ $sql_submissions = "SELECT
           LEFT JOIN assignment_submissions sub
             ON sub.student_id = st.id
             AND sub.assignment_id = ?
-          WHERE st.class_id = ?
+          WHERE {$studentClassWhere}
           ORDER BY (sub.submission_date IS NULL), sub.submission_date DESC, st.name ASC";
-$stmt_submissions = mysqli_prepare($conn, $sql_submissions);
-$class_id = (int)$assignment['class_id'];
-mysqli_stmt_bind_param($stmt_submissions, "ii", $assignment_id, $class_id);
-mysqli_stmt_execute($stmt_submissions);
-$result_submissions = mysqli_stmt_get_result($stmt_submissions);
+$stmt_submissions = $conn->prepare( $sql_submissions);
+$stmt_submissions->bind_param( "i", $assignment_id);
+$stmt_submissions->execute();
+$result_submissions = $stmt_submissions->get_result();
 $submissions = [];
-while ($row = mysqli_fetch_assoc($result_submissions)) {
+while ($row = $result_submissions->fetch_assoc()) {
   $submissions[] = $row;
 }
-mysqli_stmt_close($stmt_submissions);
+$stmt_submissions->close();
 
-$sql_total_students = "SELECT COUNT(*) as total FROM students WHERE class_id = ?";
-$stmt_total = mysqli_prepare($conn, $sql_total_students);
-mysqli_stmt_bind_param($stmt_total, "i", $class_id);
-mysqli_stmt_execute($stmt_total);
-$result_total = mysqli_stmt_get_result($stmt_total);
-$total_students = (int)(mysqli_fetch_assoc($result_total)['total'] ?? 0);
-mysqli_stmt_close($stmt_total);
+$sql_total_students = "SELECT COUNT(*) as total FROM students st WHERE {$studentClassWhere}";
+$stmt_total = $conn->prepare( $sql_total_students);
+$stmt_total->execute();
+$result_total = $stmt_total->get_result();
+$total_students = (int)($result_total->fetch_assoc()['total'] ?? 0);
+$stmt_total->close();
 
 $submitted_count = 0;
 $pending_count = 0;
@@ -118,7 +162,7 @@ foreach ($submissions as $submission) {
     $graded_count++;
     $grade_value = (float)$submission['grade'];
     $total_grades += $grade_value;
-    $percentage = $assignment['total_points'] > 0 ? ($grade_value / (float)$assignment['total_points']) * 100 : 0;
+    $percentage = $assignmentMaxPoints > 0 ? ($grade_value / $assignmentMaxPoints) * 100 : 0;
 
     if ($percentage >= 90) {
       $grade_distribution['A']++;
@@ -387,7 +431,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
           </div>
         </div>
         <div class="w-full bg-surface-variant rounded-full h-2">
-          <div class="bg-purple-500 h-2 rounded-full" style="width: <?php echo ($average_grade / $assignment['total_points']) * 100; ?>%"></div>
+          <div class="bg-purple-500 h-2 rounded-full" style="width: <?php echo $assignmentMaxPoints > 0 ? min(100, ($average_grade / $assignmentMaxPoints) * 100) : 0; ?>%"></div>
         </div>
       </div>
 

@@ -1,17 +1,8 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-include '../includes/db_connect.php';
-
-$student_id = $_SESSION['student_id'];
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['user_id'] ?? 0);
 $success_message = '';
 $error_message = '';
 
@@ -25,15 +16,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error_message = 'Please fill in all required fields';
     } else {
         $sql = "INSERT INTO support_tickets (student_id, title, message, category, status) VALUES (?, ?, ?, ?, 'Open')";
-        $stmt = mysqli_prepare($conn, $sql);
+        $stmt = $conn->prepare( $sql);
         if ($stmt) {
-            mysqli_stmt_bind_param($stmt, "isss", $student_id, $title, $message, $category);
-            if (mysqli_stmt_execute($stmt)) {
+            $stmt->bind_param( "isss", $student_id, $title, $message, $category);
+            if ($stmt->execute()) {
                 $success_message = 'Your ticket has been submitted successfully! Admin will respond soon.';
             } else {
                 $error_message = 'Error submitting ticket. Please try again.';
             }
-            mysqli_stmt_close($stmt);
+            $stmt->close();
         }
     }
 }
@@ -42,15 +33,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 $tickets = [];
 try {
     $sql = "SELECT id, title, category, status, message, admin_reply, created_at, replied_at FROM support_tickets WHERE student_id = ? ORDER BY created_at DESC";
-    $stmt = mysqli_prepare($conn, $sql);
+    $stmt = $conn->prepare( $sql);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
+        $stmt->bind_param( "i", $student_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
             $tickets[] = $row;
         }
-        mysqli_stmt_close($stmt);
+        $stmt->close();
     }
 } catch (Exception $e) {
     error_log("Tickets query error: " . $e->getMessage());

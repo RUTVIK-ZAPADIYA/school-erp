@@ -1,32 +1,34 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-// Include database connection
-include '../includes/db_connect.php';
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['student_id'] ?? 0);
+$studentFilter = student_auth_student_id_filter_sql('student_id');
 
-$student_id = $_SESSION['student_id'];
+$attendanceDateColumn = 'date';
+$dateColumnResult = $conn->query("SHOW COLUMNS FROM attendance LIKE 'date'");
+if (!$dateColumnResult || $dateColumnResult->num_rows === 0) {
+    $attendanceDateColumn = 'attendance_date';
+}
 
 // Get attendance records
 $attendance_records = [];
 try {
-    $sql = "SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30";
-    $stmt = mysqli_prepare($conn, $sql);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
+  $sql = "SELECT {$attendanceDateColumn} AS attendance_date, status FROM attendance WHERE {$studentFilter['sql']} ORDER BY {$attendanceDateColumn} DESC";
+    $stmt = $conn->prepare( $sql);
+  if ($stmt) {
+    $filterParams = $studentFilter['params'];
+    if (!student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->close();
+      throw new RuntimeException('Unable to bind attendance filter parameters.');
+    }
+
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($row = $result->fetch_assoc()) {
             $attendance_records[] = $row;
         }
-        mysqli_stmt_close($stmt);
+        $stmt->close();
     }
 } catch (Exception $e) {
     error_log("Attendance query error: " . $e->getMessage());
@@ -36,7 +38,9 @@ try {
 $total = count($attendance_records);
 $present = 0;
 foreach ($attendance_records as $record) {
-    if ($record['status'] === 'present') $present++;
+    if (strtolower((string) ($record['status'] ?? '')) === 'present') {
+      $present++;
+    }
 }
 $percentage = $total > 0 ? round(($present / $total) * 100) : 0;
 ?>
@@ -101,9 +105,9 @@ $percentage = $total > 0 ? round(($present / $total) * 100) : 0;
             <?php if (count($attendance_records) > 0): ?>
               <?php foreach ($attendance_records as $record): ?>
                 <tr class="hover:bg-stone-50 transition">
-                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo date('d M Y', strtotime($record['date'])); ?></td>
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo date('d M Y', strtotime((string) ($record['attendance_date'] ?? 'now'))); ?></td>
                   <td class="px-6 py-4">
-                    <?php if ($record['status'] === 'present'): ?>
+                    <?php if (strtolower((string) ($record['status'] ?? '')) === 'present'): ?>
                       <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
                         <span class="material-symbols-outlined text-sm">done</span>
                         Present

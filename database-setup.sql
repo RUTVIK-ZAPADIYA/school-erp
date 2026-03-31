@@ -43,6 +43,8 @@ CREATE TABLE IF NOT EXISTS students (
     id INT AUTO_INCREMENT PRIMARY KEY,
     roll_no VARCHAR(50) NOT NULL,
     name VARCHAR(150) NOT NULL,
+    user_id INT NULL,
+    username VARCHAR(100) NULL,
     class VARCHAR(100) NULL,
     class_id INT NULL,
     email VARCHAR(150) NULL,
@@ -178,7 +180,7 @@ INSERT IGNORE INTO classes (id, name, class_name, section, teacher_id, status) V
 (2, 'Grade 10B', 'Grade 10B', 'B', 2, 'Active'),
 (3, 'Grade 12', 'Grade 12', 'A', 2, 'Active');
 
-INSERT IGNORE INTO students (roll_no, name, class, class_id, email, phone, status) VALUES
-('STU001', 'Rahul Sharma', 'Grade 10A', 1, 'rahul@school.com', '+1 234 567 8900', 'Active'),
-('STU002', 'Priya Verma', 'Grade 10B', 2, 'priya@school.com', '+1 234 567 8901', 'Active'),
-('STU003', 'Amit Kumar', 'Grade 12', 3, 'amit@school.com', '+1 234 567 8902', 'Active');
+INSERT IGNORE INTO students (roll_no, name, user_id, username, class, class_id, email, phone, status) VALUES
+('STU001', 'Rahul Sharma', 3, 'student1', 'Grade 10A', 1, 'rahul@school.com', '+1 234 567 8900', 'Active'),
+('STU002', 'Priya Verma', NULL, 'stu002', 'Grade 10B', 2, 'priya@school.com', '+1 234 567 8901', 'Active'),
+('STU003', 'Amit Kumar', NULL, 'stu003', 'Grade 12', 3, 'amit@school.com', '+1 234 567 8902', 'Active');

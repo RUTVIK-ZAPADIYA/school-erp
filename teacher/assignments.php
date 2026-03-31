@@ -1,131 +1,280 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
-// Define assignment query
-$sql_assignments = "SELECT a.id, a.title, a.description, a.due_date, a.total_points, a.created_at, a.class_id, a.subject_id,
-                    c.name as class_name, s.name as subject_name,
-                    (SELECT COUNT(*) FROM students WHERE class_id = a.class_id) as total_students,
-                    (SELECT COUNT(*) FROM assignment_submissions WHERE assignment_id = a.id) as submissions
-                    FROM assignments a
-                    JOIN classes c ON a.class_id = c.id
-                    JOIN subjects s ON a.subject_id = s.id
-                    WHERE a.teacher_id = $teacher_id
-                    ORDER BY a.created_at DESC";
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
+$assignmentPointsColumn = teacher_first_existing_column($conn, 'assignments', ['total_points', 'total_marks']) ?? 'total_points';
+$assignmentOrderColumn = teacher_column_exists($conn, 'assignments', 'created_at') ? 'a.created_at' : 'a.id';
+
+function teacher_is_valid_date($value)
+{
+  return is_string($value) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $value) === 1;
+}
+
+function teacher_class_owner_id($conn, $classId, array $teacherIds)
+{
+  if ($classId <= 0 || empty($teacherIds) || !teacher_column_exists($conn, 'classes', 'teacher_id')) {
+    return 0;
+  }
+
+  if (function_exists('teacher_auth_class_owner_id')) {
+    return teacher_auth_class_owner_id($conn, $classId, $teacherIds);
+  }
+
+  $safeTeacherIds = array_values(array_unique(array_filter(array_map('intval', $teacherIds), function ($id) {
+    return $id > 0;
+  })));
+  if (empty($safeTeacherIds)) {
+    return 0;
+  }
+  $teacherIdSql = implode(',', $safeTeacherIds);
+
+  $stmt = $conn->prepare( "SELECT teacher_id FROM classes WHERE id = ? AND teacher_id IN ({$teacherIdSql}) LIMIT 1");
+  if (!$stmt) {
+    return 0;
+  }
+
+  $stmt->bind_param( 'i', $classId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
+
+  return (int) ($row['teacher_id'] ?? 0);
+}
+
+function teacher_subject_exists($conn, $subjectId)
+{
+  if ($subjectId <= 0) {
+    return false;
+  }
+
+  $stmt = $conn->prepare( 'SELECT id FROM subjects WHERE id = ? LIMIT 1');
+  if (!$stmt) {
+    return false;
+  }
+
+  $stmt->bind_param( 'i', $subjectId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $exists = $result && $result->num_rows > 0;
+  $stmt->close();
+
+  return $exists;
+}
 
 // Handle assignment creation
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['create_assignment'])) {
-    $title = isset($_POST['title']) ? mysqli_real_escape_string($conn, $_POST['title']) : '';
-    $description = isset($_POST['description']) ? mysqli_real_escape_string($conn, $_POST['description']) : '';
-    $class_id = isset($_POST['class_id']) ? (int)$_POST['class_id'] : 0;
-    $subject_id = isset($_POST['subject_id']) ? (int)$_POST['subject_id'] : 0;
-    $due_date = isset($_POST['due_date']) ? $_POST['due_date'] : '';
-    $points = isset($_POST['points']) ? (int)$_POST['points'] : 100;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment'])) {
+  $title = trim((string) ($_POST['title'] ?? ''));
+  $description = trim((string) ($_POST['description'] ?? ''));
+  $class_id = isset($_POST['class_id']) ? (int) $_POST['class_id'] : 0;
+  $subject_id = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : 0;
+  $due_date = trim((string) ($_POST['due_date'] ?? ''));
+  $points = isset($_POST['points']) ? (int) $_POST['points'] : 100;
+  $class_owner_id = 0;
 
-    if (!empty($title) && !empty($class_id) && !empty($subject_id) && !empty($due_date)) {
-        $sql = "INSERT INTO assignments (title, description, teacher_id, class_id, subject_id, due_date, total_points, created_at)
-                VALUES ('$title', '$description', $teacher_id, $class_id, $subject_id, '$due_date', $points, NOW())";
+  if ($title === '' || $class_id <= 0 || $subject_id <= 0 || !teacher_is_valid_date($due_date)) {
+    $error = 'Please fill in all required fields with valid values.';
+  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+    $error = 'Selected class is not assigned to your account.';
+  } elseif (!teacher_subject_exists($conn, $subject_id)) {
+    $error = 'Selected subject was not found.';
+  } else {
+    $safePoints = max(1, $points);
+    $insertSql = "INSERT INTO assignments (title, description, teacher_id, class_id, subject_id, due_date, {$assignmentPointsColumn}, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
+    $stmt = $conn->prepare( $insertSql);
 
-        if (mysqli_query($conn, $sql)) {
-            $success = "Assignment created successfully!";
-            // Redirect to prevent form resubmission
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        } else {
-            $error = "Error creating assignment: " . mysqli_error($conn);
-        }
+    if (!$stmt) {
+      $error = 'Unable to create assignment right now.';
     } else {
-        $error = "Please fill in all required fields.";
+      $stmt->bind_param( 'ssiiisi', $title, $description, $class_owner_id, $class_id, $subject_id, $due_date, $safePoints);
+      if ($stmt->execute()) {
+        $stmt->close();
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit();
+      }
+      $error = 'Error creating assignment: ' . $conn->error;
+      $stmt->close();
     }
+  }
 }
 
 // Handle assignment deletion
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['delete_assignment'])) {
-    $assignment_id = isset($_POST['assignment_id']) ? (int)$_POST['assignment_id'] : 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_assignment'])) {
+  $assignment_id = isset($_POST['assignment_id']) ? (int) $_POST['assignment_id'] : 0;
 
-    if ($assignment_id > 0) {
-        // First delete related submissions
-        $sql_delete_submissions = "DELETE FROM assignment_submissions WHERE assignment_id = $assignment_id";
-        mysqli_query($conn, $sql_delete_submissions);
+  if ($assignment_id > 0) {
+    $ownsStmt = $conn->prepare( "SELECT id FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
+    if (!$ownsStmt) {
+      $error = 'Unable to validate assignment ownership.';
+    } else {
+      $ownsStmt->bind_param( 'i', $assignment_id);
+      $ownsStmt->execute();
+      $ownsResult = $ownsStmt->get_result();
+      $isOwner = $ownsResult && $ownsResult->num_rows > 0;
+      $ownsStmt->close();
 
-        // Then delete the assignment
-        $sql_delete = "DELETE FROM assignments WHERE id = $assignment_id AND teacher_id = $teacher_id";
-        if (mysqli_query($conn, $sql_delete)) {
-            $success = "Assignment deleted successfully!";
-            // Redirect to prevent form resubmission
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        } else {
-            $error = "Error deleting assignment: " . mysqli_error($conn);
+      if (!$isOwner) {
+        $error = 'Assignment not found or not assigned to your account.';
+      } else {
+        $deleteSubStmt = $conn->prepare( 'DELETE FROM assignment_submissions WHERE assignment_id = ?');
+        if ($deleteSubStmt) {
+          $deleteSubStmt->bind_param( 'i', $assignment_id);
+          $deleteSubStmt->execute();
+          $deleteSubStmt->close();
         }
+
+        $deleteStmt = $conn->prepare( "DELETE FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})");
+        if ($deleteStmt) {
+          $deleteStmt->bind_param( 'i', $assignment_id);
+          if ($deleteStmt->execute()) {
+            $deleteStmt->close();
+            header('Location: ' . $_SERVER['PHP_SELF']);
+            exit();
+          }
+          $error = 'Error deleting assignment: ' . $conn->error;
+          $deleteStmt->close();
+        } else {
+          $error = 'Unable to delete assignment right now.';
+        }
+      }
     }
+  } else {
+    $error = 'Invalid assignment selected for deletion.';
+  }
 }
 
 // Handle assignment editing
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_assignment'])) {
-    $assignment_id = isset($_POST['assignment_id']) ? (int)$_POST['assignment_id'] : 0;
-    $title = isset($_POST['edit_title']) ? mysqli_real_escape_string($conn, $_POST['edit_title']) : '';
-    $description = isset($_POST['edit_description']) ? mysqli_real_escape_string($conn, $_POST['edit_description']) : '';
-    $class_id = isset($_POST['edit_class_id']) ? (int)$_POST['edit_class_id'] : 0;
-    $subject_id = isset($_POST['edit_subject_id']) ? (int)$_POST['edit_subject_id'] : 0;
-    $due_date = isset($_POST['edit_due_date']) ? $_POST['edit_due_date'] : '';
-    $points = isset($_POST['edit_points']) ? (int)$_POST['edit_points'] : 100;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_assignment'])) {
+  $assignment_id = isset($_POST['assignment_id']) ? (int) $_POST['assignment_id'] : 0;
+  $title = trim((string) ($_POST['edit_title'] ?? ''));
+  $description = trim((string) ($_POST['edit_description'] ?? ''));
+  $class_id = isset($_POST['edit_class_id']) ? (int) $_POST['edit_class_id'] : 0;
+  $subject_id = isset($_POST['edit_subject_id']) ? (int) $_POST['edit_subject_id'] : 0;
+  $due_date = trim((string) ($_POST['edit_due_date'] ?? ''));
+  $points = isset($_POST['edit_points']) ? (int) $_POST['edit_points'] : 100;
+  $class_owner_id = 0;
 
-    if (!empty($title) && !empty($class_id) && !empty($subject_id) && !empty($due_date) && $assignment_id > 0) {
-        $sql = "UPDATE assignments SET
-                title = '$title',
-                description = '$description',
-                class_id = $class_id,
-                subject_id = $subject_id,
-                due_date = '$due_date',
-                total_points = $points
-                WHERE id = $assignment_id AND teacher_id = $teacher_id";
+  if ($assignment_id <= 0 || $title === '' || $class_id <= 0 || $subject_id <= 0 || !teacher_is_valid_date($due_date)) {
+    $error = 'Please fill in all required fields with valid values.';
+  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+    $error = 'Selected class is not assigned to your account.';
+  } elseif (!teacher_subject_exists($conn, $subject_id)) {
+    $error = 'Selected subject was not found.';
+  } else {
+    $safePoints = max(1, $points);
+    $updateSql = "UPDATE assignments
+            SET title = ?, description = ?, class_id = ?, subject_id = ?, due_date = ?, {$assignmentPointsColumn} = ?, teacher_id = ?
+            WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})";
+    $stmt = $conn->prepare( $updateSql);
 
-        if (mysqli_query($conn, $sql)) {
-            $success = "Assignment updated successfully!";
-            // Redirect to prevent form resubmission
-            header("Location: " . $_SERVER['PHP_SELF']);
-            exit();
-        } else {
-            $error = "Error updating assignment: " . mysqli_error($conn);
-        }
+    if (!$stmt) {
+      $error = 'Unable to update assignment right now.';
     } else {
-        $error = "Please fill in all required fields.";
+      $stmt->bind_param( 'ssiisiii', $title, $description, $class_id, $subject_id, $due_date, $safePoints, $class_owner_id, $assignment_id);
+      if ($stmt->execute()) {
+        $stmt->close();
+        header('Location: ' . $_SERVER['PHP_SELF']);
+        exit();
+      }
+      $error = 'Error updating assignment: ' . $conn->error;
+      $stmt->close();
     }
+  }
 }
 
 // Get assignments for the teacher
-$result_assignments = mysqli_query($conn, $sql_assignments);
 $assignments = [];
-while ($row = mysqli_fetch_assoc($result_assignments)) {
-    $assignments[] = $row;
+if (teacher_table_exists($conn, 'assignments') && teacher_table_exists($conn, 'classes') && teacher_table_exists($conn, 'subjects')) {
+  $classNameExpr = $classNameColumn !== null ? "c.`{$classNameColumn}`" : "''";
+  $subjectNameExpr = $subjectNameColumn !== null ? "s.`{$subjectNameColumn}`" : "''";
+
+  $sql_assignments = "SELECT a.id, a.title, a.description, a.due_date, a.{$assignmentPointsColumn} AS total_points,
+                 a.created_at, a.class_id, a.subject_id,
+                 {$classNameExpr} AS class_name, {$subjectNameExpr} AS subject_name,
+              (SELECT COUNT(*) FROM students st
+                WHERE st.class_id = a.class_id
+                  OR LOWER(REPLACE(REPLACE(TRIM(COALESCE(st.`class`, '')), ' ', ''), '-', '')) =
+                    LOWER(REPLACE(REPLACE(TRIM(COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))), ' ', ''), '-', ''))
+              ) AS total_students,
+                 (SELECT COUNT(*) FROM assignment_submissions sub WHERE sub.assignment_id = a.id) AS submissions
+            FROM assignments a
+            INNER JOIN classes c ON a.class_id = c.id
+            INNER JOIN subjects s ON a.subject_id = s.id
+            WHERE a.teacher_id IN ({$teacher_ids_sql})
+            ORDER BY {$assignmentOrderColumn} DESC";
+  $result_assignments = $conn->query( $sql_assignments);
+  if ($result_assignments) {
+    while ($row = $result_assignments->fetch_assoc()) {
+      $assignments[] = $row;
+    }
+  }
 }
 
 // Get classes and subjects for form
-$sql_classes = "SELECT id, name FROM classes WHERE teacher_id = $teacher_id";
-$result_classes = mysqli_query($conn, $sql_classes);
 $classes = [];
-while ($row = mysqli_fetch_assoc($result_classes)) {
-    $classes[] = $row;
+if ($classNameColumn !== null && teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'classes', 'teacher_id')) {
+  $sql_classes = "SELECT id, `{$classNameColumn}` AS name FROM classes WHERE teacher_id IN ({$teacher_ids_sql}) ORDER BY `{$classNameColumn}` ASC";
+  $result_classes = $conn->query( $sql_classes);
+  if ($result_classes) {
+    while ($row = $result_classes->fetch_assoc()) {
+      $classes[] = $row;
+    }
+  }
 }
 
-$sql_subjects = "SELECT id, name FROM subjects";
-$result_subjects = mysqli_query($conn, $sql_subjects);
 $subjects = [];
-while ($row = mysqli_fetch_assoc($result_subjects)) {
-    $subjects[] = $row;
+if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
+  $sql_subjects = "SELECT id, `{$subjectNameColumn}` AS name FROM subjects ORDER BY `{$subjectNameColumn}` ASC";
+  $result_subjects = $conn->query( $sql_subjects);
+  if ($result_subjects) {
+    while ($row = $result_subjects->fetch_assoc()) {
+      $subjects[] = $row;
+    }
+  }
 }
 ?>
 <!DOCTYPE html>

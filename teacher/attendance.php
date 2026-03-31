@@ -1,105 +1,304 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+function teacher_class_owner_id($conn, $classId, array $teacherIds)
+{
+  if ($classId <= 0 || empty($teacherIds) || !teacher_column_exists($conn, 'classes', 'teacher_id')) {
+    return 0;
+  }
+
+  if (function_exists('teacher_auth_class_owner_id')) {
+    return teacher_auth_class_owner_id($conn, $classId, $teacherIds);
+  }
+
+  $safeTeacherIds = array_values(array_unique(array_filter(array_map('intval', $teacherIds), function ($id) {
+    return $id > 0;
+  })));
+  if (empty($safeTeacherIds)) {
+    return 0;
+  }
+  $teacherIdSql = implode(',', $safeTeacherIds);
+
+  $stmt = $conn->prepare( "SELECT teacher_id FROM classes WHERE id = ? AND teacher_id IN ({$teacherIdSql}) LIMIT 1");
+  if (!$stmt) {
+    return 0;
+  }
+
+  $stmt->bind_param( 'i', $classId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
+
+  return (int) ($row['teacher_id'] ?? 0);
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
+$attendanceDateColumn = teacher_first_existing_column($conn, 'attendance', ['date', 'attendance_date']);
+$attendanceHasSubject = teacher_column_exists($conn, 'attendance', 'subject_id');
+$attendanceHasTeacher = teacher_column_exists($conn, 'attendance', 'teacher_id');
+$attendanceHasClass = teacher_column_exists($conn, 'attendance', 'class_id');
+$attendanceHasStatus = teacher_column_exists($conn, 'attendance', 'status');
+$studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
 
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_attendance'])) {
-    $class_id = isset($_POST['class_id']) ? (int)$_POST['class_id'] : 0;
-    $date = isset($_POST['date']) ? $_POST['date'] : date('Y-m-d');
-    $subject_id = isset($_POST['subject_id']) ? (int)$_POST['subject_id'] : 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
+  $class_id = isset($_POST['class_id']) ? (int) $_POST['class_id'] : 0;
+  $subject_id = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : 0;
+  $dateInput = trim((string) ($_POST['date'] ?? date('Y-m-d')));
+  $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateInput) ? $dateInput : date('Y-m-d');
+  $class_owner_id = 0;
 
-    if ($class_id > 0 && $subject_id > 0) {
-        // Get students in the class
-        $sql_students = "SELECT id, roll_no, name FROM students WHERE class_id = $class_id";
-        $result_students = mysqli_query($conn, $sql_students);
+  if ($class_id <= 0) {
+    $error = 'Please select a class.';
+  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+    $error = 'Selected class is not assigned to your account.';
+  } elseif ($attendanceDateColumn === null) {
+    $error = 'Attendance date column is not available in the database.';
+  } elseif (!$attendanceHasStatus) {
+    $error = 'Attendance status column is not available in the database.';
+  } elseif ($attendanceHasSubject && $subject_id <= 0) {
+    $error = 'Please select a subject.';
+  } else {
+    $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
+    $studentClassWhere = teacher_auth_student_class_where_sql($conn, 'students', $class_id, $selectedClassLabel);
+    $sqlStudents = "SELECT id FROM students WHERE {$studentClassWhere}";
+    $resultStudents = $conn->query( $sqlStudents);
 
-        if ($result_students) {
-            while ($student = mysqli_fetch_assoc($result_students)) {
-                $student_id = $student['id'];
-                $status = isset($_POST['attendance'][$student_id]) ? $_POST['attendance'][$student_id] : 'absent';
+    if ($resultStudents) {
+      $safeDate = $conn->real_escape_string( $date);
+      $savedCount = 0;
+      $failedCount = 0;
+      $lastSqlError = '';
 
-                // Insert or update attendance
-                $sql_check = "SELECT id FROM attendance WHERE student_id = $student_id AND date = '$date' AND subject_id = $subject_id";
-                $result_check = mysqli_query($conn, $sql_check);
-
-                if ($result_check && mysqli_num_rows($result_check) > 0) {
-                    // Update existing
-                    $sql = "UPDATE attendance SET status = '$status', teacher_id = $teacher_id
-                            WHERE student_id = $student_id AND date = '$date' AND subject_id = $subject_id";
-                } else {
-                    // Insert new
-                    $sql = "INSERT INTO attendance (student_id, date, status, subject_id, teacher_id)
-                            VALUES ($student_id, '$date', '$status', $subject_id, $teacher_id)";
-                }
-                mysqli_query($conn, $sql);
-            }
-            $success = "Attendance saved successfully!";
-        } else {
-            $error = "Error retrieving students.";
+      while ($student = $resultStudents->fetch_assoc()) {
+        $student_id = (int) ($student['id'] ?? 0);
+        if ($student_id <= 0) {
+          continue;
         }
+
+        $statusInput = strtolower(trim((string) ($_POST['attendance'][$student_id] ?? 'absent')));
+        $status = in_array($statusInput, ['present', 'absent', 'late'], true) ? $statusInput : 'absent';
+
+        $whereSql = "student_id = {$student_id} AND `{$attendanceDateColumn}` = '{$safeDate}'";
+        if ($attendanceHasClass) {
+          $whereSql .= " AND COALESCE(NULLIF(class_id, 0), {$class_id}) = {$class_id}";
+        }
+        if ($attendanceHasSubject) {
+          $whereSql .= " AND subject_id = {$subject_id}";
+        }
+
+        $checkSql = "SELECT id FROM attendance WHERE {$whereSql} LIMIT 1";
+        $checkResult = $conn->query( $checkSql);
+
+        if ($checkResult && $checkResult->num_rows > 0) {
+          $updateParts = ["status = '{$status}'"];
+          if ($attendanceHasTeacher) {
+            $updateParts[] = "teacher_id = {$class_owner_id}";
+          }
+          if ($attendanceHasClass) {
+            $updateParts[] = "class_id = {$class_id}";
+          }
+
+          $sql = 'UPDATE attendance SET ' . implode(', ', $updateParts) . " WHERE {$whereSql}";
+        } else {
+          $insertColumns = ['student_id', "`{$attendanceDateColumn}`", 'status'];
+          $insertValues = [$student_id, "'{$safeDate}'", "'{$status}'"];
+
+          if ($attendanceHasTeacher) {
+            $insertColumns[] = 'teacher_id';
+            $insertValues[] = $class_owner_id;
+          }
+
+          if ($attendanceHasClass) {
+            $insertColumns[] = 'class_id';
+            $insertValues[] = $class_id;
+          }
+
+          if ($attendanceHasSubject) {
+            $insertColumns[] = 'subject_id';
+            $insertValues[] = $subject_id;
+          }
+
+          $sql = 'INSERT INTO attendance (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
+        }
+
+        if ($conn->query( $sql)) {
+          $savedCount++;
+        } else {
+          $failedCount++;
+          if ($lastSqlError === '') {
+            $lastSqlError = (string) $conn->error;
+          }
+        }
+      }
+
+      if ($savedCount > 0 && $failedCount === 0) {
+        $success = 'Attendance saved successfully!';
+      } elseif ($savedCount > 0) {
+        $error = 'Attendance saved partially. Some records could not be saved.';
+        if ($lastSqlError !== '') {
+          $error .= ' Details: ' . $lastSqlError;
+        }
+      } else {
+        $error = 'Unable to save attendance right now.';
+        if ($lastSqlError !== '') {
+          $error .= ' Details: ' . $lastSqlError;
+        }
+      }
     } else {
-        $error = "Please select class and subject.";
+      $error = 'Error retrieving students for the selected class.';
     }
+  }
 }
 
 // Get classes for the teacher
-$sql_classes = "SELECT id, name FROM classes WHERE teacher_id = $teacher_id";
-$result_classes = mysqli_query($conn, $sql_classes);
 $classes = [];
-while ($row = mysqli_fetch_assoc($result_classes)) {
-    $classes[] = $row;
+if ($classNameColumn !== null && teacher_column_exists($conn, 'classes', 'teacher_id')) {
+  $sql_classes = "SELECT id, {$classNameColumn} AS name FROM classes WHERE teacher_id IN ({$teacher_ids_sql}) ORDER BY {$classNameColumn} ASC";
+  $result_classes = $conn->query( $sql_classes);
+  if ($result_classes) {
+    while ($row = $result_classes->fetch_assoc()) {
+      $classes[] = $row;
+    }
+  }
 }
 
 // Get subjects
-$sql_subjects = "SELECT id, name FROM subjects";
-$result_subjects = mysqli_query($conn, $sql_subjects);
 $subjects = [];
-while ($row = mysqli_fetch_assoc($result_subjects)) {
-    $subjects[] = $row;
+if ($subjectNameColumn !== null) {
+  $sql_subjects = "SELECT id, {$subjectNameColumn} AS name FROM subjects ORDER BY {$subjectNameColumn} ASC";
+  $result_subjects = $conn->query( $sql_subjects);
+  if ($result_subjects) {
+    while ($row = $result_subjects->fetch_assoc()) {
+      $subjects[] = $row;
+    }
+  }
 }
 
 // Default class and subject for display
-$selected_class = $_POST['class_id'] ?? ($classes[0]['id'] ?? 1);
-$selected_date = $_POST['date'] ?? date('Y-m-d');
-$selected_subject = $_POST['subject_id'] ?? ($subjects[0]['id'] ?? 1);
+$selected_class = isset($_POST['class_id']) ? (int) $_POST['class_id'] : (int) ($classes[0]['id'] ?? 0);
+$selected_subject = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : (int) ($subjects[0]['id'] ?? 0);
+$selectedDateInput = trim((string) ($_POST['date'] ?? date('Y-m-d')));
+$selected_date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $selectedDateInput) ? $selectedDateInput : date('Y-m-d');
+$selected_class_owner_id = teacher_class_owner_id($conn, $selected_class, $teacher_owner_ids);
 
-// Get students for selected class with attendance data
-$sql_students = "SELECT s.id, s.roll_no, s.name,
-                        COALESCE(a.status, 'unmarked') as attendance_status
-                 FROM students s
-                 LEFT JOIN attendance a ON s.id = a.student_id
-                     AND a.date = '$selected_date'
-                     AND a.subject_id = $selected_subject
-                 WHERE s.class_id = $selected_class
-                 ORDER BY s.roll_no";
-$result_students = mysqli_query($conn, $sql_students);
-$students = [];
-while ($row = mysqli_fetch_assoc($result_students)) {
-    $students[] = $row;
+if ($selected_class_owner_id <= 0) {
+  $selected_class = (int) ($classes[0]['id'] ?? 0);
+  $selected_class_owner_id = teacher_class_owner_id($conn, $selected_class, $teacher_owner_ids);
 }
 
-// Get attendance statistics
-$sql_stats = "SELECT
-    COUNT(*) as total_students,
-    SUM(CASE WHEN attendance_status = 'present' THEN 1 ELSE 0 END) as present_count,
-    SUM(CASE WHEN attendance_status = 'absent' THEN 1 ELSE 0 END) as absent_count,
-    SUM(CASE WHEN attendance_status = 'late' THEN 1 ELSE 0 END) as late_count,
-    SUM(CASE WHEN attendance_status = 'unmarked' THEN 1 ELSE 0 END) as unmarked_count
-    FROM ($sql_students) as stats";
-$result_stats = mysqli_query($conn, $sql_stats);
-$stats = mysqli_fetch_assoc($result_stats);
+$students = [];
+$stats = [
+  'total_students' => 0,
+  'present_count' => 0,
+  'absent_count' => 0,
+  'late_count' => 0,
+  'unmarked_count' => 0,
+];
+
+// Get students for selected class with attendance data
+if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists($conn, 'students', 'name')) {
+  $safeDate = $conn->real_escape_string( $selected_date);
+  $selectedClassLabel = teacher_auth_class_label_by_id($conn, $selected_class);
+  $studentClassWhere = teacher_auth_student_class_where_sql($conn, 's', $selected_class, $selectedClassLabel);
+  $rollSelectSql = $studentRollColumn !== null ? "s.`{$studentRollColumn}` AS roll_no" : "'' AS roll_no";
+  $orderBySql = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
+
+  $attendanceStatusSql = "'unmarked' AS attendance_status";
+  $attendanceJoinSql = '';
+
+  if (teacher_table_exists($conn, 'attendance') && $attendanceDateColumn !== null) {
+    $joinParts = [
+      's.id = a.student_id',
+      "a.`{$attendanceDateColumn}` = '{$safeDate}'",
+    ];
+
+    if ($attendanceHasClass) {
+      $joinParts[] = "COALESCE(NULLIF(a.class_id, 0), {$selected_class}) = {$selected_class}";
+    }
+
+    if ($attendanceHasSubject && $selected_subject > 0) {
+      $joinParts[] = "a.subject_id = {$selected_subject}";
+    }
+
+    $attendanceJoinSql = 'LEFT JOIN attendance a ON ' . implode(' AND ', $joinParts);
+    $attendanceStatusSql = "COALESCE(a.status, 'unmarked') AS attendance_status";
+  }
+
+  $sql_students = "SELECT s.id, {$rollSelectSql}, s.name, {$attendanceStatusSql}
+           FROM students s
+           {$attendanceJoinSql}
+           WHERE {$studentClassWhere}
+           ORDER BY {$orderBySql}";
+  $result_students = $conn->query( $sql_students);
+
+  if ($result_students) {
+    while ($row = $result_students->fetch_assoc()) {
+      $students[] = $row;
+    }
+  } else {
+    $error = 'Unable to load students for attendance.';
+  }
+}
+
+// Get attendance statistics from loaded rows (prevents SQL subquery failures)
+$stats['total_students'] = count($students);
+foreach ($students as $studentRow) {
+  $status = strtolower((string) ($studentRow['attendance_status'] ?? 'unmarked'));
+  if ($status === 'present') {
+    $stats['present_count']++;
+  } elseif ($status === 'absent') {
+    $stats['absent_count']++;
+  } elseif ($status === 'late') {
+    $stats['late_count']++;
+  } else {
+    $stats['unmarked_count']++;
+  }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">

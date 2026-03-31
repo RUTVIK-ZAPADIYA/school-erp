@@ -1,8 +1,11 @@
 <?php
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-    header("Location: ../login.php");
-    exit();
-}
+require_once __DIR__ . '/auth.php';
+
+$teacherDisplayName = (string) ($_SESSION['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+$teacherNameParts = preg_split('/\s+/', trim($teacherDisplayName));
+$teacherLastName = !empty($teacherNameParts)
+  ? (string) $teacherNameParts[count($teacherNameParts) - 1]
+  : 'Teacher';
 
 // Get current page filename
 $current_page = basename($_SERVER['PHP_SELF']);
@@ -55,7 +58,7 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <div class="flex items-center gap-3">
 <img class="w-8 h-8 rounded-full border border-white pro-shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxCF91fzs4syUOEI8L1TUsGleLRbNUMIwGSFUecqRsERsOYGwgFl7y350ienCTSOf5Rr3PG1_OL4qIoE4FYgA7iyPm4VW9YaZDsKsHsITgkx7vQ0A5L_vHI7OQMp2_PxdBu3s5uWA7HEryDOub9rCkTqxzjxeieF73fRbuPNHsmJkhZS8szK-OGH1QL6K_6A6ZATs2Tnn10r4YVI8SObS8qpWXPCP8-z5Yxfuf1O5AUzyIQlamKn0oz9DQfIoStOSqgr9KiTjZssI"/>
 <div>
-<p class="text-[11px] font-bold text-on-surface">Prof. <?php echo explode(' ', $_SESSION['name'])[1] ?? 'Patel'; ?></p>
+<p class="text-[11px] font-bold text-on-surface">Prof. <?php echo htmlspecialchars($teacherLastName); ?></p>
 <p class="text-[10px] text-on-surface-variant">Top Innovator '23</p>
 </div>
 </div>

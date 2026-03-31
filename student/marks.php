@@ -1,18 +1,9 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-// Include database connection
-include '../includes/db_connect.php';
-
-$student_id = $_SESSION['student_id'];
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['student_id'] ?? 0);
+$studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get marks records
 $marks_records = [];
@@ -23,25 +14,33 @@ $highest = 0;
 $lowest = 100;
 
 try {
-    $sql = "SELECT subject, total_marks, obtained_marks FROM marks WHERE student_id = ? ORDER BY subject ASC";
-    $stmt = mysqli_prepare($conn, $sql);
+  $sql = "SELECT subject, total_marks, obtained_marks FROM marks WHERE {$studentFilter['sql']} ORDER BY subject ASC";
+    $stmt = $conn->prepare( $sql);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $marks_records[] = $row;
-            $total_marks += $row['total_marks'];
-            $obtained_marks += $row['obtained_marks'];
-            $percentage = ($row['obtained_marks'] / $row['total_marks']) * 100;
-            if ($percentage > $highest) $highest = $percentage;
-            if ($percentage < $lowest) $lowest = $percentage;
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      while ($row = $result->fetch_assoc()) {
+        $marks_records[] = $row;
+        $total_marks += $row['total_marks'];
+        $obtained_marks += $row['obtained_marks'];
+
+        $recordTotalMarks = (float) ($row['total_marks'] ?? 0);
+        $recordObtainedMarks = (float) ($row['obtained_marks'] ?? 0);
+        $percentage = $recordTotalMarks > 0 ? ($recordObtainedMarks / $recordTotalMarks) * 100 : 0;
+        if ($percentage > $highest) $highest = $percentage;
+        if ($percentage < $lowest) $lowest = $percentage;
+      }
         }
-        mysqli_stmt_close($stmt);
+        $stmt->close();
 
         // Calculate average
-        if (count($marks_records) > 0) {
+        if (count($marks_records) > 0 && $total_marks > 0) {
             $average = round(($obtained_marks / $total_marks) * 100, 2);
+    } else {
+          $average = 0;
+      $lowest = 0;
         }
     }
 } catch (Exception $e) {
@@ -125,7 +124,9 @@ else $grade = 'C';
             <?php if (count($marks_records) > 0): ?>
               <?php foreach ($marks_records as $record): ?>
                 <?php
-                  $percentage = ($record['obtained_marks'] / $record['total_marks']) * 100;
+                  $recordTotalMarks = (float) ($record['total_marks'] ?? 0);
+                  $recordObtainedMarks = (float) ($record['obtained_marks'] ?? 0);
+                  $percentage = $recordTotalMarks > 0 ? ($recordObtainedMarks / $recordTotalMarks) * 100 : 0;
                   if ($percentage >= 90) $subject_grade = 'A+';
                   elseif ($percentage >= 80) $subject_grade = 'A';
                   elseif ($percentage >= 70) $subject_grade = 'B+';

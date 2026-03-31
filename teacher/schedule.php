@@ -1,45 +1,97 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
 
 // Get schedule for the teacher
-$sql_schedule = "SELECT s.day_of_week, s.start_time, s.end_time, s.room, c.name as class_name, sub.name as subject_name
-                 FROM schedule s
-                 JOIN classes c ON s.class_id = c.id
-                 JOIN subjects sub ON s.subject_id = sub.id
-                 WHERE s.teacher_id = $teacher_id
-                 ORDER BY FIELD(s.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'), s.start_time";
-$result_schedule = mysqli_query($conn, $sql_schedule);
+$result_schedule = false;
+if (
+  teacher_table_exists($conn, 'schedule')
+  && teacher_table_exists($conn, 'classes')
+  && teacher_table_exists($conn, 'subjects')
+  && teacher_column_exists($conn, 'schedule', 'teacher_id')
+  && teacher_column_exists($conn, 'schedule', 'class_id')
+  && teacher_column_exists($conn, 'schedule', 'subject_id')
+) {
+  $classNameExpr = $classNameColumn !== null ? "c.`{$classNameColumn}`" : "CONCAT('Class ', c.id)";
+  $subjectNameExpr = $subjectNameColumn !== null ? "sub.`{$subjectNameColumn}`" : "CONCAT('Subject ', sub.id)";
+  $sql_schedule = "SELECT s.day_of_week, s.start_time, s.end_time, s.room,
+              {$classNameExpr} AS class_name,
+              {$subjectNameExpr} AS subject_name
+           FROM schedule s
+           INNER JOIN classes c ON s.class_id = c.id
+           INNER JOIN subjects sub ON s.subject_id = sub.id
+           WHERE s.teacher_id IN ({$teacher_ids_sql})
+           ORDER BY FIELD(s.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'), s.start_time";
+  $result_schedule = $conn->query( $sql_schedule);
+}
 
 // Organize schedule by day and time
 $schedule_data = [];
 $days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 
-while ($row = mysqli_fetch_assoc($result_schedule)) {
-    $day = $row['day_of_week'];
-    $time_slot = date('H:i', strtotime($row['start_time'])) . ' - ' . date('H:i', strtotime($row['end_time']));
+while ($result_schedule && ($row = $result_schedule->fetch_assoc())) {
+  $day = (string) ($row['day_of_week'] ?? '');
+  $startTime = (string) ($row['start_time'] ?? '');
+  $endTime = (string) ($row['end_time'] ?? '');
+  if ($day === '' || $startTime === '' || $endTime === '') {
+    continue;
+  }
 
-    if (!isset($schedule_data[$day])) {
-        $schedule_data[$day] = [];
-    }
+  $time_slot = date('H:i', strtotime($startTime)) . ' - ' . date('H:i', strtotime($endTime));
 
-    $schedule_data[$day][$time_slot] = [
-        'subject' => $row['subject_name'],
-        'class' => $row['class_name'],
-        'room' => $row['room']
-    ];
+  if (!isset($schedule_data[$day])) {
+    $schedule_data[$day] = [];
+  }
+
+  $schedule_data[$day][$time_slot] = [
+    'subject' => (string) ($row['subject_name'] ?? 'N/A'),
+    'class' => (string) ($row['class_name'] ?? 'N/A'),
+    'room' => (string) ($row['room'] ?? '-')
+  ];
 }
 
 // Get today's schedule

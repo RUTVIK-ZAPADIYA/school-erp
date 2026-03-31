@@ -1,26 +1,164 @@
 <?php
 require_once __DIR__ . '/auth.php';
-include '../dbconfig.php';
+require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/db_helpers.php';
+
+$connection = $conn ?? null;
+
+if (!($connection instanceof mysqli)) {
+  die('Database connection is not available.');
+}
 
 admin_ensure_column($connection, 'teachers', 'experience', 'INT NULL');
 admin_ensure_column($connection, 'teachers', 'qualification', "VARCHAR(150) NULL");
+admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $teacherId = (int) ($_POST['teacher_id'] ?? 0);
 
   if ($teacherId > 0) {
-    $deleteStmt = mysqli_prepare($connection, 'DELETE FROM teachers WHERE id = ?');
-    if ($deleteStmt) {
-      mysqli_stmt_bind_param($deleteStmt, 'i', $teacherId);
-      if (mysqli_stmt_execute($deleteStmt)) {
-        admin_set_flash('success', 'Teacher deleted successfully.');
-      } else {
-        admin_set_flash('danger', 'Unable to delete teacher right now.');
-      }
-      mysqli_stmt_close($deleteStmt);
+    $deleteError = '';
+    $teacherProfile = null;
+    $linkedUserId = 0;
+    $referenceTeacherIds = [];
+    $transactionStarted = false;
+
+    $teacherStmt = $connection->prepare( 'SELECT * FROM teachers WHERE id = ? LIMIT 1');
+    if ($teacherStmt) {
+      $teacherStmt->bind_param( 'i', $teacherId);
+      $teacherStmt->execute();
+      $teacherResult = $teacherStmt->get_result();
+      $teacherProfile = $teacherResult ? $teacherResult->fetch_assoc() : null;
+      $teacherStmt->close();
+    }
+
+    if (!$teacherProfile) {
+      $deleteError = 'Teacher record was not found.';
     } else {
-      admin_set_flash('danger', 'Unable to process delete request.');
+      if (admin_column_exists($connection, 'teachers', 'user_id')) {
+        $linkedUserId = (int) ($teacherProfile['user_id'] ?? 0);
+      }
+
+      if ($linkedUserId <= 0 && admin_table_exists($connection, 'users')) {
+        $lookupUsername = trim((string) ($teacherProfile['username'] ?? ''));
+        $lookupEmail = trim((string) ($teacherProfile['email'] ?? ''));
+
+        if ($lookupUsername !== '' || $lookupEmail !== '') {
+          $lookupStmt = $connection->prepare(
+            "SELECT id FROM users WHERE role = 'teacher' AND (username = ? OR email = ? OR username = ? OR email = ?) LIMIT 1"
+          );
+          if ($lookupStmt) {
+            $lookupStmt->bind_param( 'ssss', $lookupUsername, $lookupUsername, $lookupEmail, $lookupEmail);
+            $lookupStmt->execute();
+            $lookupResult = $lookupStmt->get_result();
+            $lookupRow = $lookupResult ? $lookupResult->fetch_assoc() : null;
+            if ($lookupRow) {
+              $linkedUserId = (int) ($lookupRow['id'] ?? 0);
+            }
+            $lookupStmt->close();
+          }
+        }
+      }
+
+      if ($linkedUserId <= 0 && admin_table_exists($connection, 'users')) {
+        $legacyUserStmt = $connection->prepare( "SELECT id FROM users WHERE id = ? AND role = 'teacher' LIMIT 1");
+        if ($legacyUserStmt) {
+          $legacyUserStmt->bind_param( 'i', $teacherId);
+          $legacyUserStmt->execute();
+          $legacyUserResult = $legacyUserStmt->get_result();
+          $legacyUserRow = $legacyUserResult ? $legacyUserResult->fetch_assoc() : null;
+          if ($legacyUserRow) {
+            $linkedUserId = (int) ($legacyUserRow['id'] ?? 0);
+          }
+          $legacyUserStmt->close();
+        }
+      }
+
+      $referenceTeacherIds[] = $teacherId;
+      if ($linkedUserId > 0 && $linkedUserId !== $teacherId) {
+        $referenceTeacherIds[] = $linkedUserId;
+      }
+    }
+
+    if ($deleteError === '' && $connection->begin_transaction()) {
+      $transactionStarted = true;
+    }
+
+    $nullifyTargets = [
+      ['classes', 'teacher_id', true],
+      ['subjects', 'teacher_id', true],
+      ['schedule', 'teacher_id', true],
+      ['attendance', 'teacher_id', true],
+      ['assignments', 'teacher_id', true],
+      ['grades', 'teacher_id', true],
+      ['marks', 'teacher_id', true],
+      ['exams', 'invigilator', true],
+    ];
+
+    foreach ($referenceTeacherIds as $referenceTeacherId) {
+      foreach ($nullifyTargets as $target) {
+        [$tableName, $columnName, $allowDeleteFallback] = $target;
+        $referenceError = '';
+        if (!admin_clear_reference($connection, $tableName, $columnName, $referenceTeacherId, $allowDeleteFallback, $referenceError)) {
+          $deleteError = 'Unable to clear related teacher data in ' . $tableName . '.';
+          if ($referenceError !== '') {
+            $deleteError .= ' ' . $referenceError;
+          }
+        }
+
+        if ($deleteError !== '') {
+          break;
+        }
+      }
+
+      if ($deleteError !== '') {
+        break;
+      }
+    }
+
+    if ($deleteError === '') {
+      $deleteStmt = $connection->prepare( 'DELETE FROM teachers WHERE id = ?');
+      if (!$deleteStmt) {
+        $deleteError = 'Unable to process delete request.';
+      } else {
+        $deleteStmt->bind_param( 'i', $teacherId);
+        if (!$deleteStmt->execute()) {
+          $deleteError = 'Unable to delete teacher right now.';
+        } elseif ($deleteStmt->affected_rows < 1) {
+          $deleteError = 'Teacher record was not found.';
+        }
+        $deleteStmt->close();
+      }
+    }
+
+    if ($deleteError === '' && $linkedUserId > 0 && admin_table_exists($connection, 'users')) {
+      $deleteUserStmt = $connection->prepare( "DELETE FROM users WHERE id = ? AND role = 'teacher' LIMIT 1");
+      if ($deleteUserStmt) {
+        $deleteUserStmt->bind_param( 'i', $linkedUserId);
+        if (!$deleteUserStmt->execute()) {
+          $deleteUserError = trim((string) $deleteUserStmt->error);
+          $deleteError = 'Unable to remove linked teacher login account right now.';
+          if ($deleteUserError !== '') {
+            $deleteError .= ' ' . $deleteUserError;
+          }
+        }
+        $deleteUserStmt->close();
+      }
+    }
+
+    if ($deleteError === '') {
+      if ($transactionStarted && !$connection->commit()) {
+        $deleteError = 'Unable to finalize teacher deletion. Please try again.';
+      }
+    }
+
+    if ($deleteError !== '') {
+      if ($transactionStarted) {
+        $connection->rollback();
+      }
+      admin_set_flash('danger', $deleteError);
+    } else {
+      admin_set_flash('success', 'Teacher deleted successfully.');
     }
   }
 
@@ -34,25 +172,24 @@ $teachers = [];
 if (admin_table_exists($connection, 'teachers')) {
   if ($search !== '') {
     $searchTerm = '%' . $search . '%';
-    $searchStmt = mysqli_prepare(
-      $connection,
-      'SELECT id, name, subject, email, phone, experience, status FROM teachers WHERE name LIKE ? OR subject LIKE ? OR email LIKE ? ORDER BY id DESC'
+    $searchStmt = $connection->prepare(
+      'SELECT id, name, username, subject, email, phone, experience, status FROM teachers WHERE name LIKE ? OR username LIKE ? OR subject LIKE ? OR email LIKE ? ORDER BY id DESC'
     );
     if ($searchStmt) {
-      mysqli_stmt_bind_param($searchStmt, 'sss', $searchTerm, $searchTerm, $searchTerm);
-      mysqli_stmt_execute($searchStmt);
-      $searchResult = mysqli_stmt_get_result($searchStmt);
+      $searchStmt->bind_param( 'ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+      $searchStmt->execute();
+      $searchResult = $searchStmt->get_result();
       if ($searchResult) {
-        while ($teacherRow = mysqli_fetch_assoc($searchResult)) {
+        while ($teacherRow = $searchResult->fetch_assoc()) {
           $teachers[] = $teacherRow;
         }
       }
-      mysqli_stmt_close($searchStmt);
+      $searchStmt->close();
     }
   } else {
-    $teacherResult = mysqli_query($connection, 'SELECT id, name, subject, email, phone, experience, status FROM teachers ORDER BY id DESC');
+    $teacherResult = $connection->query( 'SELECT id, name, username, subject, email, phone, experience, status FROM teachers ORDER BY id DESC');
     if ($teacherResult) {
-      while ($teacherRow = mysqli_fetch_assoc($teacherResult)) {
+      while ($teacherRow = $teacherResult->fetch_assoc()) {
         $teachers[] = $teacherRow;
       }
     }
@@ -109,7 +246,7 @@ $flash = admin_pull_flash();
             class="form-control"
             name="search"
             value="<?php echo htmlspecialchars($search); ?>"
-            placeholder="Search by teacher name, subject, or email">
+            placeholder="Search by teacher name, username, subject, or email">
         </form>
       </div>
 
@@ -119,6 +256,7 @@ $flash = admin_pull_flash();
             <tr>
               <th>Teacher ID</th>
               <th>Name</th>
+              <th>Username</th>
               <th>Subject</th>
               <th>Email</th>
               <th>Phone</th>
@@ -141,13 +279,16 @@ $flash = admin_pull_flash();
                 <tr>
                   <td><?php echo htmlspecialchars($teacherCode); ?></td>
                   <td><?php echo htmlspecialchars((string) ($teacher['name'] ?? '-')); ?></td>
+                  <td><?php echo htmlspecialchars((string) ($teacher['username'] ?? '-')); ?></td>
                   <td><?php echo htmlspecialchars((string) ($teacher['subject'] ?? '-')); ?></td>
                   <td><?php echo htmlspecialchars((string) ($teacher['email'] ?? '-')); ?></td>
                   <td><?php echo htmlspecialchars((string) ($teacher['phone'] ?? '-')); ?></td>
                   <td><?php echo htmlspecialchars($experience); ?></td>
                   <td><span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span></td>
                   <td>
-                    <a class="btn btn-sm btn-outline-primary" href="add-teacher.php"><i class="fas fa-plus"></i></a>
+                    <a class="btn btn-sm btn-outline-primary" href="edit-teacher.php?id=<?php echo (int) $teacher['id']; ?>" title="Edit Teacher">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     <form method="POST" action="" style="display:inline-block;">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="teacher_id" value="<?php echo (int) $teacher['id']; ?>">
@@ -160,7 +301,7 @@ $flash = admin_pull_flash();
               <?php endforeach; ?>
             <?php else: ?>
               <tr>
-                <td colspan="8" class="text-center text-muted">No teachers found.</td>
+                <td colspan="9" class="text-center text-muted">No teachers found.</td>
               </tr>
             <?php endif; ?>
           </tbody>

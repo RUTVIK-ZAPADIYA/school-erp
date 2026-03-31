@@ -21,15 +21,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
 
         if ($ticket_id > 0 && !empty($admin_reply) && strlen($admin_reply) >= 10) {
             $sql = "UPDATE support_tickets SET admin_reply = ?, status = 'Resolved', replied_at = NOW() WHERE id = ?";
-            $stmt = mysqli_prepare($conn, $sql);
+            $stmt = $conn->prepare( $sql);
             if ($stmt) {
-                mysqli_stmt_bind_param($stmt, "si", $admin_reply, $ticket_id);
-                if (mysqli_stmt_execute($stmt)) {
+                $stmt->bind_param( "si", $admin_reply, $ticket_id);
+                if ($stmt->execute()) {
                     $success_message = 'Reply sent successfully!';
                 } else {
                     $error_message = 'Error sending reply. Please try again.';
                 }
-                mysqli_stmt_close($stmt);
+                $stmt->close();
             }
         }
     }
@@ -54,9 +54,9 @@ try {
         LEFT JOIN users u ON st.student_id = u.id
         ORDER BY st.status ASC, st.created_at DESC";
 
-    $result = mysqli_query($conn, $sql);
+    $result = $conn->query( $sql);
     if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $result->fetch_assoc()) {
             $tickets[] = $row;
         }
     }

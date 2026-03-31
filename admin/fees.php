@@ -23,15 +23,19 @@ $classNameExpression = $classNameColumn !== null ? "c.{$classNameColumn}" : "''"
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $feeId = (int) ($_POST['fee_id'] ?? 0);
   if ($feeId > 0) {
-    $deleteStmt = mysqli_prepare($connection, 'DELETE FROM fees WHERE id = ?');
-    if ($deleteStmt) {
-      mysqli_stmt_bind_param($deleteStmt, 'i', $feeId);
-      if (mysqli_stmt_execute($deleteStmt)) {
-        admin_set_flash('success', 'Fee record deleted successfully.');
-      } else {
+    $deleteStmt = $connection->prepare( 'DELETE FROM fees WHERE id = ?');
+    if (!$deleteStmt) {
+      admin_set_flash('danger', 'Unable to process fee delete request.');
+    } else {
+      $deleteStmt->bind_param( 'i', $feeId);
+      if (!$deleteStmt->execute()) {
         admin_set_flash('danger', 'Unable to delete fee record right now.');
+      } elseif ($deleteStmt->affected_rows < 1) {
+        admin_set_flash('warning', 'Fee record was already removed or not found.');
+      } else {
+        admin_set_flash('success', 'Fee record deleted successfully.');
       }
-      mysqli_stmt_close($deleteStmt);
+      $deleteStmt->close();
     }
   }
 
@@ -46,23 +50,23 @@ $baseSql = "SELECT f.id, f.amount, f.fee_type, f.due_date, f.status, s.name AS s
 
 if ($search !== '') {
   $searchSql = $baseSql . ' WHERE s.name LIKE ? OR f.fee_type LIKE ? OR CAST(f.id AS CHAR) LIKE ? ORDER BY f.id DESC LIMIT 50';
-  $searchStmt = mysqli_prepare($connection, $searchSql);
+  $searchStmt = $connection->prepare( $searchSql);
   if ($searchStmt) {
     $searchTerm = '%' . $search . '%';
-    mysqli_stmt_bind_param($searchStmt, 'sss', $searchTerm, $searchTerm, $searchTerm);
-    mysqli_stmt_execute($searchStmt);
-    $searchResult = mysqli_stmt_get_result($searchStmt);
+    $searchStmt->bind_param( 'sss', $searchTerm, $searchTerm, $searchTerm);
+    $searchStmt->execute();
+    $searchResult = $searchStmt->get_result();
     if ($searchResult) {
-      while ($feeRow = mysqli_fetch_assoc($searchResult)) {
+      while ($feeRow = $searchResult->fetch_assoc()) {
         $transactions[] = $feeRow;
       }
     }
-    mysqli_stmt_close($searchStmt);
+    $searchStmt->close();
   }
 } else {
-  $result = mysqli_query($connection, $baseSql . ' ORDER BY f.id DESC LIMIT 50');
+  $result = $connection->query( $baseSql . ' ORDER BY f.id DESC LIMIT 50');
   if ($result) {
-    while ($feeRow = mysqli_fetch_assoc($result)) {
+    while ($feeRow = $result->fetch_assoc()) {
       $transactions[] = $feeRow;
     }
   }
@@ -179,6 +183,9 @@ $flash = admin_pull_flash();
                   <td><?php echo !empty($transaction['due_date']) ? htmlspecialchars(date('M d, Y', strtotime((string) $transaction['due_date']))) : '-'; ?></td>
                   <td><span class="badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status); ?></span></td>
                   <td>
+                    <a class="btn btn-sm btn-outline-primary" href="edit-fee.php?id=<?php echo (int) $transaction['id']; ?>" title="Edit Fee Record">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     <form method="POST" action="" style="display:inline-block;">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="fee_id" value="<?php echo (int) $transaction['id']; ?>">

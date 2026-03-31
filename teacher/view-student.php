@@ -1,17 +1,51 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-    header("Location: ../login.php");
-    exit();
-}
+require_once __DIR__ . '/auth.php';
 
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+    $safeTable = $conn->real_escape_string( $tableName);
+    $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+    return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+    if (!teacher_table_exists($conn, $tableName)) {
+        return false;
+    }
+
+    $safeTable = $conn->real_escape_string( $tableName);
+    $safeColumn = $conn->real_escape_string( $columnName);
+    $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+    return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+    foreach ($candidates as $candidate) {
+        if (teacher_column_exists($conn, $tableName, $candidate)) {
+            return $candidate;
+        }
+    }
+
+    return null;
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
+$assignmentPointsColumn = teacher_first_existing_column($conn, 'assignments', ['total_points', 'total_marks']);
+$assignmentPointsExpr = $assignmentPointsColumn !== null ? "a.`{$assignmentPointsColumn}`" : '0';
 
 // Get student details
 $student_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -20,15 +54,34 @@ if ($student_id == 0) {
     exit();
 }
 
-$query = "SELECT s.*, c.name as class_name FROM students s
-          JOIN classes c ON s.class_id = c.id
-          WHERE s.id = ?";
-$stmt = mysqli_prepare($conn, $query);
-mysqli_stmt_bind_param($stmt, "i", $student_id);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$student = mysqli_fetch_assoc($result);
-mysqli_stmt_close($stmt);
+$classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
+$studentClassJoinParts = [];
+if (teacher_column_exists($conn, 'students', 'class_id')) {
+    $studentClassJoinParts[] = 's.class_id = c.id';
+}
+if (teacher_column_exists($conn, 'students', 'class')) {
+    $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
+    $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
+    $studentClassJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+}
+
+$student = null;
+if (!empty($studentClassJoinParts)) {
+    $studentClassJoinSql = implode(' OR ', $studentClassJoinParts);
+    $query = "SELECT DISTINCT s.*, {$classNameExpr} AS class_name
+              FROM students s
+              JOIN classes c ON ({$studentClassJoinSql})
+              WHERE s.id = ? AND c.teacher_id IN ({$teacher_ids_sql})
+              LIMIT 1";
+    $stmt = $conn->prepare( $query);
+    if ($stmt) {
+        $stmt->bind_param( "i", $student_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $student = $result ? $result->fetch_assoc() : null;
+        $stmt->close();
+    }
+}
 
 if (!$student) {
     header("Location: students.php");
@@ -36,32 +89,33 @@ if (!$student) {
 }
 
 // Get student's grades
-$query = "SELECT g.exam_type, g.total_marks, g.obtained_marks, g.grade, g.remarks, sub.name as subject_name
+$subjectNameExpr = $subjectNameColumn !== null ? "sub.`{$subjectNameColumn}`" : "CONCAT('Subject ', sub.id)";
+$query = "SELECT g.exam_type, g.total_marks, g.obtained_marks, g.grade, g.remarks, {$subjectNameExpr} AS subject_name
           FROM grades g
           JOIN subjects sub ON g.subject_id = sub.id
           WHERE g.student_id = ?
           ORDER BY g.exam_type, subject_name";
-$stmt = mysqli_prepare($conn, $query);
-mysqli_stmt_bind_param($stmt, "i", $student_id);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
+$stmt = $conn->prepare( $query);
+$stmt->bind_param( "i", $student_id);
+$stmt->execute();
+$result = $stmt->get_result();
 $grades = [];
-while ($row = mysqli_fetch_assoc($result)) {
+while ($row = $result->fetch_assoc()) {
     $grades[] = $row;
 }
-mysqli_stmt_close($stmt);
+$stmt->close();
 
 // Get student's attendance
 $query = "SELECT COUNT(*) as total_days,
           SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days
           FROM attendance
           WHERE student_id = ?";
-$stmt = mysqli_prepare($conn, $query);
-mysqli_stmt_bind_param($stmt, "i", $student_id);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
-$attendance = mysqli_fetch_assoc($result);
-mysqli_stmt_close($stmt);
+$stmt = $conn->prepare( $query);
+$stmt->bind_param( "i", $student_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$attendance = $result->fetch_assoc();
+$stmt->close();
 $attendance_percentage = $attendance['total_days'] > 0 ?
     round(($attendance['present_days'] / $attendance['total_days']) * 100, 1) : 0;
 
@@ -86,20 +140,20 @@ if ($total_subjects > 0) {
 }
 
 // Get recent assignments for this student
-$query = "SELECT a.title, asub.marks_obtained, asub.status, a.total_points as max_marks, a.due_date
+$query = "SELECT a.title, asub.marks_obtained, asub.status, {$assignmentPointsExpr} AS max_marks, a.due_date
           FROM assignment_submissions asub
           JOIN assignments a ON asub.assignment_id = a.id
-          WHERE asub.student_id = ?
+          WHERE asub.student_id = ? AND a.teacher_id IN ({$teacher_ids_sql})
           ORDER BY a.due_date DESC LIMIT 5";
-$stmt = mysqli_prepare($conn, $query);
-mysqli_stmt_bind_param($stmt, "i", $student_id);
-mysqli_stmt_execute($stmt);
-$result = mysqli_stmt_get_result($stmt);
+$stmt = $conn->prepare( $query);
+$stmt->bind_param( "i", $student_id);
+$stmt->execute();
+$result = $stmt->get_result();
 $recent_assignments = [];
-while ($row = mysqli_fetch_assoc($result)) {
+while ($row = $result->fetch_assoc()) {
     $recent_assignments[] = $row;
 }
-mysqli_stmt_close($stmt);
+$stmt->close();
 
 // Calculate assignment statistics
 $assignment_stats = ['completed' => 0, 'pending' => 0, 'graded' => 0];

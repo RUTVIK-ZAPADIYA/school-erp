@@ -1,33 +1,26 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-// Include database connection
-include '../includes/db_connect.php';
-
-$student_id = $_SESSION['student_id'];
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['student_id'] ?? 0);
+$studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get leave records
 $leave_records = [];
 
 try {
-    $sql = "SELECT application_id, leave_type, from_date, to_date, days, status FROM leave_applications WHERE student_id = ? ORDER BY from_date DESC LIMIT 10";
-    $stmt = mysqli_prepare($conn, $sql);
+  $sql = "SELECT application_id, leave_type, from_date, to_date, days, status FROM leave_applications WHERE {$studentFilter['sql']} ORDER BY from_date DESC LIMIT 10";
+    $stmt = $conn->prepare( $sql);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $leave_records[] = $row;
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      while ($row = $result->fetch_assoc()) {
+        $leave_records[] = $row;
+      }
         }
-        mysqli_stmt_close($stmt);
+        $stmt->close();
     }
 } catch (Exception $e) {
     error_log("Leave query error: " . $e->getMessage());

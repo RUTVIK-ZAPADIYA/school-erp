@@ -47,22 +47,22 @@ function isAdminActive(array $pages, $currentPage)
     <a href="students.php" class="<?php echo isAdminActive(['students.php', 'add-student.php', 'edit-student.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">school</span><span>Students</span>
     </a>
-    <a href="teachers.php" class="<?php echo isAdminActive(['teachers.php', 'add-teacher.php'], $currentPage); ?>">
+    <a href="teachers.php" class="<?php echo isAdminActive(['teachers.php', 'add-teacher.php', 'edit-teacher.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">groups</span><span>Teachers</span>
     </a>
-    <a href="classes.php" class="<?php echo isAdminActive(['classes.php', 'add-class.php'], $currentPage); ?>">
+    <a href="classes.php" class="<?php echo isAdminActive(['classes.php', 'add-class.php', 'edit-class.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">meeting_room</span><span>Classes</span>
     </a>
-    <a href="subjects.php" class="<?php echo isAdminActive(['subjects.php', 'add-subject.php'], $currentPage); ?>">
+    <a href="subjects.php" class="<?php echo isAdminActive(['subjects.php', 'add-subject.php', 'edit-subject.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">menu_book</span><span>Subjects</span>
     </a>
-    <a href="fees.php" class="<?php echo isAdminActive(['fees.php', 'add-fee.php'], $currentPage); ?>">
+    <a href="fees.php" class="<?php echo isAdminActive(['fees.php', 'add-fee.php', 'edit-fee.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">payments</span><span>Fees</span>
     </a>
-    <a href="attendance.php" class="<?php echo isAdminActive(['attendance.php'], $currentPage); ?>">
+    <a href="attendance.php" class="<?php echo isAdminActive(['attendance.php', 'edit-attendance.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">fact_check</span><span>Attendance</span>
     </a>
-    <a href="exams.php" class="<?php echo isAdminActive(['exams.php', 'add-exam.php'], $currentPage); ?>">
+    <a href="exams.php" class="<?php echo isAdminActive(['exams.php', 'add-exam.php', 'edit-exam.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">assignment</span><span>Exams</span>
     </a>
     <a href="support-tickets.php" class="<?php echo isAdminActive(['support-tickets.php'], $currentPage); ?>">

@@ -1,32 +1,65 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-    header("Location: ../login.php");
-    exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$user_id = $_SESSION['user_id'];
-$account_table = null;
-$users_table_check = mysqli_query($conn, "SHOW TABLES LIKE 'users'");
-$teachers_table_check = mysqli_query($conn, "SHOW TABLES LIKE 'teachers'");
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$user_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_profile_id = (int) ($teacherContext['teacher_profile_id'] ?? 0);
 
-if ($users_table_check && mysqli_num_rows($users_table_check) > 0) {
-    $account_table = 'users';
-} elseif ($teachers_table_check && mysqli_num_rows($teachers_table_check) > 0) {
-    $account_table = 'teachers';
+$account_table = null;
+$account_id = 0;
+$user = null;
+
+$users_table_check = $conn->query( "SHOW TABLES LIKE 'users'");
+if ($users_table_check && $users_table_check->num_rows > 0 && $user_id > 0) {
+    $userStmt = $conn->prepare( 'SELECT * FROM users WHERE id = ? LIMIT 1');
+    if ($userStmt) {
+        $userStmt->bind_param( 'i', $user_id);
+        $userStmt->execute();
+        $userResult = $userStmt->get_result();
+        $user = $userResult ? $userResult->fetch_assoc() : null;
+        $userStmt->close();
+        if ($user) {
+            $account_table = 'users';
+            $account_id = $user_id;
+        }
+    }
 }
 
-$user = null;
-if ($account_table !== null) {
-    $sql = "SELECT * FROM $account_table WHERE id = $user_id";
-    $result = mysqli_query($conn, $sql);
-    $user = $result ? mysqli_fetch_assoc($result) : null;
+$teachers_table_check = $conn->query( "SHOW TABLES LIKE 'teachers'");
+if (!$user && $teachers_table_check && $teachers_table_check->num_rows > 0) {
+    if ($teacher_profile_id > 0) {
+        $teacherStmt = $conn->prepare( 'SELECT * FROM teachers WHERE id = ? LIMIT 1');
+        if ($teacherStmt) {
+            $teacherStmt->bind_param( 'i', $teacher_profile_id);
+            $teacherStmt->execute();
+            $teacherResult = $teacherStmt->get_result();
+            $user = $teacherResult ? $teacherResult->fetch_assoc() : null;
+            $teacherStmt->close();
+        }
+    }
+
+    if (!$user && $user_id > 0) {
+        $teacherUserColumnCheck = $conn->query( "SHOW COLUMNS FROM `teachers` LIKE 'user_id'");
+        if ($teacherUserColumnCheck && $teacherUserColumnCheck->num_rows > 0) {
+            $teacherByUserStmt = $conn->prepare( 'SELECT * FROM teachers WHERE user_id = ? LIMIT 1');
+            if ($teacherByUserStmt) {
+                $teacherByUserStmt->bind_param( 'i', $user_id);
+                $teacherByUserStmt->execute();
+                $teacherByUserResult = $teacherByUserStmt->get_result();
+                $user = $teacherByUserResult ? $teacherByUserResult->fetch_assoc() : null;
+                $teacherByUserStmt->close();
+            }
+        }
+    }
+
+    if ($user) {
+        $account_table = 'teachers';
+        $account_id = (int) ($user['id'] ?? 0);
+    }
 }
 
 if (!$user) {
@@ -34,15 +67,15 @@ if (!$user) {
         ? 'Account table not found. Please run setup first.'
         : 'Teacher profile not found.';
     $user = [
-        'name' => $_SESSION['name'] ?? 'Teacher',
+        'name' => ($_SESSION['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher'),
         'password' => ''
     ];
 }
 
 $can_change_password = false;
 if ($account_table !== null) {
-    $pass_col_check = mysqli_query($conn, "SHOW COLUMNS FROM `$account_table` LIKE 'password'");
-    $can_change_password = $pass_col_check && mysqli_num_rows($pass_col_check) > 0;
+    $pass_col_check = $conn->query( "SHOW COLUMNS FROM `$account_table` LIKE 'password'");
+    $can_change_password = $pass_col_check && $pass_col_check->num_rows > 0;
 }
 
 // Handle settings update
@@ -71,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         $new_password = $_POST['new_password'];
         $confirm_password = $_POST['confirm_password'];
 
-        if (!$can_change_password || $account_table === null) {
+        if (!$can_change_password || $account_table === null || $account_id <= 0) {
             $error = 'Password change is unavailable for the current account table.';
         } else {
             // Verify current password
@@ -80,12 +113,12 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 if ($new_password === $confirm_password) {
                     if (strlen($new_password) >= 6) {
                         $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                        $sql_update = "UPDATE $account_table SET password = '$hashed_password' WHERE id = $user_id";
+                        $sql_update = "UPDATE $account_table SET password = '$hashed_password' WHERE id = $account_id";
 
-                        if (mysqli_query($conn, $sql_update)) {
+                        if ($conn->query( $sql_update)) {
                             $success = "Password changed successfully!";
                         } else {
-                            $error = "Error updating password: " . mysqli_error($conn);
+                            $error = "Error updating password: " . $conn->error;
                         }
                     } else {
                         $error = "New password must be at least 6 characters long.";

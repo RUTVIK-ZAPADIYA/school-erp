@@ -1,62 +1,163 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
+require_once __DIR__ . '/auth.php';
+
+$studentContext = student_auth_context();
+$studentProfileId = (int) ($studentContext['student_id'] ?? 0);
+$studentUserId = (int) ($studentContext['user_id'] ?? 0);
+$studentSessionName = (string) ($studentContext['student_name'] ?? 'Student');
+
+function table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
 }
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
+
+function column_exists($conn, $tableName, $columnName)
+{
+  if (!table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
 }
 
-// Include database connection
-include '../includes/db_connect.php';
+function fetch_one_row($conn, $sql, $types = '', array $params = [])
+{
+  $stmt = $conn->prepare( $sql);
+  if (!$stmt) {
+    return null;
+  }
 
-$student_id = $_SESSION['student_id'];
+  if ($types !== '') {
+    $bindArgs = [$types];
+    foreach ($params as $index => &$value) {
+      $bindArgs[] = &$value;
+    }
+    if (!call_user_func_array([$stmt, 'bind_param'], $bindArgs)) {
+      $stmt->close();
+      return null;
+    }
+  }
 
-// Get student profile information
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return null;
+  }
+
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
+
+  return $row ?: null;
+}
+
+function first_non_empty_value(array $row, array $keys, $defaultValue = '')
+{
+  foreach ($keys as $key) {
+    if (array_key_exists($key, $row) && $row[$key] !== null && $row[$key] !== '') {
+      return $row[$key];
+    }
+  }
+
+  return $defaultValue;
+}
+
+// Default profile payload, then enrich from users/students tables as available.
 $profile = [
-    'name' => $_SESSION['student_name'],
-    'student_id' => $student_id,
-    'email' => '',
-    'phone' => '',
-    'dob' => '',
-    'gender' => '',
-    'address' => '',
-    'class' => '',
-    'section' => '',
-    'roll_number' => '',
-    'admission_date' => '',
-    'academic_year' => ''
+  'name' => $studentSessionName,
+  'student_id' => $studentUserId,
+  'email' => '',
+  'phone' => '',
+  'dob' => '',
+  'gender' => '',
+  'address' => '',
+  'class' => '',
+  'section' => '',
+  'roll_number' => '',
+  'admission_date' => '',
+  'academic_year' => ''
 ];
 
-try {
-    $sql = "SELECT name, email, phone, date_of_birth, gender, address, class, section, roll_number, admission_date, academic_year FROM students WHERE student_id = ?";
-    $stmt = mysqli_prepare($conn, $sql);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        if ($row = mysqli_fetch_assoc($result)) {
-            $profile = [
-                'name' => $row['name'] ?? $_SESSION['student_name'],
-                'student_id' => $student_id,
-                'email' => $row['email'] ?? '',
-                'phone' => $row['phone'] ?? '',
-                'dob' => $row['date_of_birth'] ?? '',
-                'gender' => $row['gender'] ?? '',
-                'address' => $row['address'] ?? '',
-                'class' => $row['class'] ?? '',
-                'section' => $row['section'] ?? '',
-                'roll_number' => $row['roll_number'] ?? '',
-                'admission_date' => $row['admission_date'] ?? '',
-                'academic_year' => $row['academic_year'] ?? ''
-            ];
-        }
-        mysqli_stmt_close($stmt);
+$userAccount = null;
+if (table_exists($conn, 'users')) {
+  $userAccount = fetch_one_row(
+    $conn,
+    "SELECT id, name, email, phone FROM users WHERE id = ? AND role = 'student' LIMIT 1",
+    'i',
+    [$studentUserId]
+  );
+}
+
+if ($userAccount) {
+  $profile['name'] = (string) first_non_empty_value($userAccount, ['name'], $profile['name']);
+  $profile['email'] = (string) first_non_empty_value($userAccount, ['email'], $profile['email']);
+  $profile['phone'] = (string) first_non_empty_value($userAccount, ['phone'], $profile['phone']);
+}
+
+$studentRow = null;
+if (table_exists($conn, 'students')) {
+  if ($studentProfileId > 0 && column_exists($conn, 'students', 'id')) {
+    $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE id = ? LIMIT 1', 'i', [$studentProfileId]);
+  }
+
+  if (column_exists($conn, 'students', 'user_id')) {
+    if (!$studentRow && $studentUserId > 0) {
+      $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE user_id = ? LIMIT 1', 'i', [$studentUserId]);
     }
-} catch (Exception $e) {
-    error_log("Profile query error: " . $e->getMessage());
+  }
+
+  if (!$studentRow && $studentUserId > 0 && column_exists($conn, 'students', 'id')) {
+    $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE id = ? LIMIT 1', 'i', [$studentUserId]);
+  }
+
+  if (!$studentRow && !empty($profile['email']) && column_exists($conn, 'students', 'email')) {
+    $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE email = ? LIMIT 1', 's', [$profile['email']]);
+  }
+
+  if (!$studentRow && !empty($profile['name']) && column_exists($conn, 'students', 'name')) {
+    $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE name = ? ORDER BY id DESC LIMIT 1', 's', [$profile['name']]);
+  }
+}
+
+if ($studentRow) {
+  $profile['name'] = (string) first_non_empty_value($studentRow, ['name'], $profile['name']);
+  $profile['student_id'] = (string) first_non_empty_value($studentRow, ['id', 'student_id'], (string) $profile['student_id']);
+  $profile['email'] = (string) first_non_empty_value($studentRow, ['email'], $profile['email']);
+  $profile['phone'] = (string) first_non_empty_value($studentRow, ['phone'], $profile['phone']);
+  $profile['dob'] = (string) first_non_empty_value($studentRow, ['date_of_birth', 'dob'], $profile['dob']);
+  $profile['gender'] = (string) first_non_empty_value($studentRow, ['gender'], $profile['gender']);
+  $profile['address'] = (string) first_non_empty_value($studentRow, ['address'], $profile['address']);
+  $profile['class'] = (string) first_non_empty_value($studentRow, ['class', 'class_name'], $profile['class']);
+  $profile['section'] = (string) first_non_empty_value($studentRow, ['section'], $profile['section']);
+  $profile['roll_number'] = (string) first_non_empty_value($studentRow, ['roll_no', 'roll_number'], $profile['roll_number']);
+  $profile['admission_date'] = (string) first_non_empty_value($studentRow, ['admission_date', 'created_at'], $profile['admission_date']);
+  $profile['academic_year'] = (string) first_non_empty_value($studentRow, ['academic_year'], $profile['academic_year']);
+
+  $classId = (int) first_non_empty_value($studentRow, ['class_id'], 0);
+  if ($classId > 0 && table_exists($conn, 'classes')) {
+    $classNameColumn = column_exists($conn, 'classes', 'name') ? 'name' : (column_exists($conn, 'classes', 'class_name') ? 'class_name' : null);
+    $selectParts = [];
+    if ($classNameColumn !== null) {
+      $selectParts[] = "{$classNameColumn} AS class_name";
+    }
+    if (column_exists($conn, 'classes', 'section')) {
+      $selectParts[] = 'section';
+    }
+
+    if (!empty($selectParts)) {
+      $classRow = fetch_one_row($conn, 'SELECT ' . implode(', ', $selectParts) . ' FROM classes WHERE id = ? LIMIT 1', 'i', [$classId]);
+      if ($classRow) {
+        $profile['class'] = (string) first_non_empty_value($classRow, ['class_name'], $profile['class']);
+        $profile['section'] = (string) first_non_empty_value($classRow, ['section'], $profile['section']);
+      }
+    }
+  }
 }
 ?>
 <!DOCTYPE html>

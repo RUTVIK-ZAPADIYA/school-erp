@@ -1,49 +1,83 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$user_id = $_SESSION['user_id'];
-$account_table = null;
-$users_table_check = mysqli_query($conn, "SHOW TABLES LIKE 'users'");
-$teachers_table_check = mysqli_query($conn, "SHOW TABLES LIKE 'teachers'");
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$user_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_profile_id = (int) ($teacherContext['teacher_profile_id'] ?? 0);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
 
-if ($users_table_check && mysqli_num_rows($users_table_check) > 0) {
-  $account_table = 'users';
-} elseif ($teachers_table_check && mysqli_num_rows($teachers_table_check) > 0) {
-  $account_table = 'teachers';
+$account_table = null;
+$account_id = 0;
+$user = null;
+
+$users_table_check = $conn->query( "SHOW TABLES LIKE 'users'");
+if ($users_table_check && $users_table_check->num_rows > 0 && $user_id > 0) {
+  $userStmt = $conn->prepare( 'SELECT * FROM users WHERE id = ? LIMIT 1');
+  if ($userStmt) {
+    $userStmt->bind_param( 'i', $user_id);
+    $userStmt->execute();
+    $userResult = $userStmt->get_result();
+    $user = $userResult ? $userResult->fetch_assoc() : null;
+    $userStmt->close();
+    if ($user) {
+      $account_table = 'users';
+      $account_id = $user_id;
+    }
+  }
 }
 
-$user = null;
-if ($account_table !== null) {
-  $sql = "SELECT * FROM $account_table WHERE id = $user_id";
-  $result = mysqli_query($conn, $sql);
-  $user = $result ? mysqli_fetch_assoc($result) : null;
+$teachers_table_check = $conn->query( "SHOW TABLES LIKE 'teachers'");
+if (!$user && $teachers_table_check && $teachers_table_check->num_rows > 0) {
+  if ($teacher_profile_id > 0) {
+    $teacherStmt = $conn->prepare( 'SELECT * FROM teachers WHERE id = ? LIMIT 1');
+    if ($teacherStmt) {
+      $teacherStmt->bind_param( 'i', $teacher_profile_id);
+      $teacherStmt->execute();
+      $teacherResult = $teacherStmt->get_result();
+      $user = $teacherResult ? $teacherResult->fetch_assoc() : null;
+      $teacherStmt->close();
+    }
+  }
+
+  if (!$user && $user_id > 0) {
+    $teacherUserColumnCheck = $conn->query( "SHOW COLUMNS FROM `teachers` LIKE 'user_id'");
+    if ($teacherUserColumnCheck && $teacherUserColumnCheck->num_rows > 0) {
+      $teacherByUserStmt = $conn->prepare( 'SELECT * FROM teachers WHERE user_id = ? LIMIT 1');
+      if ($teacherByUserStmt) {
+        $teacherByUserStmt->bind_param( 'i', $user_id);
+        $teacherByUserStmt->execute();
+        $teacherByUserResult = $teacherByUserStmt->get_result();
+        $user = $teacherByUserResult ? $teacherByUserResult->fetch_assoc() : null;
+        $teacherByUserStmt->close();
+      }
+    }
+  }
+
+  if ($user) {
+    $account_table = 'teachers';
+    $account_id = (int) ($user['id'] ?? 0);
+  }
 }
 
 if (!$user) {
   $error = $account_table === null
     ? "Account table not found. Run setup/create script to create users or teachers table."
-    : "Teacher profile not found for ID: " . (int)$user_id;
+    : "Teacher profile not found for the current account.";
   $user = [
-    'name' => $_SESSION['name'] ?? 'Teacher',
+    'name' => ($_SESSION['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher'),
     'email' => '',
     'phone' => ''
   ];
 }
 
 function table_exists($conn, $table_name) {
-  $table_name = mysqli_real_escape_string($conn, $table_name);
-  $result = mysqli_query($conn, "SHOW TABLES LIKE '$table_name'");
-  return $result && mysqli_num_rows($result) > 0;
+  $table_name = $conn->real_escape_string( $table_name);
+  $result = $conn->query( "SHOW TABLES LIKE '$table_name'");
+  return $result && $result->num_rows > 0;
 }
 
 function column_exists($conn, $table_name, $column_name) {
@@ -51,24 +85,24 @@ function column_exists($conn, $table_name, $column_name) {
     return false;
   }
 
-  $table_name = mysqli_real_escape_string($conn, $table_name);
-  $column_name = mysqli_real_escape_string($conn, $column_name);
-  $result = mysqli_query($conn, "SHOW COLUMNS FROM `$table_name` LIKE '$column_name'");
-  return $result && mysqli_num_rows($result) > 0;
+  $table_name = $conn->real_escape_string( $table_name);
+  $column_name = $conn->real_escape_string( $column_name);
+  $result = $conn->query( "SHOW COLUMNS FROM `$table_name` LIKE '$column_name'");
+  return $result && $result->num_rows > 0;
 }
 
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
-    $name = mysqli_real_escape_string($conn, $_POST['name']);
-    $email = mysqli_real_escape_string($conn, $_POST['email']);
-    $phone = mysqli_real_escape_string($conn, $_POST['phone']);
+    $name = $conn->real_escape_string( $_POST['name']);
+    $email = $conn->real_escape_string( $_POST['email']);
+    $phone = $conn->real_escape_string( $_POST['phone']);
 
-  if ($account_table === null) {
+    if ($account_table === null || $account_id <= 0) {
     $error = "Cannot update profile because account table is missing.";
   } else {
-    $sql_update = "UPDATE $account_table SET name = '$name', email = '$email', phone = '$phone' WHERE id = $user_id";
+      $sql_update = "UPDATE $account_table SET name = '$name', email = '$email', phone = '$phone' WHERE id = $account_id";
 
-    if (mysqli_query($conn, $sql_update)) {
+    if ($conn->query( $sql_update)) {
       $success = "Profile updated successfully!";
       // Update session
       $_SESSION['name'] = $name;
@@ -76,7 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
       $user['email'] = $email;
       $user['phone'] = $phone;
     } else {
-      $error = "Error updating profile: " . mysqli_error($conn);
+      $error = "Error updating profile: " . $conn->error;
     }
     }
 }
@@ -92,45 +126,62 @@ $stats = [
 ];
 
 if (table_exists($conn, 'classes') && column_exists($conn, 'classes', 'teacher_id')) {
-  $classes_count_result = mysqli_query($conn, "SELECT COUNT(*) AS total_classes FROM classes WHERE teacher_id = $user_id");
+  $classes_count_result = $conn->query( "SELECT COUNT(*) AS total_classes FROM classes WHERE teacher_id IN ({$teacher_ids_sql})");
   if ($classes_count_result) {
-    $row = mysqli_fetch_assoc($classes_count_result);
+    $row = $classes_count_result->fetch_assoc();
     $stats['total_classes'] = (int)($row['total_classes'] ?? 0);
   }
 }
 
-if (table_exists($conn, 'students') && column_exists($conn, 'students', 'class_id') && table_exists($conn, 'classes') && column_exists($conn, 'classes', 'teacher_id')) {
-  $students_count_result = mysqli_query($conn, "SELECT COUNT(DISTINCT s.id) AS total_students FROM students s INNER JOIN classes c ON s.class_id = c.id WHERE c.teacher_id = $user_id");
+if (
+  table_exists($conn, 'students')
+  && table_exists($conn, 'classes')
+  && column_exists($conn, 'classes', 'teacher_id')
+  && (column_exists($conn, 'students', 'class_id') || column_exists($conn, 'students', 'class'))
+) {
+  $studentJoinParts = [];
+  if (column_exists($conn, 'students', 'class_id')) {
+    $studentJoinParts[] = 's.class_id = c.id';
+  }
+  if (column_exists($conn, 'students', 'class')) {
+    $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
+    $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
+    $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
+    $studentJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+  }
+
+  $studentJoinSql = empty($studentJoinParts) ? '1 = 0' : implode(' OR ', $studentJoinParts);
+  $students_count_result = $conn->query( "SELECT COUNT(DISTINCT s.id) AS total_students FROM students s INNER JOIN classes c ON ({$studentJoinSql}) WHERE c.teacher_id IN ({$teacher_ids_sql})");
   if ($students_count_result) {
-    $row = mysqli_fetch_assoc($students_count_result);
+    $row = $students_count_result->fetch_assoc();
     $stats['total_students'] = (int)($row['total_students'] ?? 0);
   }
 }
 
 if (table_exists($conn, 'assignments') && column_exists($conn, 'assignments', 'teacher_id')) {
-  $assignments_count_result = mysqli_query($conn, "SELECT COUNT(*) AS total_assignments FROM assignments WHERE teacher_id = $user_id");
+  $assignments_count_result = $conn->query( "SELECT COUNT(*) AS total_assignments FROM assignments WHERE teacher_id IN ({$teacher_ids_sql})");
   if ($assignments_count_result) {
-    $row = mysqli_fetch_assoc($assignments_count_result);
+    $row = $assignments_count_result->fetch_assoc();
     $stats['total_assignments'] = (int)($row['total_assignments'] ?? 0);
   }
 }
 
 if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') && column_exists($conn, 'marks', 'marks')) {
-  $avg_marks_result = mysqli_query($conn, "SELECT AVG(marks) AS avg_class_performance FROM marks WHERE teacher_id = $user_id");
+  $avg_marks_result = $conn->query( "SELECT AVG(marks) AS avg_class_performance FROM marks WHERE teacher_id IN ({$teacher_ids_sql})");
   if ($avg_marks_result) {
-    $row = mysqli_fetch_assoc($avg_marks_result);
+    $row = $avg_marks_result->fetch_assoc();
     $stats['avg_class_performance'] = $row['avg_class_performance'];
   }
 }
 
 if (table_exists($conn, 'attendance') && column_exists($conn, 'attendance', 'teacher_id') && column_exists($conn, 'attendance', 'status')) {
-  $attendance_result = mysqli_query($conn, "SELECT
+  $attendance_result = $conn->query( "SELECT
       SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS total_present_days,
       SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS total_absent_days
       FROM attendance
-      WHERE teacher_id = $user_id");
+      WHERE teacher_id IN ({$teacher_ids_sql})");
   if ($attendance_result) {
-    $row = mysqli_fetch_assoc($attendance_result);
+    $row = $attendance_result->fetch_assoc();
     $stats['total_present_days'] = (int)($row['total_present_days'] ?? 0);
     $stats['total_absent_days'] = (int)($row['total_absent_days'] ?? 0);
   }
@@ -147,19 +198,19 @@ $result_recent = false;
 $recent_query_parts = [];
 
 if (table_exists($conn, 'assignments') && column_exists($conn, 'assignments', 'teacher_id') && column_exists($conn, 'assignments', 'title') && column_exists($conn, 'assignments', 'created_at')) {
-  $recent_query_parts[] = "SELECT 'assignment' as type, title as description, created_at as date FROM assignments WHERE teacher_id = $user_id";
+  $recent_query_parts[] = "SELECT 'assignment' as type, title as description, created_at as date FROM assignments WHERE teacher_id IN ({$teacher_ids_sql})";
 }
 
 if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') && column_exists($conn, 'marks', 'date') && column_exists($conn, 'marks', 'student_id') && table_exists($conn, 'students')) {
   $student_name_expr = column_exists($conn, 'students', 'name')
     ? "(SELECT name FROM students WHERE id = marks.student_id)"
     : "marks.student_id";
-  $recent_query_parts[] = "SELECT 'grade' as type, CONCAT('Graded ', $student_name_expr) as description, date as date FROM marks WHERE teacher_id = $user_id";
+  $recent_query_parts[] = "SELECT 'grade' as type, CONCAT('Graded ', $student_name_expr) as description, date as date FROM marks WHERE teacher_id IN ({$teacher_ids_sql})";
 }
 
 if (!empty($recent_query_parts)) {
   $sql_recent = implode(" UNION ALL ", $recent_query_parts) . " ORDER BY date DESC LIMIT 5";
-  $result_recent = mysqli_query($conn, $sql_recent);
+  $result_recent = $conn->query( $sql_recent);
 }
 
 // Get monthly performance trend (last 6 months)
@@ -170,15 +221,15 @@ if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') 
       AVG(marks) as avg_performance,
       COUNT(*) as total_grades
       FROM marks
-      WHERE teacher_id = $user_id AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      WHERE teacher_id IN ({$teacher_ids_sql}) AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
       GROUP BY DATE_FORMAT(date, '%Y-%m')
       ORDER BY month";
-  $result_trend = mysqli_query($conn, $sql_trend);
+  $result_trend = $conn->query( $sql_trend);
 }
 
 $performance_trend = [];
 if ($result_trend) {
-  while ($row = mysqli_fetch_assoc($result_trend)) {
+  while ($row = $result_trend->fetch_assoc()) {
     $performance_trend[] = $row;
   }
 }
@@ -452,8 +503,8 @@ if ($result_trend) {
           </div>
         </div>
         <div class="divide-y divide-outline-variant/10">
-          <?php if ($result_recent && mysqli_num_rows($result_recent) > 0): ?>
-            <?php while ($activity = mysqli_fetch_assoc($result_recent)): ?>
+          <?php if ($result_recent && $result_recent->num_rows > 0): ?>
+            <?php while ($activity = $result_recent->fetch_assoc()): ?>
             <div class="px-6 py-4">
               <div class="flex items-center gap-4">
                 <div class="w-10 h-10 bg-<?php echo $activity['type'] === 'assignment' ? 'blue' : 'green'; ?>-100 rounded-xl flex items-center justify-center">

@@ -1,100 +1,257 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+function teacher_grade_from_marks($obtainedMarks, $totalMarks)
+{
+  if ($totalMarks <= 0) {
+    return 'F';
+  }
+
+  $percentage = ($obtainedMarks / $totalMarks) * 100;
+  if ($percentage >= 90) {
+    return 'A+';
+  }
+  if ($percentage >= 80) {
+    return 'A';
+  }
+  if ($percentage >= 70) {
+    return 'B+';
+  }
+  if ($percentage >= 60) {
+    return 'B';
+  }
+  if ($percentage >= 50) {
+    return 'C+';
+  }
+  if ($percentage >= 40) {
+    return 'C';
+  }
+
+  return 'F';
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
+$studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
+
+function teacher_class_owner_id($conn, $classId, array $teacherIds)
+{
+  if ($classId <= 0 || empty($teacherIds) || !teacher_column_exists($conn, 'classes', 'teacher_id')) {
+    return 0;
+  }
+
+  if (function_exists('teacher_auth_class_owner_id')) {
+    return teacher_auth_class_owner_id($conn, $classId, $teacherIds);
+  }
+
+  $safeTeacherIds = array_values(array_unique(array_filter(array_map('intval', $teacherIds), function ($id) {
+    return $id > 0;
+  })));
+  if (empty($safeTeacherIds)) {
+    return 0;
+  }
+  $teacherIdSql = implode(',', $safeTeacherIds);
+
+  $stmt = $conn->prepare( "SELECT teacher_id FROM classes WHERE id = ? AND teacher_id IN ({$teacherIdSql}) LIMIT 1");
+  if (!$stmt) {
+    return 0;
+  }
+
+  $stmt->bind_param( 'i', $classId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
+
+  return (int) ($row['teacher_id'] ?? 0);
+}
 
 // Handle form submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['save_grades'])) {
-    $class_id = isset($_POST['class_id']) ? (int)$_POST['class_id'] : 0;
-    $exam_type = isset($_POST['exam_type']) ? mysqli_real_escape_string($conn, $_POST['exam_type']) : '';
-    $subject_id = isset($_POST['subject_id']) ? (int)$_POST['subject_id'] : 0;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
+  $class_id = isset($_POST['class_id']) ? (int) $_POST['class_id'] : 0;
+  $exam_type = trim((string) ($_POST['exam_type'] ?? ''));
+  $subject_id = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : 0;
+  $class_owner_id = 0;
 
-    if ($class_id > 0 && !empty($exam_type) && $subject_id > 0) {
-        // Get students in the class
-        $sql_students = "SELECT id FROM students WHERE class_id = $class_id";
-        $result_students = mysqli_query($conn, $sql_students);
-
-        if ($result_students) {
-            while ($student = mysqli_fetch_assoc($result_students)) {
-                $student_id = $student['id'];
-                $obtained_marks = (int)($_POST['marks_' . $student_id] ?? 0);
-                $remarks = mysqli_real_escape_string($conn, $_POST['remarks_' . $student_id] ?? '');
-
-                // Calculate grade based on marks (simple grading)
-                $total_marks = 100; // Assuming 100
-                $percentage = ($obtained_marks / $total_marks) * 100;
-                if ($percentage >= 90) $grade = 'A+';
-                elseif ($percentage >= 80) $grade = 'A';
-                elseif ($percentage >= 70) $grade = 'B+';
-                elseif ($percentage >= 60) $grade = 'B';
-                elseif ($percentage >= 50) $grade = 'C+';
-                elseif ($percentage >= 40) $grade = 'C';
-                else $grade = 'F';
-
-                // Insert or update grade
-                $sql_check = "SELECT id FROM grades WHERE student_id = $student_id AND subject_id = $subject_id AND exam_type = '$exam_type'";
-                $result_check = mysqli_query($conn, $sql_check);
-
-                if (mysqli_num_rows($result_check) > 0) {
-                    // Update existing
-                    $sql = "UPDATE grades SET obtained_marks = $obtained_marks, grade = '$grade', remarks = '$remarks', teacher_id = $teacher_id
-                            WHERE student_id = $student_id AND subject_id = $subject_id AND exam_type = '$exam_type'";
-                } else {
-                    // Insert new
-                    $sql = "INSERT INTO grades (student_id, subject_id, exam_type, total_marks, obtained_marks, grade, remarks, teacher_id)
-                            VALUES ($student_id, $subject_id, '$exam_type', $total_marks, $obtained_marks, '$grade', '$remarks', $teacher_id)";
-                }
-                mysqli_query($conn, $sql);
-            }
-            $success = "Grades saved successfully!";
-        } else {
-            $error = "Error retrieving students.";
-        }
+  if ($class_id <= 0 || $subject_id <= 0 || $exam_type === '') {
+    $error = 'Please select class, exam type, and subject.';
+  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+    $error = 'Selected class is not assigned to your account.';
+  } else {
+    $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
+    $studentClassWhere = teacher_auth_student_class_where_sql($conn, 'students', $class_id, $selectedClassLabel);
+    $studentStmt = $conn->prepare( "SELECT id FROM students WHERE {$studentClassWhere}");
+    if (!$studentStmt) {
+      $error = 'Error retrieving students.';
     } else {
-        $error = "Please select class, exam type, and subject.";
+      $studentStmt->execute();
+      $result_students = $studentStmt->get_result();
+      $savedRows = 0;
+
+      while ($result_students && ($student = $result_students->fetch_assoc())) {
+        $student_id = (int) ($student['id'] ?? 0);
+        if ($student_id <= 0) {
+          continue;
+        }
+
+        $obtained_marks = (int) ($_POST['marks_' . $student_id] ?? 0);
+        $obtained_marks = max(0, min(100, $obtained_marks));
+        $remarks = trim((string) ($_POST['remarks_' . $student_id] ?? ''));
+        $total_marks = 100;
+        $grade = teacher_grade_from_marks($obtained_marks, $total_marks);
+
+        $checkStmt = $conn->prepare( 'SELECT id FROM grades WHERE student_id = ? AND subject_id = ? AND exam_type = ? LIMIT 1');
+        if (!$checkStmt) {
+          continue;
+        }
+
+        $checkStmt->bind_param( 'iis', $student_id, $subject_id, $exam_type);
+        $checkStmt->execute();
+        $result_check = $checkStmt->get_result();
+        $hasExisting = $result_check && $result_check->num_rows > 0;
+        $checkStmt->close();
+
+        if ($hasExisting) {
+          $updateStmt = $conn->prepare(
+            'UPDATE grades SET obtained_marks = ?, grade = ?, remarks = ?, teacher_id = ? WHERE student_id = ? AND subject_id = ? AND exam_type = ?'
+          );
+          if (!$updateStmt) {
+            continue;
+          }
+
+          $updateStmt->bind_param( 'issiiis', $obtained_marks, $grade, $remarks, $class_owner_id, $student_id, $subject_id, $exam_type);
+          if ($updateStmt->execute()) {
+            $savedRows++;
+          }
+          $updateStmt->close();
+        } else {
+          $insertStmt = $conn->prepare(
+            'INSERT INTO grades (student_id, subject_id, exam_type, total_marks, obtained_marks, grade, remarks, teacher_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          );
+          if (!$insertStmt) {
+            continue;
+          }
+
+          $insertStmt->bind_param( 'iisiissi', $student_id, $subject_id, $exam_type, $total_marks, $obtained_marks, $grade, $remarks, $class_owner_id);
+          if ($insertStmt->execute()) {
+            $savedRows++;
+          }
+          $insertStmt->close();
+        }
+      }
+
+      $studentStmt->close();
+
+      if ($savedRows > 0) {
+        $success = 'Grades saved successfully!';
+      } else {
+        $error = 'No grade rows were saved. Please verify input and try again.';
+      }
     }
+  }
 }
 
 // Get classes, subjects
-$sql_classes = "SELECT id, name FROM classes WHERE teacher_id = $teacher_id";
-$result_classes = mysqli_query($conn, $sql_classes);
 $classes = [];
-while ($row = mysqli_fetch_assoc($result_classes)) {
-    $classes[] = $row;
+if ($classNameColumn !== null && teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'classes', 'teacher_id')) {
+  $sql_classes = "SELECT id, `{$classNameColumn}` AS name FROM classes WHERE teacher_id IN ({$teacher_ids_sql}) ORDER BY `{$classNameColumn}` ASC";
+  $result_classes = $conn->query( $sql_classes);
+  if ($result_classes) {
+    while ($row = $result_classes->fetch_assoc()) {
+      $classes[] = $row;
+    }
+  }
 }
 
-$sql_subjects = "SELECT id, name FROM subjects";
-$result_subjects = mysqli_query($conn, $sql_subjects);
 $subjects = [];
-while ($row = mysqli_fetch_assoc($result_subjects)) {
-    $subjects[] = $row;
+if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
+  $sql_subjects = "SELECT id, `{$subjectNameColumn}` AS name FROM subjects ORDER BY `{$subjectNameColumn}` ASC";
+  $result_subjects = $conn->query( $sql_subjects);
+  if ($result_subjects) {
+    while ($row = $result_subjects->fetch_assoc()) {
+      $subjects[] = $row;
+    }
+  }
 }
 
 // Default selections
-$selected_class = $_POST['class_id'] ?? ($classes[0]['id'] ?? 1);
+$selected_class = isset($_POST['class_id']) ? (int) $_POST['class_id'] : (int) ($classes[0]['id'] ?? 0);
 $selected_exam = $_POST['exam_type'] ?? 'Mid-term';
-$selected_subject = $_POST['subject_id'] ?? 1;
+$selected_subject = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : (int) ($subjects[0]['id'] ?? 0);
+$selected_class_owner_id = teacher_class_owner_id($conn, $selected_class, $teacher_owner_ids);
+
+if ($selected_class_owner_id <= 0) {
+  $selected_class = (int) ($classes[0]['id'] ?? 0);
+  $selected_class_owner_id = teacher_class_owner_id($conn, $selected_class, $teacher_owner_ids);
+}
 
 // Get students and their grades
-$sql_students = "SELECT s.id, s.roll_no, s.name, g.obtained_marks, g.grade, g.remarks
-                 FROM students s
-                 LEFT JOIN grades g ON s.id = g.student_id AND g.subject_id = $selected_subject AND g.exam_type = '$selected_exam'
-                 WHERE s.class_id = $selected_class";
-$result_students = mysqli_query($conn, $sql_students);
 $students = [];
-while ($row = mysqli_fetch_assoc($result_students)) {
-    $students[] = $row;
+if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists($conn, 'students', 'name')) {
+  $selectedClassLabel = teacher_auth_class_label_by_id($conn, $selected_class);
+  $studentClassWhere = teacher_auth_student_class_where_sql($conn, 's', $selected_class, $selectedClassLabel);
+  $rollSelect = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : "''";
+  $orderBy = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
+
+  $sql_students = "SELECT s.id, {$rollSelect} AS roll_no, s.name, g.obtained_marks, g.grade, g.remarks
+           FROM students s
+           LEFT JOIN grades g ON s.id = g.student_id AND g.subject_id = ? AND g.exam_type = ?
+           WHERE {$studentClassWhere}
+           ORDER BY {$orderBy} ASC";
+  $studentsStmt = $conn->prepare( $sql_students);
+  if ($studentsStmt) {
+    $studentsStmt->bind_param( 'is', $selected_subject, $selected_exam);
+    $studentsStmt->execute();
+    $result_students = $studentsStmt->get_result();
+    if ($result_students) {
+      while ($row = $result_students->fetch_assoc()) {
+        $students[] = $row;
+      }
+    }
+    $studentsStmt->close();
+  }
 }
 ?>
 <!DOCTYPE html>

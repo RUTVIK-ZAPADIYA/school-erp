@@ -6,10 +6,10 @@ header('Content-Type: text/html; charset=utf-8');
 function setup_list_tables($conn)
 {
 		$tables = [];
-		$result = mysqli_query($conn, 'SHOW TABLES');
+		$result = $conn->query( 'SHOW TABLES');
 
 		if ($result) {
-				while ($row = mysqli_fetch_array($result, MYSQLI_NUM)) {
+				while ($row = $result->fetch_array(MYSQLI_NUM)) {
 						if (isset($row[0])) {
 								$tables[] = (string) $row[0];
 						}
@@ -24,27 +24,27 @@ function setup_run_sql_batch($conn, $sqlBatch, &$errors)
 		$errors = [];
 		$executedStatements = 0;
 
-		if (!mysqli_multi_query($conn, $sqlBatch)) {
-				$errors[] = mysqli_error($conn);
+		if (!$conn->multi_query($sqlBatch)) {
+				$errors[] = $conn->error;
 				return 0;
 		}
 
 		do {
-				$result = mysqli_store_result($conn);
+				$result = $conn->store_result();
 				if ($result instanceof mysqli_result) {
-						mysqli_free_result($result);
+						$result->free();
 				}
 
-				if (mysqli_errno($conn)) {
-						$errors[] = mysqli_error($conn);
+				if ($conn->errno) {
+						$errors[] = $conn->error;
 						break;
 				}
 
 				$executedStatements++;
-		} while (mysqli_more_results($conn) && mysqli_next_result($conn));
+		} while ($conn->more_results() && $conn->next_result());
 
-		if (mysqli_errno($conn)) {
-				$errors[] = mysqli_error($conn);
+		if ($conn->errno) {
+				$errors[] = $conn->error;
 		}
 
 		return $executedStatements;

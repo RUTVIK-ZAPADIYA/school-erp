@@ -1,81 +1,176 @@
 <?php
-session_start();
-
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+// Resolve teacher identity across users.id and teachers.id.
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacher_id = (int) ($teacherContext['user_id'] ?? 0);
+$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
+$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
+
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+$classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
+$studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
 
 // Get students in teacher's classes with enhanced statistics
-$sql = "SELECT s.id, s.roll_no, s.name, s.email, c.name as class_name, c.id as class_id
-        FROM students s
-        JOIN classes c ON s.class_id = c.id
-        WHERE c.teacher_id = $teacher_id
-        ORDER BY s.roll_no";
-$result = mysqli_query($conn, $sql);
 $students = [];
 $total_students = 0;
 $excellent_students = 0;
 $good_students = 0;
 $needs_attention = 0;
 
-while ($row = mysqli_fetch_assoc($result)) {
-    $student_id = $row['id'];
-    $total_students++;
+if (
+  teacher_table_exists($conn, 'students')
+  && teacher_table_exists($conn, 'classes')
+  && teacher_column_exists($conn, 'students', 'name')
+  && teacher_column_exists($conn, 'classes', 'teacher_id')
+  && (teacher_column_exists($conn, 'students', 'class_id') || teacher_column_exists($conn, 'students', 'class'))
+) {
+  $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
+  $rollSelect = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : "''";
+  $orderBy = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
 
-    // Get average grade for this student
-    $sql_grade = "SELECT COALESCE(AVG(obtained_marks), 0) as avg_grade FROM grades WHERE student_id = $student_id";
-    $result_grade = mysqli_query($conn, $sql_grade);
-    $grade_data = mysqli_fetch_assoc($result_grade);
-    $row['avg_grade'] = round($grade_data['avg_grade'], 1);
+  $studentClassJoinParts = [];
+  if (teacher_column_exists($conn, 'students', 'class_id')) {
+    $studentClassJoinParts[] = 's.class_id = c.id';
+  }
+  if (teacher_column_exists($conn, 'students', 'class')) {
+    $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
+    $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
+    $studentClassJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+  }
 
-    // Get attendance percentage for this student
-    $sql_attendance = "SELECT
-        COUNT(*) as total_days,
-        SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days
-        FROM attendance WHERE student_id = $student_id";
-    $result_attendance = mysqli_query($conn, $sql_attendance);
-    $attendance_data = mysqli_fetch_assoc($result_attendance);
-    if ($attendance_data['total_days'] > 0) {
-        $row['attendance_percent'] = round(($attendance_data['present_days'] / $attendance_data['total_days']) * 100, 1);
-    } else {
-        $row['attendance_percent'] = 0;
-    }
+  $studentClassJoinSql = implode(' OR ', $studentClassJoinParts);
 
-    // Categorize students
-    $avg_performance = ($row['avg_grade'] + $row['attendance_percent']) / 2;
-    if ($avg_performance >= 85) {
+  $sql = "SELECT DISTINCT s.id, {$rollSelect} AS roll_no, s.name, s.email, {$classNameExpr} AS class_name, c.id AS class_id
+      FROM students s
+      INNER JOIN classes c ON ({$studentClassJoinSql})
+      WHERE c.teacher_id IN ({$teacher_ids_sql})
+      ORDER BY {$orderBy} ASC";
+  $result = $conn->query( $sql);
+  if ($result) {
+
+    while ($result && ($row = $result->fetch_assoc())) {
+      $student_id = (int) ($row['id'] ?? 0);
+      if ($student_id <= 0) {
+        continue;
+      }
+
+      $total_students++;
+
+      $row['avg_grade'] = 0;
+      if (teacher_table_exists($conn, 'grades') && teacher_column_exists($conn, 'grades', 'student_id')) {
+        $gradeStmt = $conn->prepare( 'SELECT COALESCE(AVG(obtained_marks), 0) AS avg_grade FROM grades WHERE student_id = ?');
+        if ($gradeStmt) {
+          $gradeStmt->bind_param( 'i', $student_id);
+          $gradeStmt->execute();
+          $gradeResult = $gradeStmt->get_result();
+          $gradeData = $gradeResult ? $gradeResult->fetch_assoc() : null;
+          $row['avg_grade'] = round((float) ($gradeData['avg_grade'] ?? 0), 1);
+          $gradeStmt->close();
+        }
+      }
+
+      $row['attendance_percent'] = 0;
+      if (teacher_table_exists($conn, 'attendance') && teacher_column_exists($conn, 'attendance', 'student_id')) {
+        $attendanceStmt = $conn->prepare(
+          "SELECT COUNT(*) AS total_days,
+              SUM(CASE WHEN LOWER(COALESCE(status, '')) = 'present' THEN 1 ELSE 0 END) AS present_days
+           FROM attendance
+           WHERE student_id = ?"
+        );
+        if ($attendanceStmt) {
+          $attendanceStmt->bind_param( 'i', $student_id);
+          $attendanceStmt->execute();
+          $attendanceResult = $attendanceStmt->get_result();
+          $attendanceData = $attendanceResult ? $attendanceResult->fetch_assoc() : null;
+          $totalDays = (int) ($attendanceData['total_days'] ?? 0);
+          $presentDays = (int) ($attendanceData['present_days'] ?? 0);
+          if ($totalDays > 0) {
+            $row['attendance_percent'] = round(($presentDays / $totalDays) * 100, 1);
+          }
+          $attendanceStmt->close();
+        }
+      }
+
+      $avg_performance = ($row['avg_grade'] + $row['attendance_percent']) / 2;
+      if ($avg_performance >= 85) {
         $row['performance_category'] = 'excellent';
         $excellent_students++;
-    } elseif ($avg_performance >= 70) {
+      } elseif ($avg_performance >= 70) {
         $row['performance_category'] = 'good';
         $good_students++;
-    } else {
+      } else {
         $row['performance_category'] = 'needs_attention';
         $needs_attention++;
-    }
+      }
 
-    $students[] = $row;
+      $students[] = $row;
+    }
+  }
 }
 
 // Get class distribution
-$sql_classes = "SELECT c.name, COUNT(s.id) as student_count
-                FROM classes c
-                LEFT JOIN students s ON c.id = s.class_id
-                WHERE c.teacher_id = $teacher_id
-                GROUP BY c.id, c.name";
-$result_classes = mysqli_query($conn, $sql_classes);
 $class_distribution = [];
-while ($row = mysqli_fetch_assoc($result_classes)) {
-    $class_distribution[] = $row;
+if (teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'classes', 'teacher_id')) {
+  $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
+  $distributionJoinParts = [];
+  if (teacher_column_exists($conn, 'students', 'class_id')) {
+    $distributionJoinParts[] = 's.class_id = c.id';
+  }
+  if (teacher_column_exists($conn, 'students', 'class')) {
+    $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
+    $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
+    $distributionJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+  }
+
+  $distributionJoinSql = empty($distributionJoinParts) ? '1 = 0' : implode(' OR ', $distributionJoinParts);
+  $sql_classes = "SELECT {$classNameExpr} AS name, COUNT(s.id) AS student_count
+          FROM classes c
+          LEFT JOIN students s ON ({$distributionJoinSql})
+          WHERE c.teacher_id IN ({$teacher_ids_sql})
+          GROUP BY c.id, {$classNameExpr}
+          ORDER BY {$classNameExpr} ASC";
+  $result_classes = $conn->query( $sql_classes);
+  if ($result_classes) {
+    while ($row = $result_classes->fetch_assoc()) {
+      $class_distribution[] = $row;
+    }
+  }
 }
 ?>
 <!DOCTYPE html>

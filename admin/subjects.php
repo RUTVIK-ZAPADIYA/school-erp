@@ -10,15 +10,65 @@ admin_ensure_column($connection, 'subjects', 'credits', 'INT NULL');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $subjectId = (int) ($_POST['subject_id'] ?? 0);
   if ($subjectId > 0) {
-    $deleteStmt = mysqli_prepare($connection, 'DELETE FROM subjects WHERE id = ?');
-    if ($deleteStmt) {
-      mysqli_stmt_bind_param($deleteStmt, 'i', $subjectId);
-      if (mysqli_stmt_execute($deleteStmt)) {
-        admin_set_flash('success', 'Subject deleted successfully.');
-      } else {
-        admin_set_flash('danger', 'Unable to delete subject right now.');
+    $deleteError = '';
+    $transactionStarted = false;
+
+    if ($connection->begin_transaction()) {
+      $transactionStarted = true;
+    }
+
+    $nullifyTargets = [
+      ['assignments', 'subject_id', true],
+      ['attendance', 'subject_id', true],
+      ['grades', 'subject_id', true],
+      ['marks', 'subject_id', true],
+      ['schedule', 'subject_id', true],
+      ['exams', 'subject_id', true],
+    ];
+
+    foreach ($nullifyTargets as $target) {
+      [$tableName, $columnName, $allowDeleteFallback] = $target;
+      $referenceError = '';
+      if (!admin_clear_reference($connection, $tableName, $columnName, $subjectId, $allowDeleteFallback, $referenceError)) {
+        $deleteError = 'Unable to clear related subject data in ' . $tableName . '.';
+        if ($referenceError !== '') {
+          $deleteError .= ' ' . $referenceError;
+        }
       }
-      mysqli_stmt_close($deleteStmt);
+
+      if ($deleteError !== '') {
+        break;
+      }
+    }
+
+    if ($deleteError === '') {
+      $deleteStmt = $connection->prepare( 'DELETE FROM subjects WHERE id = ?');
+      if (!$deleteStmt) {
+        $deleteError = 'Unable to process subject delete request.';
+      } else {
+        $deleteStmt->bind_param( 'i', $subjectId);
+        if (!$deleteStmt->execute()) {
+          $deleteError = 'Unable to delete subject right now.';
+        } elseif ($deleteStmt->affected_rows < 1) {
+          $deleteError = 'Subject record was not found.';
+        }
+        $deleteStmt->close();
+      }
+    }
+
+    if ($deleteError === '') {
+      if ($transactionStarted && !$connection->commit()) {
+        $deleteError = 'Unable to finalize subject deletion. Please try again.';
+      }
+    }
+
+    if ($deleteError !== '') {
+      if ($transactionStarted) {
+        $connection->rollback();
+      }
+      admin_set_flash('danger', $deleteError);
+    } else {
+      admin_set_flash('success', 'Subject deleted successfully.');
     }
   }
 
@@ -43,23 +93,23 @@ if (admin_table_exists($connection, 'subjects')) {
 
   if ($search !== '') {
     $searchSql = $baseSql . " WHERE {$subjectNameExpression} LIKE ? OR s.code LIKE ? OR t.name LIKE ? OR {$classNameExpression} LIKE ? ORDER BY s.id DESC";
-    $searchStmt = mysqli_prepare($connection, $searchSql);
+    $searchStmt = $connection->prepare( $searchSql);
     if ($searchStmt) {
       $searchTerm = '%' . $search . '%';
-      mysqli_stmt_bind_param($searchStmt, 'ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
-      mysqli_stmt_execute($searchStmt);
-      $result = mysqli_stmt_get_result($searchStmt);
+      $searchStmt->bind_param( 'ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+      $searchStmt->execute();
+      $result = $searchStmt->get_result();
       if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $result->fetch_assoc()) {
           $subjects[] = $row;
         }
       }
-      mysqli_stmt_close($searchStmt);
+      $searchStmt->close();
     }
   } else {
-    $result = mysqli_query($connection, $baseSql . ' ORDER BY s.id DESC');
+    $result = $connection->query( $baseSql . ' ORDER BY s.id DESC');
     if ($result) {
-      while ($row = mysqli_fetch_assoc($result)) {
+      while ($row = $result->fetch_assoc()) {
         $subjects[] = $row;
       }
     }
@@ -132,7 +182,9 @@ $flash = admin_pull_flash();
                   <td><?php echo htmlspecialchars((string) ($subject['class_name'] ?? '-')); ?></td>
                   <td><?php echo htmlspecialchars((string) ($subject['credits'] ?? '-')); ?></td>
                   <td>
-                    <a class="btn btn-sm btn-outline-primary" href="add-subject.php"><i class="fas fa-plus"></i></a>
+                    <a class="btn btn-sm btn-outline-primary" href="edit-subject.php?id=<?php echo (int) $subject['id']; ?>" title="Edit Subject">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     <form method="POST" action="" style="display:inline-block;">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="subject_id" value="<?php echo (int) $subject['id']; ?>">

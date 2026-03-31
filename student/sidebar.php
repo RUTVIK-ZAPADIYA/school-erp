@@ -1,13 +1,9 @@
 <?php
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
+require_once __DIR__ . '/auth.php';
 
-if (!isset($_SESSION['student_id'])) {
-    header("Location: ../login.php");
-    exit();
-}
+$studentContext = student_auth_context();
+$studentDisplayName = (string) ($studentContext['student_name'] ?? $_SESSION['student_name'] ?? 'Student');
+$studentRollNo = (string) ($studentContext['student_roll_no'] ?? '-');
 
 // Get current page filename
 $current_page = basename($_SERVER['PHP_SELF']);
@@ -34,6 +30,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <span class="material-symbols-outlined">analytics</span>
 <span class="text-[14px]">Marks</span>
 </a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'assignments.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="assignments.php">
+<span class="material-symbols-outlined">assignment</span>
+<span class="text-[14px]">Assignments</span>
+</a>
 <a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'fees.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="fees.php">
 <span class="material-symbols-outlined">account_balance_wallet</span>
 <span class="text-[14px]">Fees</span>
@@ -59,11 +59,11 @@ $current_page = basename($_SERVER['PHP_SELF']);
 </div>
 <div class="flex items-center gap-3">
 <div class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center text-white bg-blue-500 font-bold text-xs">
-<?php echo strtoupper(substr($_SESSION['student_name'], 0, 1)); ?>
+<?php echo strtoupper(substr($studentDisplayName, 0, 1)); ?>
 </div>
 <div>
-<p class="text-[11px] font-bold text-on-surface"><?php echo $_SESSION['student_name'] ?? 'Student'; ?></p>
-<p class="text-[10px] text-on-surface-variant">Roll No: -</p>
+<p class="text-[11px] font-bold text-on-surface"><?php echo htmlspecialchars($studentDisplayName); ?></p>
+<p class="text-[10px] text-on-surface-variant">Roll No: <?php echo htmlspecialchars($studentRollNo !== '' ? $studentRollNo : '-'); ?></p>
 </div>
 </div>
 </div>

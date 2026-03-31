@@ -1,202 +1,193 @@
-﻿<?php
-session_start();
+<?php
+require_once __DIR__ . '/auth.php';
 
-// Check if teacher is logged in
-if (!isset($_SESSION['user_id']) || $_SESSION['role'] != 'teacher') {
-  header("Location: ../login.php");
-  exit();
-}
-
-// Include database connection
 include '../includes/db_connect.php';
 
-// Get teacher info
-$teacher_id = $_SESSION['user_id'];
-$teacher_name = $_SESSION['name'];
+$teacherContext = teacher_auth_resolve_context($conn);
+$teacherUserId = (int) ($teacherContext['user_id'] ?? 0);
+$teacherIds = (array) ($teacherContext['teacher_ids'] ?? [$teacherUserId]);
+$teacherIdSql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacherName = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
-// Get dashboard statistics with error handling
+function teacher_table_exists($conn, $tableName)
+{
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_column_exists($conn, $tableName, $columnName)
+{
+  if (!teacher_table_exists($conn, $tableName)) {
+    return false;
+  }
+
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+
+  return $result && $result->num_rows > 0;
+}
+
+function teacher_scalar_value($conn, $sql, $defaultValue = 0)
+{
+  $result = $conn->query( $sql);
+  if (!$result) {
+    return $defaultValue;
+  }
+
+  $row = $result->fetch_row();
+  if (!$row || !isset($row[0])) {
+    return $defaultValue;
+  }
+
+  return $row[0];
+}
+
+function teacher_first_existing_column($conn, $tableName, array $candidates)
+{
+  foreach ($candidates as $candidate) {
+    if (teacher_column_exists($conn, $tableName, $candidate)) {
+      return $candidate;
+    }
+  }
+
+  return null;
+}
+
+$attendanceDateColumn = teacher_first_existing_column($conn, 'attendance', ['date', 'attendance_date']);
+
 $stats = [
   'total_students' => 0,
   'total_assignments' => 0,
   'graded_submissions' => 0,
-  'today_attendance' => 0
+  'today_attendance' => 0,
 ];
 
-$safePrep = function(mysqli $conn, string $sql) {
-  $stmt = mysqli_prepare($conn, $sql);
-  if (!$stmt) {
-    error_log('Prepare failed: ' . mysqli_error($conn));
+if (
+  teacher_table_exists($conn, 'students')
+  && teacher_table_exists($conn, 'classes')
+  && (teacher_column_exists($conn, 'students', 'class_id') || teacher_column_exists($conn, 'students', 'class'))
+  && teacher_column_exists($conn, 'classes', 'teacher_id')
+) {
+  $classJoinParts = [];
+  if (teacher_column_exists($conn, 'students', 'class_id')) {
+    $classJoinParts[] = 's.class_id = c.id';
   }
-  return $stmt;
-};
+  if (teacher_column_exists($conn, 'students', 'class')) {
+    $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
+    $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
+    $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
+    $classJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+  }
 
-try {
-    // Get total students
-    $sql_students = "SELECT COUNT(*) as count FROM students WHERE class_id IN (SELECT id FROM classes WHERE teacher_id = ?)";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_students);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['total_students'] = $row['count'] ?? 0;
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_students);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      $row = mysqli_fetch_assoc($result);
-      $stats['total_students'] = $row['count'] ?? 0;
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
-    }
-
-    // Get total assignments
-    $sql_assignments = "SELECT COUNT(*) as count FROM assignments WHERE teacher_id = ?";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_assignments);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['total_assignments'] = $row['count'] ?? 0;
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_assignments);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      $row = mysqli_fetch_assoc($result);
-      $stats['total_assignments'] = $row['count'] ?? 0;
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
-    }
-
-    // Get graded submissions
-    $sql_graded = "SELECT COUNT(*) as count FROM assignment_submissions WHERE assignment_id IN (SELECT id FROM assignments WHERE teacher_id = ?) AND status = 'graded'";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_graded);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['graded_submissions'] = $row['count'] ?? 0;
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_graded);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      $row = mysqli_fetch_assoc($result);
-      $stats['graded_submissions'] = $row['count'] ?? 0;
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
-    }
-
-    // Get today's attendance
-    $sql_attendance = "SELECT COUNT(*) as count FROM attendance WHERE teacher_id = ? AND DATE(date) = CURDATE()";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_attendance);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['today_attendance'] = $row['count'] ?? 0;
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_attendance);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      $row = mysqli_fetch_assoc($result);
-      $stats['today_attendance'] = $row['count'] ?? 0;
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
-    }
-
-} catch (Exception $e) {
-    // If queries fail, use default values
-    error_log("Dashboard query error: " . $e->getMessage());
+  $classJoinSql = empty($classJoinParts) ? '1 = 0' : implode(' OR ', $classJoinParts);
+  $stats['total_students'] = (int) teacher_scalar_value(
+    $conn,
+    "SELECT COUNT(DISTINCT s.id)
+     FROM students s
+     INNER JOIN classes c ON ({$classJoinSql})
+     WHERE c.teacher_id IN ({$teacherIdSql})",
+    0
+  );
 }
 
-// Get recent assignments with error handling
-$recent_assignments = [];
-try {
-    $sql_recent = "SELECT a.title, a.due_date, COUNT(sub.id) as submissions
-                   FROM assignments a
-                   LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id
-                   WHERE a.teacher_id = ?
-                   GROUP BY a.id
-                   ORDER BY a.created_at DESC LIMIT 5";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_recent);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $recent_assignments[] = $row;
-        }
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_recent);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      while ($row = mysqli_fetch_assoc($result)) {
-        $recent_assignments[] = $row;
-      }
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
-    }
-} catch (Exception $e) {
-    // If query fails, use empty array
-    error_log("Recent assignments query error: " . $e->getMessage());
+if (teacher_table_exists($conn, 'assignments') && teacher_column_exists($conn, 'assignments', 'teacher_id')) {
+  $stats['total_assignments'] = (int) teacher_scalar_value(
+    $conn,
+    "SELECT COUNT(*) FROM assignments WHERE teacher_id IN ({$teacherIdSql})",
+    0
+  );
 }
 
-// Get attendance trend (last 7 days) with error handling
-$attendance_trend = [];
-try {
-    $sql_trend = "SELECT DATE(date) as attendance_date, COUNT(*) as count
-                  FROM attendance
-                  WHERE teacher_id = ? AND date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
-                  GROUP BY DATE(date)
-                  ORDER BY date";
-<<<<<<< HEAD
-    $stmt = mysqli_prepare($conn, $sql_trend);
-    if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        while ($row = mysqli_fetch_assoc($result)) {
-            $attendance_trend[] = $row;
-        }
-        mysqli_stmt_close($stmt);
-=======
-    $stmt = $safePrep($conn, $sql_trend);
-    if ($stmt) {
-      mysqli_stmt_bind_param($stmt, "i", $teacher_id);
-      mysqli_stmt_execute($stmt);
-      $result = mysqli_stmt_get_result($stmt);
-      while ($row = mysqli_fetch_assoc($result)) {
-        $attendance_trend[] = $row;
-      }
-      mysqli_stmt_close($stmt);
->>>>>>> ae3a1e134bb680314ef63dd0af041b04279a8999
+if (
+  teacher_table_exists($conn, 'assignment_submissions')
+  && teacher_table_exists($conn, 'assignments')
+  && teacher_column_exists($conn, 'assignment_submissions', 'assignment_id')
+  && teacher_column_exists($conn, 'assignment_submissions', 'status')
+  && teacher_column_exists($conn, 'assignments', 'teacher_id')
+) {
+  $stats['graded_submissions'] = (int) teacher_scalar_value(
+    $conn,
+    "SELECT COUNT(*)
+     FROM assignment_submissions sub
+     INNER JOIN assignments a ON sub.assignment_id = a.id
+     WHERE a.teacher_id IN ({$teacherIdSql})
+       AND LOWER(COALESCE(sub.status, '')) = 'graded'",
+    0
+  );
+}
+
+if (
+  teacher_table_exists($conn, 'attendance')
+  && teacher_column_exists($conn, 'attendance', 'teacher_id')
+  && $attendanceDateColumn !== null
+) {
+  $stats['today_attendance'] = (int) teacher_scalar_value(
+    $conn,
+    "SELECT COUNT(*)
+     FROM attendance
+     WHERE teacher_id IN ({$teacherIdSql})
+       AND DATE({$attendanceDateColumn}) = CURDATE()",
+    0
+  );
+}
+
+$recentAssignments = [];
+if (
+  teacher_table_exists($conn, 'assignments')
+  && teacher_column_exists($conn, 'assignments', 'teacher_id')
+  && teacher_column_exists($conn, 'assignments', 'title')
+  && teacher_column_exists($conn, 'assignments', 'due_date')
+) {
+  $hasSubmissionJoin = teacher_table_exists($conn, 'assignment_submissions')
+    && teacher_column_exists($conn, 'assignment_submissions', 'assignment_id');
+  $submissionExpr = $hasSubmissionJoin ? 'COUNT(sub.id)' : '0';
+  $joinClause = $hasSubmissionJoin ? 'LEFT JOIN assignment_submissions sub ON a.id = sub.assignment_id' : '';
+  $orderColumn = teacher_column_exists($conn, 'assignments', 'created_at') ? 'a.created_at' : 'a.id';
+
+  $recentSql = "SELECT a.title, a.due_date, {$submissionExpr} AS submissions
+                FROM assignments a
+                {$joinClause}
+                WHERE a.teacher_id IN ({$teacherIdSql})
+                GROUP BY a.id
+                ORDER BY {$orderColumn} DESC
+                LIMIT 5";
+  $recentResult = $conn->query( $recentSql);
+  if ($recentResult) {
+    while ($recentRow = $recentResult->fetch_assoc()) {
+      $recentAssignments[] = $recentRow;
     }
-} catch (Exception $e) {
-    // If query fails, use empty array
-    error_log("Attendance trend query error: " . $e->getMessage());
+  }
+}
+
+$trendMap = [];
+if (
+  teacher_table_exists($conn, 'attendance')
+  && teacher_column_exists($conn, 'attendance', 'teacher_id')
+  && $attendanceDateColumn !== null
+) {
+  $trendSql = "SELECT DATE({$attendanceDateColumn}) AS attendance_day, COUNT(*) AS total
+               FROM attendance
+               WHERE teacher_id IN ({$teacherIdSql})
+                 AND {$attendanceDateColumn} >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
+               GROUP BY DATE({$attendanceDateColumn})
+               ORDER BY attendance_day ASC";
+  $trendResult = $conn->query( $trendSql);
+  if ($trendResult) {
+    while ($trendRow = $trendResult->fetch_assoc()) {
+      $trendMap[(string) ($trendRow['attendance_day'] ?? '')] = (int) ($trendRow['total'] ?? 0);
+    }
+  }
+}
+
+$trendLabels = [];
+$trendValues = [];
+for ($i = 6; $i >= 0; $i--) {
+  $dateKey = date('Y-m-d', strtotime('-' . $i . ' day'));
+  $trendLabels[] = date('M j', strtotime($dateKey));
+  $trendValues[] = (int) ($trendMap[$dateKey] ?? 0);
 }
 ?>
 <!DOCTYPE html>
@@ -204,7 +195,7 @@ try {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Dashboard - School ERP</title>
+  <title>Teacher Dashboard</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
@@ -262,18 +253,6 @@ try {
             "tertiary-container": "#b20f03",
             "primary-fixed": "#dae2ff",
             "inverse-on-surface": "#f3f0f0"
-          },
-          fontFamily: {
-            "headline": ["Inter", "sans-serif"],
-            "body": ["Inter", "sans-serif"],
-            "label": ["Inter", "sans-serif"],
-            "mono": ["JetBrains Mono", "monospace"]
-          },
-          borderRadius: {
-            "DEFAULT": "0.125rem",
-            "lg": "0.25rem",
-            "xl": "0.5rem",
-            "full": "0.75rem"
           }
         }
       }
@@ -288,205 +267,129 @@ try {
       backdrop-filter: blur(12px);
     }
     .pro-shadow {
-      box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
-    }
-    .no-scrollbar::-webkit-scrollbar {
-      display: none;
-    }
-      to { opacity: 1; transform: translateY(0); }
+      box-shadow: 0 4px 20px -5px rgba(0, 0, 0, 0.05);
     }
   </style>
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-10 space-y-10">
-    <!-- Header Section -->
-    <section class="space-y-6">
-      <div class="flex justify-between items-end">
-        <div>
-          <h1 class="text-3xl font-bold tracking-tight text-on-surface">Teacher Dashboard</h1>
-          <p class="text-on-surface-variant font-medium">Welcome back, <?php echo htmlspecialchars($teacher_name); ?>! Here's your academic overview.</p>
-        </div>
-        <div class="flex items-center gap-4">
-          <div class="glass-panel rounded-xl p-4 pro-shadow">
-            <div class="text-sm text-on-surface-variant">Last Updated</div>
-            <div class="text-lg font-semibold text-on-surface"><?php echo date('M j, Y H:i'); ?></div>
-          </div>
-        </div>
+  <main class="ml-64 min-h-screen p-10 space-y-8">
+    <section class="flex items-end justify-between">
+      <div>
+        <h1 class="text-3xl font-bold tracking-tight text-on-surface">Teacher Dashboard</h1>
+        <p class="text-on-surface-variant font-medium">Welcome back, <?php echo htmlspecialchars($teacherName); ?>.</p>
+      </div>
+      <div class="glass-panel rounded-xl px-4 py-3 pro-shadow text-sm text-on-surface-variant">
+        Updated: <?php echo date('M j, Y H:i'); ?>
       </div>
     </section>
 
-    <!-- Stats Cards -->
-    <section class="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <div class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-primary">people</span>
-          </div>
-          <div class="text-right">
-            <p class="text-2xl font-bold text-on-surface"><?php echo $stats['total_students']; ?></p>
-            <p class="text-xs text-on-surface-variant uppercase tracking-wider">Total Students</p>
-          </div>
-        </div>
-        <div class="w-full bg-surface-variant rounded-full h-2">
-          <div class="bg-primary h-2 rounded-full" style="width: 100%"></div>
-        </div>
+        <p class="text-sm text-on-surface-variant">Total Students</p>
+        <p class="text-3xl font-bold text-on-surface mt-2"><?php echo (int) $stats['total_students']; ?></p>
       </div>
-
       <div class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center text-white">
-            <span class="material-symbols-outlined">assignment</span>
-          </div>
-          <div class="text-right">
-            <p class="text-2xl font-bold text-on-surface"><?php echo $stats['total_assignments']; ?></p>
-            <p class="text-xs text-on-surface-variant uppercase tracking-wider">Assignments</p>
-          </div>
-        </div>
-        <div class="w-full bg-surface-variant rounded-full h-2">
-          <div class="bg-blue-500 h-2 rounded-full" style="width: <?php echo $stats['total_assignments'] > 0 ? min(100, ($stats['total_assignments'] / 10) * 100) : 0; ?>%"></div>
-        </div>
+        <p class="text-sm text-on-surface-variant">Assignments</p>
+        <p class="text-3xl font-bold text-on-surface mt-2"><?php echo (int) $stats['total_assignments']; ?></p>
       </div>
-
       <div class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center text-white">
-            <span class="material-symbols-outlined">grade</span>
-          </div>
-          <div class="text-right">
-            <p class="text-2xl font-bold text-on-surface"><?php echo $stats['graded_submissions']; ?></p>
-            <p class="text-xs text-on-surface-variant uppercase tracking-wider">Graded</p>
-          </div>
-        </div>
-        <div class="w-full bg-surface-variant rounded-full h-2">
-          <div class="bg-green-500 h-2 rounded-full" style="width: <?php echo $stats['total_assignments'] > 0 ? min(100, ($stats['graded_submissions'] / ($stats['total_assignments'] * $stats['total_students'])) * 100) : 0; ?>%"></div>
-        </div>
+        <p class="text-sm text-on-surface-variant">Graded Submissions</p>
+        <p class="text-3xl font-bold text-on-surface mt-2"><?php echo (int) $stats['graded_submissions']; ?></p>
       </div>
-
       <div class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center justify-between mb-4">
-          <div class="w-12 h-12 bg-purple-500 rounded-xl flex items-center justify-center text-white">
-            <span class="material-symbols-outlined">check_circle</span>
-          </div>
-          <div class="text-right">
-            <p class="text-2xl font-bold text-on-surface"><?php echo $stats['today_attendance']; ?></p>
-            <p class="text-xs text-on-surface-variant uppercase tracking-wider">Today's Attendance</p>
-          </div>
-        </div>
-        <div class="w-full bg-surface-variant rounded-full h-2">
-          <div class="bg-purple-500 h-2 rounded-full" style="width: <?php echo $stats['total_students'] > 0 ? min(100, ($stats['today_attendance'] / $stats['total_students']) * 100) : 0; ?>%"></div>
-        </div>
+        <p class="text-sm text-on-surface-variant">Today's Attendance</p>
+        <p class="text-3xl font-bold text-on-surface mt-2"><?php echo (int) $stats['today_attendance']; ?></p>
       </div>
     </section>
 
-    <!-- Quick Actions -->
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <a href="assignments.php" class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-primary">assignment_add</span>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold text-on-surface">Create Assignment</h3>
-            <p class="text-on-surface-variant">Add new assignments for your classes</p>
-          </div>
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div class="glass-panel rounded-xl pro-shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline-variant/20">
+          <h2 class="text-xl font-semibold text-on-surface">Recent Assignments</h2>
         </div>
-      </a>
-
-      <a href="attendance.php" class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-green-500/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-green-600">fact_check</span>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold text-on-surface">Take Attendance</h3>
-            <p class="text-on-surface-variant">Mark student attendance</p>
-          </div>
-        </div>
-      </a>
-
-      <a href="students.php" class="glass-panel rounded-xl p-6 pro-shadow">
-        <div class="flex items-center gap-4">
-          <div class="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-blue-600">school</span>
-          </div>
-          <div>
-            <h3 class="text-lg font-semibold text-on-surface">View Students</h3>
-            <p class="text-on-surface-variant">Manage student information</p>
-          </div>
-        </div>
-      </a>
-    </section>
-
-    <!-- Recent Assignments Table -->
-    <section class="glass-panel rounded-xl pro-shadow overflow-hidden">
-      <div class="px-6 py-5 border-b border-outline-variant">
-        <div class="flex items-center gap-3">
-          <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-primary">assignment</span>
-          </div>
-          <div>
-            <h3 class="text-xl font-bold text-on-surface">Recent Assignments</h3>
-            <p class="text-on-surface-variant">Your latest assignment activities</p>
-          </div>
-        </div>
-      </div>
-
-      <div class="overflow-x-auto">
-        <table class="w-full">
-          <thead class="bg-surface-variant/50">
-            <tr>
-              <th class="px-6 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-widest">Assignment</th>
-              <th class="px-6 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-widest">Due Date</th>
-              <th class="px-6 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-widest">Submissions</th>
-              <th class="px-6 py-3 text-left text-xs font-bold text-on-surface-variant uppercase tracking-widest">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-outline-variant">
-            <?php if (count($recent_assignments) > 0): ?>
-              <?php foreach ($recent_assignments as $assignment): ?>
-              <tr class="hover:bg-surface-variant/30">
-                <td class="px-6 py-4">
-                  <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                      <span class="material-symbols-outlined text-primary text-sm">assignment</span>
-                    </div>
-                    <div>
-                      <div class="text-sm font-semibold text-on-surface"><?php echo htmlspecialchars($assignment['title']); ?></div>
-                    </div>
-                  </div>
-                </td>
-                <td class="px-6 py-4 text-sm text-on-surface">
-                  <?php echo date('M d, Y', strtotime($assignment['due_date'])); ?>
-                </td>
-                <td class="px-6 py-4 text-sm text-on-surface">
-                  <?php echo $assignment['submissions']; ?> submissions
-                </td>
-                <td class="px-6 py-4">
-                  <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                    <span class="material-symbols-outlined text-xs" style="font-variation-settings: 'FILL' 1;">check_circle</span>
-                    Active
-                  </span>
-                </td>
-              </tr>
-              <?php endforeach; ?>
-            <?php else: ?>
-            <tr>
-              <td colspan="4" class="px-6 py-12 text-center">
-                <div class="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span class="material-symbols-outlined text-on-surface-variant text-2xl">assignment</span>
+        <div class="p-4">
+          <?php if (!empty($recentAssignments)): ?>
+            <div class="space-y-3">
+              <?php foreach ($recentAssignments as $assignment): ?>
+                <div class="bg-white border border-outline-variant/30 rounded-lg px-4 py-3">
+                  <p class="font-semibold text-on-surface"><?php echo htmlspecialchars((string) ($assignment['title'] ?? 'Untitled')); ?></p>
+                  <p class="text-sm text-on-surface-variant">
+                    Due: <?php echo !empty($assignment['due_date']) ? date('M j, Y', strtotime((string) $assignment['due_date'])) : '-'; ?>
+                    | Submissions: <?php echo (int) ($assignment['submissions'] ?? 0); ?>
+                  </p>
                 </div>
-                <h3 class="text-lg font-semibold text-on-surface mb-2">No assignments yet</h3>
-                <p class="text-on-surface-variant">Create your first assignment to get started.</p>
-              </td>
-            </tr>
-            <?php endif; ?>
-          </tbody>
-        </table>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            <p class="text-sm text-on-surface-variant">No assignments found.</p>
+          <?php endif; ?>
+        </div>
       </div>
+
+      <div class="glass-panel rounded-xl pro-shadow overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline-variant/20">
+          <h2 class="text-xl font-semibold text-on-surface">Attendance Trend (7 Days)</h2>
+        </div>
+        <div class="p-4 h-72">
+          <canvas id="attendanceTrendChart"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <a href="assignments.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
+        <p class="font-semibold text-on-surface">Create Assignment</p>
+        <p class="text-sm text-on-surface-variant mt-1">Add work for your classes.</p>
+      </a>
+      <a href="attendance.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
+        <p class="font-semibold text-on-surface">Take Attendance</p>
+        <p class="text-sm text-on-surface-variant mt-1">Mark present and absent students.</p>
+      </a>
+      <a href="students.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
+        <p class="font-semibold text-on-surface">View Students</p>
+        <p class="text-sm text-on-surface-variant mt-1">Monitor academic progress.</p>
+      </a>
     </section>
   </main>
+
+  <script>
+    const trendLabels = <?php echo json_encode($trendLabels); ?>;
+    const trendValues = <?php echo json_encode($trendValues); ?>;
+    const trendCanvas = document.getElementById('attendanceTrendChart');
+
+    if (trendCanvas) {
+      new Chart(trendCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels: trendLabels,
+          datasets: [{
+            label: 'Attendance Entries',
+            data: trendValues,
+            borderColor: '#003b93',
+            backgroundColor: 'rgba(0, 59, 147, 0.12)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.35,
+            pointRadius: 3
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: { precision: 0 }
+            }
+          },
+          plugins: {
+            legend: { display: false }
+          }
+        }
+      });
+    }
+  </script>
 </body>
 </html>
-

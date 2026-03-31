@@ -1,76 +1,117 @@
 <?php
-session_start();
-if ((!isset($_SESSION['student_id']) || !isset($_SESSION['student_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'student') {
-  $_SESSION['student_id'] = (int) $_SESSION['user_id'];
-  $_SESSION['student_name'] = $_SESSION['name'] ?? 'Student';
-}
-if (!isset($_SESSION['student_id'])) {
-  header("Location: ../login.php");
-  exit();
-}
+require_once __DIR__ . '/auth.php';
 
-// Include database connection
-include '../includes/db_connect.php';
-
-// Get student info
-$student_id = $_SESSION['student_id'];
-$student_name = $_SESSION['name'];
+$studentContext = student_auth_context();
+$student_id = (int) ($studentContext['student_id'] ?? 0);
+$student_user_id = (int) ($studentContext['user_id'] ?? 0);
+$student_name = (string) ($studentContext['student_name'] ?? 'Student');
+$studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get dashboard statistics with error handling
 $stats = [
     'attendance' => 0,
     'average_marks' => 0,
     'pending_fees' => 0,
-    'leave_applications' => 0
+    'leave_applications' => 0,
+    'assignments' => 0,
 ];
 
 try {
     // Get attendance percentage
-    $sql_attendance = "SELECT COUNT(*) as total FROM attendance WHERE student_id = ?";
-    $stmt = mysqli_prepare($conn, $sql_attendance);
+  $sql_attendance = "SELECT COUNT(*) as total FROM attendance WHERE {$studentFilter['sql']}";
+    $stmt = $conn->prepare( $sql_attendance);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['attendance'] = $row['total'] ?? 0;
-        mysqli_stmt_close($stmt);
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $row = $result->fetch_assoc();
+      $stats['attendance'] = $row['total'] ?? 0;
+    }
+        $stmt->close();
     }
 
     // Get average marks
-    $sql_marks = "SELECT AVG(marks) as avg_marks FROM marks WHERE student_id = ?";
-    $stmt = mysqli_prepare($conn, $sql_marks);
+  $sql_marks = "SELECT AVG(marks) as avg_marks FROM marks WHERE {$studentFilter['sql']}";
+    $stmt = $conn->prepare( $sql_marks);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['average_marks'] = round($row['avg_marks'] ?? 0, 2);
-        mysqli_stmt_close($stmt);
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $row = $result->fetch_assoc();
+      $stats['average_marks'] = round($row['avg_marks'] ?? 0, 2);
+    }
+        $stmt->close();
     }
 
     // Get pending fees
-    $sql_fees = "SELECT SUM(amount) as total_fees FROM fees WHERE student_id = ? AND status = 'pending'";
-    $stmt = mysqli_prepare($conn, $sql_fees);
+  $sql_fees = "SELECT SUM(amount) as total_fees FROM fees WHERE {$studentFilter['sql']} AND LOWER(COALESCE(status, '')) = 'pending'";
+    $stmt = $conn->prepare( $sql_fees);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['pending_fees'] = round($row['total_fees'] ?? 0, 2);
-        mysqli_stmt_close($stmt);
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $row = $result->fetch_assoc();
+      $stats['pending_fees'] = round($row['total_fees'] ?? 0, 2);
+    }
+        $stmt->close();
     }
 
     // Get leave applications
-    $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE student_id = ?";
-    $stmt = mysqli_prepare($conn, $sql_leave);
+  $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$studentFilter['sql']}";
+    $stmt = $conn->prepare( $sql_leave);
     if ($stmt) {
-        mysqli_stmt_bind_param($stmt, "i", $student_id);
-        mysqli_stmt_execute($stmt);
-        $result = mysqli_stmt_get_result($stmt);
-        $row = mysqli_fetch_assoc($result);
-        $stats['leave_applications'] = $row['count'] ?? 0;
-        mysqli_stmt_close($stmt);
+    $filterParams = $studentFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+      $stmt->execute();
+      $result = $stmt->get_result();
+      $row = $result->fetch_assoc();
+      $stats['leave_applications'] = $row['count'] ?? 0;
+    }
+        $stmt->close();
+    }
+
+    // Get assignments for student's class
+    $studentClassId = 0;
+  $classStmt = $conn->prepare( 'SELECT class_id FROM students WHERE id = ? LIMIT 1');
+    if ($classStmt) {
+      $classStmt->bind_param( 'i', $student_id);
+      $classStmt->execute();
+      $classResult = $classStmt->get_result();
+      $classRow = $classResult ? $classResult->fetch_assoc() : null;
+      $studentClassId = (int) ($classRow['class_id'] ?? 0);
+      $classStmt->close();
+    }
+
+  if ($studentClassId <= 0 && $student_user_id > 0 && $student_user_id !== $student_id) {
+    if (student_auth_column_exists($conn, 'students', 'user_id')) {
+    $classByUserStmt = $conn->prepare( 'SELECT class_id FROM students WHERE user_id = ? LIMIT 1');
+    } else {
+    $classByUserStmt = $conn->prepare( 'SELECT class_id FROM students WHERE id = ? LIMIT 1');
+    }
+
+    if ($classByUserStmt) {
+    $classByUserStmt->bind_param( 'i', $student_user_id);
+    $classByUserStmt->execute();
+    $classByUserResult = $classByUserStmt->get_result();
+    $classByUserRow = $classByUserResult ? $classByUserResult->fetch_assoc() : null;
+    $studentClassId = (int) ($classByUserRow['class_id'] ?? 0);
+    $classByUserStmt->close();
+    }
+  }
+
+    if ($studentClassId > 0) {
+      $assignmentStmt = $conn->prepare( 'SELECT COUNT(*) AS total FROM assignments WHERE class_id = ?');
+      if ($assignmentStmt) {
+        $assignmentStmt->bind_param( 'i', $studentClassId);
+        $assignmentStmt->execute();
+        $assignmentResult = $assignmentStmt->get_result();
+        $assignmentRow = $assignmentResult ? $assignmentResult->fetch_assoc() : null;
+        $stats['assignments'] = (int) ($assignmentRow['total'] ?? 0);
+        $assignmentStmt->close();
+      }
     }
 
 } catch (Exception $e) {
@@ -103,7 +144,7 @@ try {
     </div>
 
     <!-- Stats Grid -->
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
       <!-- Attendance Card -->
       <div class="bg-white rounded-lg p-6 shadow-sm border border-stone-200">
         <div class="flex items-center justify-between mb-4">
@@ -147,6 +188,17 @@ try {
         <p class="text-2xl font-bold text-stone-900"><?php echo htmlspecialchars($stats['leave_applications']); ?></p>
         <p class="text-xs text-stone-400 mt-2">Submitted</p>
       </div>
+
+      <!-- Assignments Card -->
+      <div class="bg-white rounded-lg p-6 shadow-sm border border-stone-200">
+        <div class="flex items-center justify-between mb-4">
+          <span class="material-symbols-outlined text-3xl text-indigo-500">assignment</span>
+          <span class="text-xs font-semibold text-indigo-600 bg-indigo-50 px-3 py-1 rounded-full">Academic</span>
+        </div>
+        <p class="text-sm text-stone-500 mb-1">Assignments</p>
+        <p class="text-2xl font-bold text-stone-900"><?php echo htmlspecialchars($stats['assignments']); ?></p>
+        <p class="text-xs text-stone-400 mt-2">Available in your class</p>
+      </div>
     </div>
 
     <!-- Content Cards -->
@@ -163,6 +215,9 @@ try {
           </a>
           <a href="marks.php" class="block p-3 rounded-lg hover:bg-emerald-50 text-stone-700 hover:text-emerald-600 transition">
             <span class="font-medium">→ Check Your Marks</span>
+          </a>
+          <a href="assignments.php" class="block p-3 rounded-lg hover:bg-indigo-50 text-stone-700 hover:text-indigo-600 transition">
+            <span class="font-medium">→ View Assignments</span>
           </a>
           <a href="fees.php" class="block p-3 rounded-lg hover:bg-amber-50 text-stone-700 hover:text-amber-600 transition">
             <span class="font-medium">→ View Fee Status</span>
