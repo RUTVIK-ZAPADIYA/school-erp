@@ -14,9 +14,9 @@ admin_ensure_column($connection, 'exams', 'instructions', 'TEXT NULL');
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
-  $classResult = mysqli_query($connection, "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
   if ($classResult) {
-    while ($classRow = mysqli_fetch_assoc($classResult)) {
+    while ($classRow = $classResult->fetch_assoc()) {
       $classOptions[] = $classRow;
     }
   }
@@ -25,9 +25,9 @@ if ($classNameColumn !== null) {
 $subjectOptions = [];
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectNameColumn !== null) {
-  $subjectResult = mysqli_query($connection, "SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
+  $subjectResult = $connection->query( "SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
   if ($subjectResult) {
-    while ($subjectRow = mysqli_fetch_assoc($subjectResult)) {
+    while ($subjectRow = $subjectResult->fetch_assoc()) {
       $subjectOptions[] = $subjectRow;
     }
   }
@@ -35,9 +35,9 @@ if ($subjectNameColumn !== null) {
 
 $teacherOptions = [];
 if (admin_table_exists($connection, 'teachers')) {
-  $teacherResult = mysqli_query($connection, 'SELECT id, name FROM teachers ORDER BY name ASC');
+  $teacherResult = $connection->query( 'SELECT id, name FROM teachers ORDER BY name ASC');
   if ($teacherResult) {
-    while ($teacherRow = mysqli_fetch_assoc($teacherResult)) {
+    while ($teacherRow = $teacherResult->fetch_assoc()) {
       $teacherOptions[] = $teacherRow;
     }
   }
@@ -162,17 +162,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $insertSql = 'INSERT INTO exams (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-    $insertStmt = mysqli_prepare($connection, $insertSql);
+    $insertStmt = $connection->prepare( $insertSql);
 
     if (!$insertStmt) {
       $errorMessage = 'Unable to schedule exam right now.';
     } else {
       if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
         $errorMessage = 'Unable to bind exam parameters.';
-      } elseif (!mysqli_stmt_execute($insertStmt)) {
+      } elseif (!$insertStmt->execute()) {
         $errorMessage = 'Failed to schedule exam. Please try again.';
       }
-      mysqli_stmt_close($insertStmt);
+      $insertStmt->close();
     }
   }
 
