@@ -5,9 +5,9 @@ include '../dbconfig.php';
 
 function table_exists($connection, $tableName)
 {
-  $safeTable = mysqli_real_escape_string($connection, $tableName);
-  $result = mysqli_query($connection, "SHOW TABLES LIKE '{$safeTable}'");
-  return $result && mysqli_num_rows($result) > 0;
+  $safeTable = $connection->real_escape_string( $tableName);
+  $result = $connection->query( "SHOW TABLES LIKE '{$safeTable}'");
+  return $result && $result->num_rows > 0;
 }
 
 function column_exists($connection, $tableName, $columnName)
@@ -16,10 +16,10 @@ function column_exists($connection, $tableName, $columnName)
     return false;
   }
 
-  $safeTable = mysqli_real_escape_string($connection, $tableName);
-  $safeColumn = mysqli_real_escape_string($connection, $columnName);
-  $result = mysqli_query($connection, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
-  return $result && mysqli_num_rows($result) > 0;
+  $safeTable = $connection->real_escape_string( $tableName);
+  $safeColumn = $connection->real_escape_string( $columnName);
+  $result = $connection->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+  return $result && $result->num_rows > 0;
 }
 
 function bind_dynamic_params($stmt, $types, array &$params)
@@ -28,17 +28,29 @@ function bind_dynamic_params($stmt, $types, array &$params)
     return true;
   }
 
-  $bindArgs = [$stmt, $types];
+  $bindArgs = [$types];
   foreach ($params as $index => &$value) {
     $bindArgs[] = &$value;
   }
 
-  return call_user_func_array('mysqli_stmt_bind_param', $bindArgs);
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
+}
+
+function ensure_column($connection, $tableName, $columnName, $definition)
+{
+  if (!column_exists($connection, $tableName, $columnName)) {
+    $connection->query("ALTER TABLE `{$tableName}` ADD COLUMN `{$columnName}` {$definition}");
+  }
 }
 
 $message = '';
 $message_type = '';
 $classes = [];
+
+if (table_exists($connection, 'students')) {
+  ensure_column($connection, 'students', 'user_id', 'INT NULL');
+  ensure_column($connection, 'students', 'username', 'VARCHAR(100) NULL');
+}
 
 $classesHasName = column_exists($connection, 'classes', 'name');
 $classesHasClassName = column_exists($connection, 'classes', 'class_name');
@@ -52,9 +64,9 @@ if (table_exists($connection, 'classes') && ($classesHasName || $classesHasClass
     $classQuerySql = "SELECT class_name AS class_name FROM classes ORDER BY id ASC";
   }
 
-  $classQuery = mysqli_query($connection, $classQuerySql);
+  $classQuery = $connection->query( $classQuerySql);
   if ($classQuery) {
-    while ($row = mysqli_fetch_assoc($classQuery)) {
+    while ($row = $classQuery->fetch_assoc()) {
       if (!empty($row['class_name'])) {
         $classes[] = $row['class_name'];
       }
@@ -66,21 +78,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $roll_no = trim($_POST['roll_no'] ?? '');
     $name = trim($_POST['name'] ?? '');
     $class = trim($_POST['class'] ?? '');
+    $username = trim($_POST['username'] ?? '');
+    $password = (string) ($_POST['password'] ?? '');
+    $confirm_password = (string) ($_POST['confirm_password'] ?? '');
     $email = trim($_POST['email'] ?? '');
     $phone = trim($_POST['phone'] ?? '');
     $status = ($_POST['status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
 
-    if ($roll_no === '' || $name === '' || $class === '') {
+    if ($roll_no === '' || $name === '' || $class === '' || $username === '' || $password === '' || $confirm_password === '') {
         $message = 'Please fill in all required fields.';
         $message_type = 'danger';
+    } elseif (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $username)) {
+        $message = 'Username must be 3-30 characters and contain only letters, numbers, dot, underscore, or hyphen.';
+        $message_type = 'danger';
+    } elseif (strlen($password) < 6) {
+        $message = 'Password must be at least 6 characters long.';
+        $message_type = 'danger';
+    } elseif ($password !== $confirm_password) {
+        $message = 'Password and confirm password must match.';
+        $message_type = 'danger';
+    } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        $message = 'Please enter a valid email address.';
+        $message_type = 'danger';
     } else {
-        $checkStmt = mysqli_prepare($connection, 'SELECT id FROM students WHERE roll_no = ? LIMIT 1');
+        $checkStmt = $connection->prepare( 'SELECT id FROM students WHERE roll_no = ? LIMIT 1');
         if ($checkStmt) {
-            mysqli_stmt_bind_param($checkStmt, 's', $roll_no);
-            mysqli_stmt_execute($checkStmt);
-            $checkResult = mysqli_stmt_get_result($checkStmt);
-            $exists = $checkResult && mysqli_num_rows($checkResult) > 0;
-            mysqli_stmt_close($checkStmt);
+            $checkStmt->bind_param( 's', $roll_no);
+            $checkStmt->execute();
+            $checkResult = $checkStmt->get_result();
+            $exists = $checkResult && $checkResult->num_rows > 0;
+            $checkStmt->close();
         } else {
             $exists = false;
         }
@@ -88,159 +115,287 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($exists) {
             $message = 'Roll number already exists!';
             $message_type = 'danger';
-        } else {
-          $studentsHasClass = column_exists($connection, 'students', 'class');
-          $studentsHasClassId = column_exists($connection, 'students', 'class_id');
-          $studentsHasEmail = column_exists($connection, 'students', 'email');
-          $studentsHasPhone = column_exists($connection, 'students', 'phone');
-          $studentsHasStatus = column_exists($connection, 'students', 'status');
-
-          $classesHasStatus = column_exists($connection, 'classes', 'status');
-            $class_id = null;
-
-          if ($class !== '' && table_exists($connection, 'classes') && ($classesHasName || $classesHasClassName)) {
-            $classWhere = [];
-            $classBindTypes = '';
-            $classBindValues = [];
-
-            if ($classesHasName) {
-              $classWhere[] = 'name = ?';
-              $classBindTypes .= 's';
-              $classBindValues[] = $class;
-                }
-
-            if ($classesHasClassName) {
-              $classWhere[] = 'class_name = ?';
-              $classBindTypes .= 's';
-              $classBindValues[] = $class;
-            }
-
-            if (!empty($classWhere)) {
-              $findClassSql = 'SELECT id FROM classes WHERE ' . implode(' OR ', $classWhere) . ' LIMIT 1';
-              $classStmt = mysqli_prepare($connection, $findClassSql);
-              if ($classStmt && bind_dynamic_params($classStmt, $classBindTypes, $classBindValues)) {
-                mysqli_stmt_execute($classStmt);
-                $classResult = mysqli_stmt_get_result($classStmt);
-                if ($classResult && mysqli_num_rows($classResult) > 0) {
-                  $classRow = mysqli_fetch_assoc($classResult);
-                  $class_id = (int) ($classRow['id'] ?? 0);
-                }
-                mysqli_stmt_close($classStmt);
-              }
-            }
-
-            // If class doesn't exist yet, create it to avoid FK issues on class_id.
-            if ($class_id === null) {
-              $classInsertColumns = [];
-              $classInsertValues = [];
-              $classInsertTypes = '';
-              $classInsertBindValues = [];
-
-              if ($classesHasName) {
-                $classInsertColumns[] = 'name';
-                $classInsertValues[] = '?';
-                $classInsertTypes .= 's';
-                $classInsertBindValues[] = $class;
-              }
-
-              if ($classesHasClassName) {
-                $classInsertColumns[] = 'class_name';
-                $classInsertValues[] = '?';
-                $classInsertTypes .= 's';
-                $classInsertBindValues[] = $class;
-              }
-
-              if ($classesHasStatus) {
-                $classInsertColumns[] = 'status';
-                $classInsertValues[] = '?';
-                $classInsertTypes .= 's';
-                $classInsertBindValues[] = 'Active';
-              }
-
-              if (!empty($classInsertColumns)) {
-                $createClassSql = 'INSERT INTO classes (' . implode(', ', $classInsertColumns) . ') VALUES (' . implode(', ', $classInsertValues) . ')';
-                $createClassStmt = mysqli_prepare($connection, $createClassSql);
-
-                if ($createClassStmt && bind_dynamic_params($createClassStmt, $classInsertTypes, $classInsertBindValues)) {
-                  if (mysqli_stmt_execute($createClassStmt)) {
-                    $newClassId = (int) mysqli_insert_id($connection);
-                    if ($newClassId > 0) {
-                      $class_id = $newClassId;
-                    }
-                  }
-                  mysqli_stmt_close($createClassStmt);
-                }
-              }
-            }
-            }
-
-          $insertColumns = ['roll_no', 'name'];
-          $insertValues = ['?', '?'];
-          $insertTypes = 'ss';
-          $insertBindValues = [$roll_no, $name];
-
-          if ($studentsHasClass) {
-            $insertColumns[] = 'class';
-            $insertValues[] = '?';
-            $insertTypes .= 's';
-            $insertBindValues[] = $class;
-          }
-
-          if ($studentsHasClassId) {
-            $insertColumns[] = 'class_id';
-            if ($class_id === null) {
-              $insertValues[] = 'NULL';
-            } else {
-              $insertValues[] = '?';
-              $insertTypes .= 'i';
-              $insertBindValues[] = $class_id;
-            }
-          }
-
-          if ($studentsHasEmail) {
-            $insertColumns[] = 'email';
-            $insertValues[] = '?';
-            $insertTypes .= 's';
-            $insertBindValues[] = $email;
-          }
-
-          if ($studentsHasPhone) {
-            $insertColumns[] = 'phone';
-            $insertValues[] = '?';
-            $insertTypes .= 's';
-            $insertBindValues[] = $phone;
-          }
-
-          if ($studentsHasStatus) {
-            $insertColumns[] = 'status';
-            $insertValues[] = '?';
-            $insertTypes .= 's';
-            $insertBindValues[] = $status;
-          }
-
-          $insertSql = 'INSERT INTO students (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-          $insertStmt = mysqli_prepare($connection, $insertSql);
-
-            if ($insertStmt) {
-            if (!bind_dynamic_params($insertStmt, $insertTypes, $insertBindValues)) {
-              $message = 'Failed to bind query parameters.';
-              $message_type = 'danger';
-                } else {
-              if (mysqli_stmt_execute($insertStmt)) {
-                $message = 'Student added successfully!';
-                $message_type = 'success';
-                $_POST = [];
-              } else {
-                $message = 'Error adding student: ' . mysqli_error($connection);
-                $message_type = 'danger';
-              }
-                }
-                mysqli_stmt_close($insertStmt);
-            } else {
-                $message = 'Failed to prepare insert query.';
-                $message_type = 'danger';
-            }
         }
+    }
+
+    if ($message === '' && column_exists($connection, 'students', 'username')) {
+      $usernameStmt = $connection->prepare( 'SELECT id FROM students WHERE username = ? LIMIT 1');
+      if ($usernameStmt) {
+        $usernameStmt->bind_param( 's', $username);
+        $usernameStmt->execute();
+        $usernameResult = $usernameStmt->get_result();
+        if ($usernameResult && $usernameResult->num_rows > 0) {
+          $message = 'A student with this username already exists.';
+          $message_type = 'danger';
+        }
+        $usernameStmt->close();
+      }
+    }
+
+    if ($message === '' && table_exists($connection, 'users')) {
+      if ($email !== '') {
+        $userCheckSql = 'SELECT id FROM users WHERE username = ? OR email = ? OR username = ? OR email = ? LIMIT 1';
+        $userCheckStmt = $connection->prepare( $userCheckSql);
+        if ($userCheckStmt) {
+          $userCheckStmt->bind_param( 'ssss', $username, $username, $email, $email);
+          $userCheckStmt->execute();
+          $userCheckResult = $userCheckStmt->get_result();
+          if ($userCheckResult && $userCheckResult->num_rows > 0) {
+            $message = 'A user account with this username or email already exists.';
+            $message_type = 'danger';
+          }
+          $userCheckStmt->close();
+        }
+      } else {
+        $userCheckSql = 'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1';
+        $userCheckStmt = $connection->prepare( $userCheckSql);
+        if ($userCheckStmt) {
+          $userCheckStmt->bind_param( 'ss', $username, $username);
+          $userCheckStmt->execute();
+          $userCheckResult = $userCheckStmt->get_result();
+          if ($userCheckResult && $userCheckResult->num_rows > 0) {
+            $message = 'A user account with this username already exists.';
+            $message_type = 'danger';
+          }
+          $userCheckStmt->close();
+        }
+      }
+    }
+
+    if ($message === '') {
+      $studentsHasClass = column_exists($connection, 'students', 'class');
+      $studentsHasClassId = column_exists($connection, 'students', 'class_id');
+      $studentsHasEmail = column_exists($connection, 'students', 'email');
+      $studentsHasPhone = column_exists($connection, 'students', 'phone');
+      $studentsHasStatus = column_exists($connection, 'students', 'status');
+      $studentsHasUserId = column_exists($connection, 'students', 'user_id');
+      $studentsHasUsername = column_exists($connection, 'students', 'username');
+      $usersHasEmail = column_exists($connection, 'users', 'email');
+      $usersHasPhone = column_exists($connection, 'users', 'phone');
+      $usersHasStatus = column_exists($connection, 'users', 'status');
+
+      $classesHasStatus = column_exists($connection, 'classes', 'status');
+      $class_id = null;
+
+      if ($class !== '' && table_exists($connection, 'classes') && ($classesHasName || $classesHasClassName)) {
+        $classWhere = [];
+        $classBindTypes = '';
+        $classBindValues = [];
+
+        if ($classesHasName) {
+          $classWhere[] = 'name = ?';
+          $classBindTypes .= 's';
+          $classBindValues[] = $class;
+        }
+
+        if ($classesHasClassName) {
+          $classWhere[] = 'class_name = ?';
+          $classBindTypes .= 's';
+          $classBindValues[] = $class;
+        }
+
+        if (!empty($classWhere)) {
+          $findClassSql = 'SELECT id FROM classes WHERE ' . implode(' OR ', $classWhere) . ' LIMIT 1';
+          $classStmt = $connection->prepare( $findClassSql);
+          if ($classStmt && bind_dynamic_params($classStmt, $classBindTypes, $classBindValues)) {
+            $classStmt->execute();
+            $classResult = $classStmt->get_result();
+            if ($classResult && $classResult->num_rows > 0) {
+              $classRow = $classResult->fetch_assoc();
+              $class_id = (int) ($classRow['id'] ?? 0);
+            }
+            $classStmt->close();
+          }
+        }
+
+        // If class doesn't exist yet, create it to avoid FK issues on class_id.
+        if ($class_id === null) {
+          $classInsertColumns = [];
+          $classInsertValues = [];
+          $classInsertTypes = '';
+          $classInsertBindValues = [];
+
+          if ($classesHasName) {
+            $classInsertColumns[] = 'name';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertBindValues[] = $class;
+          }
+
+          if ($classesHasClassName) {
+            $classInsertColumns[] = 'class_name';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertBindValues[] = $class;
+          }
+
+          if ($classesHasStatus) {
+            $classInsertColumns[] = 'status';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertBindValues[] = 'Active';
+          }
+
+          if (!empty($classInsertColumns)) {
+            $createClassSql = 'INSERT INTO classes (' . implode(', ', $classInsertColumns) . ') VALUES (' . implode(', ', $classInsertValues) . ')';
+            $createClassStmt = $connection->prepare( $createClassSql);
+
+            if ($createClassStmt && bind_dynamic_params($createClassStmt, $classInsertTypes, $classInsertBindValues)) {
+              if ($createClassStmt->execute()) {
+                $newClassId = (int) $connection->insert_id;
+                if ($newClassId > 0) {
+                  $class_id = $newClassId;
+                }
+              }
+              $createClassStmt->close();
+            }
+          }
+        }
+      }
+
+      $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+      $studentRole = 'student';
+      $studentUserId = 0;
+      $transactionStarted = false;
+
+      if ($connection->begin_transaction()) {
+        $transactionStarted = true;
+      }
+
+      $userInsertColumns = ['username', 'password', 'role', 'name'];
+      $userInsertValues = ['?', '?', '?', '?'];
+      $userInsertTypes = 'ssss';
+      $userInsertParams = [$username, $passwordHash, $studentRole, $name];
+
+      if ($usersHasEmail) {
+        $userInsertColumns[] = 'email';
+        $userInsertValues[] = '?';
+        $userInsertTypes .= 's';
+        $userInsertParams[] = $email !== '' ? $email : null;
+      }
+
+      if ($usersHasPhone) {
+        $userInsertColumns[] = 'phone';
+        $userInsertValues[] = '?';
+        $userInsertTypes .= 's';
+        $userInsertParams[] = $phone !== '' ? $phone : null;
+      }
+
+      if ($usersHasStatus) {
+        $userInsertColumns[] = 'status';
+        $userInsertValues[] = '?';
+        $userInsertTypes .= 's';
+        $userInsertParams[] = $status;
+      }
+
+      $userInsertSql = 'INSERT INTO users (' . implode(', ', $userInsertColumns) . ') VALUES (' . implode(', ', $userInsertValues) . ')';
+      $userInsertStmt = $connection->prepare( $userInsertSql);
+
+      if (!$userInsertStmt) {
+        $message = 'Unable to create student login account right now.';
+        $message_type = 'danger';
+      } elseif (!bind_dynamic_params($userInsertStmt, $userInsertTypes, $userInsertParams) || !$userInsertStmt->execute()) {
+        $message = 'Failed to create student login account. Username or email may already exist.';
+        $message_type = 'danger';
+      } else {
+        $studentUserId = (int) $connection->insert_id;
+      }
+
+      if ($userInsertStmt) {
+        $userInsertStmt->close();
+      }
+
+      if ($message === '') {
+        $insertColumns = ['roll_no', 'name'];
+        $insertValues = ['?', '?'];
+        $insertTypes = 'ss';
+        $insertBindValues = [$roll_no, $name];
+
+        if ($studentsHasUserId) {
+          $insertColumns[] = 'user_id';
+          $insertValues[] = '?';
+          $insertTypes .= 'i';
+          $insertBindValues[] = $studentUserId;
+        }
+
+        if ($studentsHasUsername) {
+          $insertColumns[] = 'username';
+          $insertValues[] = '?';
+          $insertTypes .= 's';
+          $insertBindValues[] = $username;
+        }
+
+        if ($studentsHasClass) {
+          $insertColumns[] = 'class';
+          $insertValues[] = '?';
+          $insertTypes .= 's';
+          $insertBindValues[] = $class;
+        }
+
+        if ($studentsHasClassId) {
+          $insertColumns[] = 'class_id';
+          if ($class_id === null) {
+            $insertValues[] = 'NULL';
+          } else {
+            $insertValues[] = '?';
+            $insertTypes .= 'i';
+            $insertBindValues[] = $class_id;
+          }
+        }
+
+        if ($studentsHasEmail) {
+          $insertColumns[] = 'email';
+          $insertValues[] = '?';
+          $insertTypes .= 's';
+          $insertBindValues[] = $email !== '' ? $email : null;
+        }
+
+        if ($studentsHasPhone) {
+          $insertColumns[] = 'phone';
+          $insertValues[] = '?';
+          $insertTypes .= 's';
+          $insertBindValues[] = $phone !== '' ? $phone : null;
+        }
+
+        if ($studentsHasStatus) {
+          $insertColumns[] = 'status';
+          $insertValues[] = '?';
+          $insertTypes .= 's';
+          $insertBindValues[] = $status;
+        }
+
+        $insertSql = 'INSERT INTO students (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
+        $insertStmt = $connection->prepare( $insertSql);
+
+        if (!$insertStmt) {
+          $message = 'Failed to prepare student enrollment query.';
+          $message_type = 'danger';
+        } elseif (!bind_dynamic_params($insertStmt, $insertTypes, $insertBindValues) || !$insertStmt->execute()) {
+          $message = 'Error adding student: ' . $connection->error;
+          $message_type = 'danger';
+        }
+
+        if ($insertStmt) {
+          $insertStmt->close();
+        }
+      }
+
+      if ($message === '' && $transactionStarted) {
+        if (!$connection->commit()) {
+          $message = 'Unable to finalize student creation. Please try again.';
+          $message_type = 'danger';
+        }
+      }
+
+      if ($message !== '') {
+        if ($transactionStarted) {
+          $connection->rollback();
+        }
+      } else {
+        $message = 'Student added successfully. Login username: ' . $username;
+        $message_type = 'success';
+        $_POST = [];
+      }
     }
 }
 ?>
@@ -308,12 +463,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </datalist>
           </div>
           <div class="col-md-6 mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+            <label class="form-label">Username *</label>
+            <input type="text" class="form-control" name="username" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" placeholder="e.g., stu_rahul01">
           </div>
         </div>
 
         <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Password *</label>
+            <input type="password" class="form-control" name="password" required minlength="6" placeholder="Minimum 6 characters">
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Confirm Password *</label>
+            <input type="password" class="form-control" name="confirm_password" required minlength="6" placeholder="Re-enter password">
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Email</label>
+            <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+          </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Phone Number</label>
             <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
