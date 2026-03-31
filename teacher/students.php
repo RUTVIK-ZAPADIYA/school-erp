@@ -68,16 +68,21 @@ if (
   $orderBy = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
 
   $studentClassJoinParts = [];
-  if (teacher_column_exists($conn, 'students', 'class_id')) {
+  $hasStudentClassId = teacher_column_exists($conn, 'students', 'class_id');
+  if ($hasStudentClassId) {
     $studentClassJoinParts[] = 's.class_id = c.id';
   }
   if (teacher_column_exists($conn, 'students', 'class')) {
     $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
     $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
-    $studentClassJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    $fallbackCondition = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    if ($hasStudentClassId) {
+      $fallbackCondition = "(COALESCE(s.class_id, 0) = 0 AND {$fallbackCondition})";
+    }
+    $studentClassJoinParts[] = $fallbackCondition;
   }
 
-  $studentClassJoinSql = implode(' OR ', $studentClassJoinParts);
+  $studentClassJoinSql = empty($studentClassJoinParts) ? '1 = 0' : implode(' OR ', $studentClassJoinParts);
 
   $sql = "SELECT DISTINCT s.id, {$rollSelect} AS roll_no, s.name, s.email, {$classNameExpr} AS class_name, c.id AS class_id{$studentUserSelect}
       FROM students s
@@ -86,13 +91,15 @@ if (
       ORDER BY {$orderBy} ASC";
   $result = $conn->query( $sql);
   if ($result) {
+    $seenStudentIds = [];
 
     while ($result && ($row = $result->fetch_assoc())) {
       $student_id = (int) ($row['id'] ?? 0);
-      if ($student_id <= 0) {
+      if ($student_id <= 0 || isset($seenStudentIds[$student_id])) {
         continue;
       }
 
+      $seenStudentIds[$student_id] = true;
       $total_students++;
       $linked_user_id = (int) ($row['linked_user_id'] ?? $student_id);
       if ($linked_user_id <= 0) {
@@ -166,17 +173,22 @@ $class_distribution = [];
 if (teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'classes', 'teacher_id')) {
   $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
   $distributionJoinParts = [];
-  if (teacher_column_exists($conn, 'students', 'class_id')) {
+  $hasStudentClassId = teacher_column_exists($conn, 'students', 'class_id');
+  if ($hasStudentClassId) {
     $distributionJoinParts[] = 's.class_id = c.id';
   }
   if (teacher_column_exists($conn, 'students', 'class')) {
     $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
     $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
-    $distributionJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    $fallbackCondition = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    if ($hasStudentClassId) {
+      $fallbackCondition = "(COALESCE(s.class_id, 0) = 0 AND {$fallbackCondition})";
+    }
+    $distributionJoinParts[] = $fallbackCondition;
   }
 
   $distributionJoinSql = empty($distributionJoinParts) ? '1 = 0' : implode(' OR ', $distributionJoinParts);
-  $sql_classes = "SELECT {$classNameExpr} AS name, COUNT(s.id) AS student_count
+  $sql_classes = "SELECT {$classNameExpr} AS name, COUNT(DISTINCT s.id) AS student_count
           FROM classes c
           LEFT JOIN students s ON ({$distributionJoinSql})
           WHERE c.teacher_id IN ({$teacher_ids_sql})
@@ -535,5 +547,7 @@ if (teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'clas
       alert('Direct messaging feature coming soon in Pro Edition!');
     }
   </script>
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
 </body>
 </html>

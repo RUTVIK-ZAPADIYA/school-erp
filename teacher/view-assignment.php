@@ -559,7 +559,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
                 </td>
                 <td class="px-6 py-4">
                   <?php if (!empty($submission['id'])): ?>
-                  <button onclick="gradeSubmission(<?php echo $submission['id']; ?>, '<?php echo addslashes($submission['student_name']); ?>', <?php echo $submission['grade'] ?? 0; ?>, '<?php echo addslashes($submission['remarks'] ?? ''); ?>')" class="bg-primary hover:bg-primary-hover text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2">
+                  <button onclick='gradeSubmission(<?php echo (int) $submission['id']; ?>, <?php echo json_encode((string) $submission['student_name']); ?>, <?php echo $submission['grade'] !== null ? json_encode((string) $submission['grade']) : 'null'; ?>, <?php echo json_encode((string) ($submission['remarks'] ?? '')); ?>)' class="bg-primary hover:bg-primary-hover text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">
                       <?php echo $submission['status'] == 'graded' ? 'edit' : 'grade'; ?>
                     </span>
@@ -615,7 +615,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Grade (out of <?php echo $assignment['total_points']; ?>)</label>
-          <input type="number" name="grade" id="gradeInput" step="0.5" class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,number">
+          <input type="number" name="grade" id="gradeInput" step="0.5" min="0" max="<?php echo htmlspecialchars((string) $assignment['total_points']); ?>" class="w-full px-4 py-3 bg-surface border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" placeholder="Enter grade" data-validation="required,number,minValue,maxValue" data-min-value="0" data-max-value="<?php echo htmlspecialchars((string) $assignment['total_points']); ?>">
           <p id="grade_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
@@ -718,10 +718,19 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
     });
 
     function gradeSubmission(submissionId, studentName, currentGrade, currentRemarks) {
+      const gradeInput = document.getElementById('gradeInput');
+      const remarksInput = document.getElementById('gradeRemarks');
+
       document.getElementById('gradeSubmissionId').value = submissionId;
       document.getElementById('gradeStudentName').textContent = studentName;
-      document.getElementById('gradeInput').value = currentGrade;
-      document.getElementById('gradeRemarks').value = currentRemarks;
+      gradeInput.value = currentGrade !== null && currentGrade !== undefined ? currentGrade : '';
+      remarksInput.value = currentRemarks || '';
+
+      [gradeInput, remarksInput].forEach((field) => {
+        field.classList.remove('is-valid', 'is-invalid');
+      });
+      $('#grade_error, #remarks_error').text('').hide();
+
       document.getElementById('gradeModal').classList.remove('opacity-0', 'pointer-events-none');
       document.getElementById('gradeModal').classList.add('opacity-100', 'pointer-events-auto');
     }

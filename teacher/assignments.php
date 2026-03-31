@@ -496,7 +496,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
                     <button onclick="viewAssignment(<?php echo $assignment['id']; ?>)" class="p-2 text-on-surface-variant hover:text-blue-600 rounded-lg hover:bg-blue-50" title="View Details">
                       <span class="material-symbols-outlined text-sm">visibility</span>
                     </button>
-                    <button onclick="editAssignment(<?php echo $assignment['id']; ?>, '<?php echo addslashes($assignment['title']); ?>', '<?php echo addslashes($assignment['description']); ?>', <?php echo $assignment['class_id']; ?>, <?php echo $assignment['subject_id']; ?>, '<?php echo $assignment['due_date']; ?>', <?php echo $assignment['total_points']; ?>)" class="p-2 text-on-surface-variant hover:text-green-600 rounded-lg hover:bg-green-50" title="Edit Assignment">
+                    <button onclick='editAssignment(<?php echo (int) $assignment['id']; ?>, <?php echo json_encode((string) $assignment['title']); ?>, <?php echo json_encode((string) $assignment['description']); ?>, <?php echo (int) $assignment['class_id']; ?>, <?php echo (int) $assignment['subject_id']; ?>, <?php echo json_encode((string) $assignment['due_date']); ?>, <?php echo (int) $assignment['total_points']; ?>)' class="p-2 text-on-surface-variant hover:text-green-600 rounded-lg hover:bg-green-50" title="Edit Assignment">
                       <span class="material-symbols-outlined text-sm">edit</span>
                     </button>
                     <button onclick="confirmDelete(<?php echo $assignment['id']; ?>, '<?php echo addslashes($assignment['title']); ?>')" class="p-2 text-on-surface-variant hover:text-red-600 rounded-lg hover:bg-red-50" title="Delete Assignment">
@@ -555,7 +555,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
             </div>
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Total Points</label>
-              <input type="number" name="edit_points" id="edit_points" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,number">
+              <input type="number" name="edit_points" id="edit_points" min="1" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,number,minValue" data-min-value="1">
               <p id="edit_points_error" class="text-sm text-red-600 hidden"></p>
             </div>
           </div>
@@ -734,6 +734,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Class</label>
             <select name="class_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" data-validation="required,select">
+              <option value="">Select Class</option>
               <?php foreach ($classes as $class): ?>
               <option value="<?php echo $class['id']; ?>"><?php echo htmlspecialchars($class['name']); ?></option>
               <?php endforeach; ?>
@@ -744,6 +745,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Subject</label>
             <select name="subject_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" data-validation="required,select">
+              <option value="">Select Subject</option>
               <?php foreach ($subjects as $subject): ?>
               <option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
               <?php endforeach; ?>
@@ -759,7 +761,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
 
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Total Points</label>
-            <input type="number" name="points" value="100" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary text-sm" data-validation="required,number">
+            <input type="number" name="points" value="100" min="1" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary text-sm" data-validation="required,number,minValue" data-min-value="1">
             <p id="points_error" class="text-sm text-red-600 hidden"></p>
           </div>
         </div>

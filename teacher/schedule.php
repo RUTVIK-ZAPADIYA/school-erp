@@ -523,5 +523,8 @@ foreach ($today_schedule as $time_slot => $class_info) {
     </section>
     <?php endif; ?>
   </main>
+
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
 </body>
 </html>

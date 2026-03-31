@@ -58,13 +58,18 @@ if ($student_id == 0) {
 
 $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
 $studentClassJoinParts = [];
-if (teacher_column_exists($conn, 'students', 'class_id')) {
+$hasStudentClassId = teacher_column_exists($conn, 'students', 'class_id');
+if ($hasStudentClassId) {
     $studentClassJoinParts[] = 's.class_id = c.id';
 }
 if (teacher_column_exists($conn, 'students', 'class')) {
     $studentClassNorm = "LOWER(REPLACE(REPLACE(TRIM(COALESCE(s.`class`, '')), ' ', ''), '-', ''))";
     $classNameNorm = "LOWER(REPLACE(REPLACE(TRIM({$classNameExpr}), ' ', ''), '-', ''))";
-    $studentClassJoinParts[] = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    $fallbackCondition = "({$studentClassNorm} <> '' AND {$studentClassNorm} = {$classNameNorm})";
+    if ($hasStudentClassId) {
+        $fallbackCondition = "(COALESCE(s.class_id, 0) = 0 AND {$fallbackCondition})";
+    }
+    $studentClassJoinParts[] = $fallbackCondition;
 }
 
 $student = null;
@@ -535,5 +540,7 @@ foreach ($recent_assignments as $assignment) {
             alert('Student report export feature coming soon in Pro Edition!');
         }
     </script>
+    <script src="../js/jquery.js"></script>
+    <script src="../js/validate.js"></script>
 </body>
 </html>

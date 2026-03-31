@@ -262,8 +262,9 @@ function teacher_auth_student_class_where_sql($conn, $studentAlias, $classId, $c
 
     $classId = (int) $classId;
     $parts = [];
+    $hasClassIdColumn = teacher_auth_column_exists($conn, 'students', 'class_id');
 
-    if ($classId > 0 && teacher_auth_column_exists($conn, 'students', 'class_id')) {
+    if ($classId > 0 && $hasClassIdColumn) {
         $parts[] = "{$alias}.class_id = {$classId}";
     }
 
@@ -288,7 +289,13 @@ function teacher_auth_student_class_where_sql($conn, $studentAlias, $classId, $c
             }
 
             $safeCandidate = $conn->real_escape_string($normalizedCandidate);
-            $parts[] = "{$normalizedStudentClass} = '{$safeCandidate}'";
+            $fallbackCondition = "{$normalizedStudentClass} = '{$safeCandidate}'";
+
+            if ($hasClassIdColumn) {
+                $fallbackCondition = "(COALESCE({$alias}.class_id, 0) = 0 AND {$fallbackCondition})";
+            }
+
+            $parts[] = $fallbackCondition;
         }
     }
 

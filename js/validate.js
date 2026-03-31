@@ -6,6 +6,18 @@ $(document).ready(function () {
     var validationType = field.data("validation");
     var minLength = field.data("min") || 0;
     var maxLength = field.data("max") || 9999;
+    var minValue =
+      field.data("minValue") !== undefined
+        ? parseFloat(field.data("minValue"))
+        : field.attr("min") !== undefined
+        ? parseFloat(field.attr("min"))
+        : null;
+    var maxValue =
+      field.data("maxValue") !== undefined
+        ? parseFloat(field.data("maxValue"))
+        : field.attr("max") !== undefined
+        ? parseFloat(field.attr("max"))
+        : null;
     var fileSize = field.data("filesize") || 0;
     var fileType = field.data("filetype") || "";
     let errorMessage = "";
@@ -23,7 +35,7 @@ $(document).ready(function () {
           if (!field[0].files || field[0].files.length === 0) {
             errorMessage = "This field is required.";
           }
-        } else if (value === "" || value === "0" || value === null) {
+        } else if (value === "" || value === null) {
           errorMessage = "This field is required.";
         }
       }
@@ -40,11 +52,9 @@ $(document).ready(function () {
           errorMessage = `This field must be at most ${maxLength} characters long.`;
         }
 
-        if(validationType.includes('alphabetic'))
-        {
-          alphabet_regex = /^[a-zA-Z\s]+$/;
-          if(!alphabet_regex.test(value))
-          {
+        if (validationType.includes("alphabetic")) {
+          const alphabetRegex = /^[a-zA-Z\s]+$/;
+          if (!alphabetRegex.test(value)) {
             errorMessage = "Please enter alphabetic characters only.";
           }
         }
@@ -59,9 +69,17 @@ $(document).ready(function () {
 
         // Numeric value validation
         if (validationType.includes("number")) {
-          const numberRegex = /^[0-9]+$/;
+          const numberRegex = /^-?\d+(\.\d+)?$/;
           if (!numberRegex.test(value)) {
-            errorMessage = "Please enter only numbers.";
+            errorMessage = "Please enter a valid number.";
+          } else {
+            const numericValue = parseFloat(value);
+
+            if (!isNaN(minValue) && numericValue < minValue) {
+              errorMessage = `Value must be at least ${minValue}.`;
+            } else if (!isNaN(maxValue) && numericValue > maxValue) {
+              errorMessage = `Value must be at most ${maxValue}.`;
+            }
           }
         }
 
