@@ -13,13 +13,29 @@ $studentsHasEmail = admin_column_exists($connection, 'students', 'email');
 $studentsHasPhone = admin_column_exists($connection, 'students', 'phone');
 $studentsHasStatus = admin_column_exists($connection, 'students', 'status');
 
+admin_ensure_column($connection, 'students', 'user_id', 'INT NULL');
+admin_ensure_column($connection, 'students', 'username', 'VARCHAR(100) NULL');
+
+$studentsHasUserId = admin_column_exists($connection, 'students', 'user_id');
+$studentsHasUsername = admin_column_exists($connection, 'students', 'username');
+$usersTableAvailable = admin_table_exists($connection, 'users');
+$usersHasEmail = admin_column_exists($connection, 'users', 'email');
+$usersHasPhone = admin_column_exists($connection, 'users', 'phone');
+$usersHasStatus = admin_column_exists($connection, 'users', 'status');
+
+$studentLogin = [
+  'user_id' => 0,
+  'username' => '',
+  'has_account' => false,
+];
+
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classOptions = [];
 
 if ($classNameColumn !== null) {
-  $classResult = mysqli_query($connection, "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
   if ($classResult) {
-    while ($classRow = mysqli_fetch_assoc($classResult)) {
+    while ($classRow = $classResult->fetch_assoc()) {
       $classOptions[] = $classRow;
     }
   }
@@ -27,24 +43,80 @@ if ($classNameColumn !== null) {
 
 function fetch_student_by_id($connection, $studentId)
 {
-  $stmt = mysqli_prepare($connection, 'SELECT * FROM students WHERE id = ? LIMIT 1');
+  $stmt = $connection->prepare( 'SELECT * FROM students WHERE id = ? LIMIT 1');
   if (!$stmt) {
     return null;
   }
 
-  mysqli_stmt_bind_param($stmt, 'i', $studentId);
-  mysqli_stmt_execute($stmt);
-  $result = mysqli_stmt_get_result($stmt);
-  $row = $result ? mysqli_fetch_assoc($result) : null;
-  mysqli_stmt_close($stmt);
+  $stmt->bind_param( 'i', $studentId);
+  $stmt->execute();
+  $result = $stmt->get_result();
+  $row = $result ? $result->fetch_assoc() : null;
+  $stmt->close();
 
   return $row ?: null;
+}
+
+function resolve_student_login_account($connection, array $student)
+{
+  $account = [
+    'user_id' => 0,
+    'username' => trim((string) ($student['username'] ?? '')),
+    'has_account' => false,
+  ];
+
+  if (!admin_table_exists($connection, 'users')) {
+    return $account;
+  }
+
+  $studentUserId = (int) ($student['user_id'] ?? 0);
+  if ($studentUserId > 0) {
+    $userByIdStmt = $connection->prepare("SELECT id, username FROM users WHERE id = ? AND role = 'student' LIMIT 1");
+    if ($userByIdStmt) {
+      $userByIdStmt->bind_param('i', $studentUserId);
+      $userByIdStmt->execute();
+      $userByIdResult = $userByIdStmt->get_result();
+      $userByIdRow = $userByIdResult ? $userByIdResult->fetch_assoc() : null;
+      if ($userByIdRow) {
+        $account['user_id'] = (int) ($userByIdRow['id'] ?? 0);
+        $account['username'] = trim((string) ($userByIdRow['username'] ?? $account['username']));
+        $account['has_account'] = true;
+      }
+      $userByIdStmt->close();
+    }
+  }
+
+  if (!$account['has_account']) {
+    $lookupUsername = trim((string) ($student['username'] ?? ''));
+    $lookupEmail = trim((string) ($student['email'] ?? ''));
+
+    if ($lookupUsername !== '' || $lookupEmail !== '') {
+      $lookupStmt = $connection->prepare("SELECT id, username FROM users WHERE role = 'student' AND (username = ? OR email = ? OR username = ? OR email = ?) LIMIT 1");
+      if ($lookupStmt) {
+        $lookupStmt->bind_param('ssss', $lookupUsername, $lookupUsername, $lookupEmail, $lookupEmail);
+        $lookupStmt->execute();
+        $lookupResult = $lookupStmt->get_result();
+        $lookupRow = $lookupResult ? $lookupResult->fetch_assoc() : null;
+        if ($lookupRow) {
+          $account['user_id'] = (int) ($lookupRow['id'] ?? 0);
+          $account['username'] = trim((string) ($lookupRow['username'] ?? $account['username']));
+          $account['has_account'] = true;
+        }
+        $lookupStmt->close();
+      }
+    }
+  }
+
+  return $account;
 }
 
 if (isset($_GET['id'])) {
   $studentId = (int) $_GET['id'];
   if ($studentId > 0) {
     $student = fetch_student_by_id($connection, $studentId);
+    if ($student) {
+      $studentLogin = resolve_student_login_account($connection, $student);
+    }
   }
 
   if (!$student) {
@@ -56,10 +128,16 @@ if (isset($_GET['id'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $studentId = (int) ($_POST['student_id'] ?? 0);
   $student = fetch_student_by_id($connection, $studentId);
+  if ($student) {
+    $studentLogin = resolve_student_login_account($connection, $student);
+  }
 
   $rollNo = trim((string) ($_POST['roll_no'] ?? ''));
   $name = trim((string) ($_POST['name'] ?? ''));
   $class = trim((string) ($_POST['class'] ?? ''));
+  $username = trim((string) ($_POST['username'] ?? ''));
+  $password = (string) ($_POST['password'] ?? '');
+  $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
   $email = trim((string) ($_POST['email'] ?? ''));
   $phone = trim((string) ($_POST['phone'] ?? ''));
   $status = admin_normalize_status($_POST['status'] ?? 'Active', 'Active');
@@ -67,17 +145,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if (!$student) {
     $message = 'Student not found!';
     $message_type = 'danger';
-  } elseif ($rollNo === '' || $name === '' || ($studentsHasClass && $class === '')) {
+  } elseif ($rollNo === '' || $name === '' || ($studentsHasClass && $class === '') || $username === '') {
     $message = 'Please fill in all required fields!';
     $message_type = 'danger';
+  } elseif (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $username)) {
+    $message = 'Username must be 3-30 characters and contain only letters, numbers, dot, underscore, or hyphen.';
+    $message_type = 'danger';
+  } elseif (($password !== '' || $confirmPassword !== '') && strlen($password) < 6) {
+    $message = 'New password must be at least 6 characters long.';
+    $message_type = 'danger';
+  } elseif (($password !== '' || $confirmPassword !== '') && $password !== $confirmPassword) {
+    $message = 'New password and confirm password must match.';
+    $message_type = 'danger';
+  } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    $message = 'Please provide a valid email address.';
+    $message_type = 'danger';
   } else {
-    $duplicateStmt = mysqli_prepare($connection, 'SELECT id FROM students WHERE roll_no = ? AND id != ? LIMIT 1');
+    $duplicateStmt = $connection->prepare( 'SELECT id FROM students WHERE roll_no = ? AND id != ? LIMIT 1');
     if ($duplicateStmt) {
-      mysqli_stmt_bind_param($duplicateStmt, 'si', $rollNo, $studentId);
-      mysqli_stmt_execute($duplicateStmt);
-      $duplicateResult = mysqli_stmt_get_result($duplicateStmt);
-      $duplicateExists = $duplicateResult && mysqli_num_rows($duplicateResult) > 0;
-      mysqli_stmt_close($duplicateStmt);
+      $duplicateStmt->bind_param( 'si', $rollNo, $studentId);
+      $duplicateStmt->execute();
+      $duplicateResult = $duplicateStmt->get_result();
+      $duplicateExists = $duplicateResult && $duplicateResult->num_rows > 0;
+      $duplicateStmt->close();
     } else {
       $duplicateExists = false;
     }
@@ -85,21 +175,72 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($duplicateExists) {
       $message = 'Roll number already exists!';
       $message_type = 'danger';
-    } else {
+    }
+
+    if ($message === '' && $studentsHasUsername) {
+      $usernameDuplicateStmt = $connection->prepare( 'SELECT id FROM students WHERE username = ? AND id != ? LIMIT 1');
+      if ($usernameDuplicateStmt) {
+        $usernameDuplicateStmt->bind_param( 'si', $username, $studentId);
+        $usernameDuplicateStmt->execute();
+        $usernameDuplicateResult = $usernameDuplicateStmt->get_result();
+        if ($usernameDuplicateResult && $usernameDuplicateResult->num_rows > 0) {
+          $message = 'A student with this username already exists.';
+          $message_type = 'danger';
+        }
+        $usernameDuplicateStmt->close();
+      }
+    }
+
+    $linkedUserId = (int) ($studentLogin['user_id'] ?? 0);
+
+    if ($message === '' && $usersTableAvailable) {
+      if ($linkedUserId > 0) {
+        $userDupStmt = $connection->prepare( 'SELECT id FROM users WHERE (username = ? OR email = ? OR username = ? OR email = ?) AND id != ? LIMIT 1');
+        if ($userDupStmt) {
+          $userDupStmt->bind_param( 'ssssi', $username, $username, $email, $email, $linkedUserId);
+          $userDupStmt->execute();
+          $userDupResult = $userDupStmt->get_result();
+          if ($userDupResult && $userDupResult->num_rows > 0) {
+            $message = 'Another user account already uses this username or email.';
+            $message_type = 'danger';
+          }
+          $userDupStmt->close();
+        }
+      } else {
+        if ($password === '') {
+          $message = 'Set an initial password to create this student login account.';
+          $message_type = 'danger';
+        } else {
+          $userDupStmt = $connection->prepare( 'SELECT id FROM users WHERE username = ? OR email = ? OR username = ? OR email = ? LIMIT 1');
+          if ($userDupStmt) {
+            $userDupStmt->bind_param( 'ssss', $username, $username, $email, $email);
+            $userDupStmt->execute();
+            $userDupResult = $userDupStmt->get_result();
+            if ($userDupResult && $userDupResult->num_rows > 0) {
+              $message = 'A user account already uses this username or email.';
+              $message_type = 'danger';
+            }
+            $userDupStmt->close();
+          }
+        }
+      }
+    }
+
+    if ($message === '') {
       $classId = null;
 
       if ($studentsHasClassId && $class !== '' && $classNameColumn !== null) {
         $classFindSql = "SELECT id FROM classes WHERE {$classNameColumn} = ? LIMIT 1";
-        $classFindStmt = mysqli_prepare($connection, $classFindSql);
+        $classFindStmt = $connection->prepare( $classFindSql);
         if ($classFindStmt) {
-          mysqli_stmt_bind_param($classFindStmt, 's', $class);
-          mysqli_stmt_execute($classFindStmt);
-          $classFindResult = mysqli_stmt_get_result($classFindStmt);
-          $classFindRow = $classFindResult ? mysqli_fetch_assoc($classFindResult) : null;
+          $classFindStmt->bind_param( 's', $class);
+          $classFindStmt->execute();
+          $classFindResult = $classFindStmt->get_result();
+          $classFindRow = $classFindResult ? $classFindResult->fetch_assoc() : null;
           if ($classFindRow) {
             $classId = (int) $classFindRow['id'];
           }
-          mysqli_stmt_close($classFindStmt);
+          $classFindStmt->close();
         }
 
         if ($classId === null) {
@@ -128,22 +269,119 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           }
 
           $classInsertSql = 'INSERT INTO classes (' . implode(', ', $classInsertColumns) . ') VALUES (' . implode(', ', $classInsertValues) . ')';
-          $classInsertStmt = mysqli_prepare($connection, $classInsertSql);
-          if ($classInsertStmt && admin_bind_dynamic_params($classInsertStmt, $classInsertTypes, $classInsertParams) && mysqli_stmt_execute($classInsertStmt)) {
-            $insertedClassId = (int) mysqli_insert_id($connection);
+          $classInsertStmt = $connection->prepare( $classInsertSql);
+          if ($classInsertStmt && admin_bind_dynamic_params($classInsertStmt, $classInsertTypes, $classInsertParams) && $classInsertStmt->execute()) {
+            $insertedClassId = (int) $connection->insert_id;
             if ($insertedClassId > 0) {
               $classId = $insertedClassId;
             }
           }
           if ($classInsertStmt) {
-            mysqli_stmt_close($classInsertStmt);
+            $classInsertStmt->close();
           }
+        }
+      }
+
+      $studentRole = 'student';
+      $updatedUserId = $linkedUserId;
+      $transactionStarted = false;
+
+      if ($connection->begin_transaction()) {
+        $transactionStarted = true;
+      }
+
+      if ($usersTableAvailable && $linkedUserId > 0) {
+        if ($password !== '') {
+          $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+          $userUpdateSql = "UPDATE users SET username = ?, name = ?, email = ?, phone = ?, status = ?, role = 'student', password = ? WHERE id = ?";
+          $userUpdateStmt = $connection->prepare( $userUpdateSql);
+          if (!$userUpdateStmt) {
+            $message = 'Unable to update linked login account right now.';
+            $message_type = 'danger';
+          } else {
+            $userUpdateStmt->bind_param('ssssssi', $username, $name, $email, $phone, $status, $passwordHash, $linkedUserId);
+            if (!$userUpdateStmt->execute()) {
+              $message = 'Failed to update linked login account.';
+              $message_type = 'danger';
+            }
+            $userUpdateStmt->close();
+          }
+        } else {
+          $userUpdateSql = "UPDATE users SET username = ?, name = ?, email = ?, phone = ?, status = ?, role = 'student' WHERE id = ?";
+          $userUpdateStmt = $connection->prepare( $userUpdateSql);
+          if (!$userUpdateStmt) {
+            $message = 'Unable to update linked login account right now.';
+            $message_type = 'danger';
+          } else {
+            $userUpdateStmt->bind_param('sssssi', $username, $name, $email, $phone, $status, $linkedUserId);
+            if (!$userUpdateStmt->execute()) {
+              $message = 'Failed to update linked login account.';
+              $message_type = 'danger';
+            }
+            $userUpdateStmt->close();
+          }
+        }
+      } elseif ($usersTableAvailable && $password !== '') {
+        $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+        $userInsertColumns = ['username', 'password', 'role', 'name'];
+        $userInsertValues = ['?', '?', '?', '?'];
+        $userInsertTypes = 'ssss';
+        $userInsertParams = [$username, $passwordHash, $studentRole, $name];
+
+        if ($usersHasEmail) {
+          $userInsertColumns[] = 'email';
+          $userInsertValues[] = '?';
+          $userInsertTypes .= 's';
+          $userInsertParams[] = $email !== '' ? $email : null;
+        }
+
+        if ($usersHasPhone) {
+          $userInsertColumns[] = 'phone';
+          $userInsertValues[] = '?';
+          $userInsertTypes .= 's';
+          $userInsertParams[] = $phone !== '' ? $phone : null;
+        }
+
+        if ($usersHasStatus) {
+          $userInsertColumns[] = 'status';
+          $userInsertValues[] = '?';
+          $userInsertTypes .= 's';
+          $userInsertParams[] = $status;
+        }
+
+        $userInsertSql = 'INSERT INTO users (' . implode(', ', $userInsertColumns) . ') VALUES (' . implode(', ', $userInsertValues) . ')';
+        $userInsertStmt = $connection->prepare( $userInsertSql);
+
+        if (!$userInsertStmt) {
+          $message = 'Unable to create linked login account right now.';
+          $message_type = 'danger';
+        } elseif (!admin_bind_dynamic_params($userInsertStmt, $userInsertTypes, $userInsertParams) || !$userInsertStmt->execute()) {
+          $message = 'Failed to create linked login account.';
+          $message_type = 'danger';
+        } else {
+          $updatedUserId = (int) $connection->insert_id;
+        }
+
+        if ($userInsertStmt) {
+          $userInsertStmt->close();
         }
       }
 
       $updateFields = ['roll_no = ?', 'name = ?'];
       $updateTypes = 'ss';
       $updateParams = [$rollNo, $name];
+
+      if ($studentsHasUsername) {
+        $updateFields[] = 'username = ?';
+        $updateTypes .= 's';
+        $updateParams[] = $username;
+      }
+
+      if ($studentsHasUserId && $updatedUserId > 0) {
+        $updateFields[] = 'user_id = ?';
+        $updateTypes .= 'i';
+        $updateParams[] = $updatedUserId;
+      }
 
       if ($studentsHasClass) {
         $updateFields[] = 'class = ?';
@@ -183,19 +421,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $updateTypes .= 'i';
       $updateParams[] = $studentId;
 
-      $updateStmt = mysqli_prepare($connection, $updateSql);
+      $updateStmt = $connection->prepare( $updateSql);
 
-      if ($updateStmt && admin_bind_dynamic_params($updateStmt, $updateTypes, $updateParams) && mysqli_stmt_execute($updateStmt)) {
-        $message = 'Student updated successfully!';
-        $message_type = 'success';
-        $student = fetch_student_by_id($connection, $studentId);
+      if ($updateStmt && admin_bind_dynamic_params($updateStmt, $updateTypes, $updateParams) && $updateStmt->execute()) {
+        if ($transactionStarted && !$connection->commit()) {
+          $message = 'Unable to finalize student update. Please try again.';
+          $message_type = 'danger';
+        } else {
+          $message = 'Student updated successfully!';
+          $message_type = 'success';
+          $student = fetch_student_by_id($connection, $studentId);
+          if ($student) {
+            $studentLogin = resolve_student_login_account($connection, $student);
+          }
+        }
       } else {
         $message = 'Failed to update student. Please try again.';
         $message_type = 'danger';
       }
 
       if ($updateStmt) {
-        mysqli_stmt_close($updateStmt);
+        $updateStmt->close();
+      }
+
+      if ($message_type === 'danger' && $transactionStarted) {
+        $connection->rollback();
       }
     }
   }
@@ -268,22 +518,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </datalist>
             </div>
             <div class="col-md-6 mb-3">
+              <label class="form-label">Username *</label>
+              <input type="text" class="form-control" name="username" required value="<?php echo htmlspecialchars((string) ($_POST['username'] ?? ($studentLogin['username'] !== '' ? $studentLogin['username'] : ($student['username'] ?? '')))); ?>">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">New Password</label>
+              <input type="password" class="form-control" name="password" minlength="6" placeholder="Leave blank to keep current password">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Confirm New Password</label>
+              <input type="password" class="form-control" name="confirm_password" minlength="6" placeholder="Re-enter new password">
+            </div>
+          </div>
+
+          <div class="row">
+            <div class="col-md-6 mb-3">
               <label class="form-label">Email</label>
               <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars((string) ($student['email'] ?? '')); ?>">
             </div>
-          </div>
-          
-          <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Phone Number</label>
               <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars((string) ($student['phone'] ?? '')); ?>">
             </div>
+          </div>
+
+          <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Status</label>
               <select class="form-select" name="status">
                 <option value="Active" <?php echo (($student['status'] ?? 'Active') == 'Active') ? 'selected' : ''; ?>>Active</option>
                 <option value="Inactive" <?php echo (($student['status'] ?? 'Active') == 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
               </select>
+            </div>
+            <div class="col-md-6 mb-3 d-flex align-items-end">
+              <small class="text-muted">Use password fields only when resetting student login password.</small>
             </div>
           </div>
           
