@@ -4,9 +4,9 @@ include '../includes/db_connect.php';
 
 function tableExists($conn, $tableName)
 {
-  $safeTable = mysqli_real_escape_string($conn, $tableName);
-  $result = mysqli_query($conn, "SHOW TABLES LIKE '{$safeTable}'");
-  return $result && mysqli_num_rows($result) > 0;
+  $safeTable = $conn->real_escape_string( $tableName);
+  $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
+  return $result && $result->num_rows > 0;
 }
 
 function columnExists($conn, $tableName, $columnName)
@@ -14,19 +14,19 @@ function columnExists($conn, $tableName, $columnName)
   if (!tableExists($conn, $tableName)) {
     return false;
   }
-  $safeTable = mysqli_real_escape_string($conn, $tableName);
-  $safeColumn = mysqli_real_escape_string($conn, $columnName);
-  $result = mysqli_query($conn, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
-  return $result && mysqli_num_rows($result) > 0;
+  $safeTable = $conn->real_escape_string( $tableName);
+  $safeColumn = $conn->real_escape_string( $columnName);
+  $result = $conn->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+  return $result && $result->num_rows > 0;
 }
 
 function scalarValue($conn, $sql, $defaultValue = 0)
 {
-  $result = mysqli_query($conn, $sql);
+  $result = $conn->query( $sql);
   if (!$result) {
     return $defaultValue;
   }
-  $row = mysqli_fetch_row($result);
+  $row = $result->fetch_row();
   if (!$row || !isset($row[0])) {
     return $defaultValue;
   }
@@ -107,15 +107,14 @@ $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', '
 $monthValues = array_fill(0, 12, 0);
 
 if (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
-  $monthlyResult = mysqli_query(
-    $conn,
+  $monthlyResult = $conn->query(
     "SELECT MONTH(created_at) AS month_no, COUNT(*) AS total
      FROM students
      WHERE YEAR(created_at) = {$currentYear}
      GROUP BY MONTH(created_at)"
   );
   if ($monthlyResult) {
-    while ($row = mysqli_fetch_assoc($monthlyResult)) {
+    while ($row = $monthlyResult->fetch_assoc()) {
       $monthIndex = (int) $row['month_no'] - 1;
       if ($monthIndex >= 0 && $monthIndex < 12) {
         $monthValues[$monthIndex] = (int) $row['total'];
