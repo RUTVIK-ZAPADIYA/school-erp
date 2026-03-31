@@ -1,63 +1,204 @@
 <?php
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
+require_once __DIR__ . '/db_helpers.php';
 
 $message = '';
 $message_type = '';
 $student = null;
 
-// Check if ID is provided
-if (isset($_GET['id'])) {
-    $student_id = intval($_GET['id']);
-    $fetch_sql = "SELECT * FROM students WHERE id = $student_id";
-    $fetch_result = $connection->query($fetch_sql);
-    
-    if ($fetch_result && $fetch_result->num_rows > 0) {
-        $student = $fetch_result->fetch_assoc();
-    } else {
-        $message = "Student not found!";
-        $message_type = "danger";
+$studentsHasClass = admin_column_exists($connection, 'students', 'class');
+$studentsHasClassId = admin_column_exists($connection, 'students', 'class_id');
+$studentsHasEmail = admin_column_exists($connection, 'students', 'email');
+$studentsHasPhone = admin_column_exists($connection, 'students', 'phone');
+$studentsHasStatus = admin_column_exists($connection, 'students', 'status');
+
+$classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
+$classOptions = [];
+
+if ($classNameColumn !== null) {
+  $classResult = mysqli_query($connection, "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  if ($classResult) {
+    while ($classRow = mysqli_fetch_assoc($classResult)) {
+      $classOptions[] = $classRow;
     }
+  }
 }
 
-// Handle Form Submission
-if ($_SERVER['REQUEST_METHOD'] == 'POST' && $student) {
-    $student_id = intval($_POST['student_id']);
-    $roll_no = $connection->real_escape_string($_POST['roll_no']);
-    $name = $connection->real_escape_string($_POST['name']);
-    $class = $connection->real_escape_string($_POST['class']);
-    $email = $connection->real_escape_string($_POST['email']);
-    $phone = $connection->real_escape_string($_POST['phone']);
-    $status = $connection->real_escape_string($_POST['status']);
-    
-    // Validation
-    if (empty($roll_no) || empty($name) || empty($class)) {
-        $message = "Please fill in all required fields!";
-        $message_type = "danger";
+function fetch_student_by_id($connection, $studentId)
+{
+  $stmt = mysqli_prepare($connection, 'SELECT * FROM students WHERE id = ? LIMIT 1');
+  if (!$stmt) {
+    return null;
+  }
+
+  mysqli_stmt_bind_param($stmt, 'i', $studentId);
+  mysqli_stmt_execute($stmt);
+  $result = mysqli_stmt_get_result($stmt);
+  $row = $result ? mysqli_fetch_assoc($result) : null;
+  mysqli_stmt_close($stmt);
+
+  return $row ?: null;
+}
+
+if (isset($_GET['id'])) {
+  $studentId = (int) $_GET['id'];
+  if ($studentId > 0) {
+    $student = fetch_student_by_id($connection, $studentId);
+  }
+
+  if (!$student) {
+    $message = 'Student not found!';
+    $message_type = 'danger';
+  }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $studentId = (int) ($_POST['student_id'] ?? 0);
+  $student = fetch_student_by_id($connection, $studentId);
+
+  $rollNo = trim((string) ($_POST['roll_no'] ?? ''));
+  $name = trim((string) ($_POST['name'] ?? ''));
+  $class = trim((string) ($_POST['class'] ?? ''));
+  $email = trim((string) ($_POST['email'] ?? ''));
+  $phone = trim((string) ($_POST['phone'] ?? ''));
+  $status = admin_normalize_status($_POST['status'] ?? 'Active', 'Active');
+
+  if (!$student) {
+    $message = 'Student not found!';
+    $message_type = 'danger';
+  } elseif ($rollNo === '' || $name === '' || ($studentsHasClass && $class === '')) {
+    $message = 'Please fill in all required fields!';
+    $message_type = 'danger';
+  } else {
+    $duplicateStmt = mysqli_prepare($connection, 'SELECT id FROM students WHERE roll_no = ? AND id != ? LIMIT 1');
+    if ($duplicateStmt) {
+      mysqli_stmt_bind_param($duplicateStmt, 'si', $rollNo, $studentId);
+      mysqli_stmt_execute($duplicateStmt);
+      $duplicateResult = mysqli_stmt_get_result($duplicateStmt);
+      $duplicateExists = $duplicateResult && mysqli_num_rows($duplicateResult) > 0;
+      mysqli_stmt_close($duplicateStmt);
     } else {
-        // Check if roll_no already exists (excluding current student)
-        $check_sql = "SELECT id FROM students WHERE roll_no = '$roll_no' AND id != $student_id";
-        $check_result = $connection->query($check_sql);
-        
-        if ($check_result->num_rows > 0) {
-            $message = "Roll number already exists!";
-            $message_type = "danger";
-        } else {
-            $update_sql = "UPDATE students SET roll_no = '$roll_no', name = '$name', class = '$class', email = '$email', phone = '$phone', status = '$status' WHERE id = $student_id";
-            
-            if ($connection->query($update_sql) === TRUE) {
-                $message = "Student updated successfully!";
-                $message_type = "success";
-                // Refresh student data
-                $fetch_sql = "SELECT * FROM students WHERE id = $student_id";
-                $fetch_result = $connection->query($fetch_sql);
-                $student = $fetch_result->fetch_assoc();
-            } else {
-                $message = "Error: " . $connection->error;
-                $message_type = "danger";
-            }
-        }
+      $duplicateExists = false;
     }
+
+    if ($duplicateExists) {
+      $message = 'Roll number already exists!';
+      $message_type = 'danger';
+    } else {
+      $classId = null;
+
+      if ($studentsHasClassId && $class !== '' && $classNameColumn !== null) {
+        $classFindSql = "SELECT id FROM classes WHERE {$classNameColumn} = ? LIMIT 1";
+        $classFindStmt = mysqli_prepare($connection, $classFindSql);
+        if ($classFindStmt) {
+          mysqli_stmt_bind_param($classFindStmt, 's', $class);
+          mysqli_stmt_execute($classFindStmt);
+          $classFindResult = mysqli_stmt_get_result($classFindStmt);
+          $classFindRow = $classFindResult ? mysqli_fetch_assoc($classFindResult) : null;
+          if ($classFindRow) {
+            $classId = (int) $classFindRow['id'];
+          }
+          mysqli_stmt_close($classFindStmt);
+        }
+
+        if ($classId === null) {
+          $classInsertColumns = [$classNameColumn];
+          $classInsertValues = ['?'];
+          $classInsertTypes = 's';
+          $classInsertParams = [$class];
+
+          if ($classNameColumn === 'name' && admin_column_exists($connection, 'classes', 'class_name')) {
+            $classInsertColumns[] = 'class_name';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertParams[] = $class;
+          }
+          if ($classNameColumn === 'class_name' && admin_column_exists($connection, 'classes', 'name')) {
+            $classInsertColumns[] = 'name';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertParams[] = $class;
+          }
+          if (admin_column_exists($connection, 'classes', 'status')) {
+            $classInsertColumns[] = 'status';
+            $classInsertValues[] = '?';
+            $classInsertTypes .= 's';
+            $classInsertParams[] = 'Active';
+          }
+
+          $classInsertSql = 'INSERT INTO classes (' . implode(', ', $classInsertColumns) . ') VALUES (' . implode(', ', $classInsertValues) . ')';
+          $classInsertStmt = mysqli_prepare($connection, $classInsertSql);
+          if ($classInsertStmt && admin_bind_dynamic_params($classInsertStmt, $classInsertTypes, $classInsertParams) && mysqli_stmt_execute($classInsertStmt)) {
+            $insertedClassId = (int) mysqli_insert_id($connection);
+            if ($insertedClassId > 0) {
+              $classId = $insertedClassId;
+            }
+          }
+          if ($classInsertStmt) {
+            mysqli_stmt_close($classInsertStmt);
+          }
+        }
+      }
+
+      $updateFields = ['roll_no = ?', 'name = ?'];
+      $updateTypes = 'ss';
+      $updateParams = [$rollNo, $name];
+
+      if ($studentsHasClass) {
+        $updateFields[] = 'class = ?';
+        $updateTypes .= 's';
+        $updateParams[] = $class;
+      }
+
+      if ($studentsHasClassId) {
+        if ($classId === null) {
+          $updateFields[] = 'class_id = NULL';
+        } else {
+          $updateFields[] = 'class_id = ?';
+          $updateTypes .= 'i';
+          $updateParams[] = $classId;
+        }
+      }
+
+      if ($studentsHasEmail) {
+        $updateFields[] = 'email = ?';
+        $updateTypes .= 's';
+        $updateParams[] = $email;
+      }
+
+      if ($studentsHasPhone) {
+        $updateFields[] = 'phone = ?';
+        $updateTypes .= 's';
+        $updateParams[] = $phone;
+      }
+
+      if ($studentsHasStatus) {
+        $updateFields[] = 'status = ?';
+        $updateTypes .= 's';
+        $updateParams[] = $status;
+      }
+
+      $updateSql = 'UPDATE students SET ' . implode(', ', $updateFields) . ' WHERE id = ?';
+      $updateTypes .= 'i';
+      $updateParams[] = $studentId;
+
+      $updateStmt = mysqli_prepare($connection, $updateSql);
+
+      if ($updateStmt && admin_bind_dynamic_params($updateStmt, $updateTypes, $updateParams) && mysqli_stmt_execute($updateStmt)) {
+        $message = 'Student updated successfully!';
+        $message_type = 'success';
+        $student = fetch_student_by_id($connection, $studentId);
+      } else {
+        $message = 'Failed to update student. Please try again.';
+        $message_type = 'danger';
+      }
+
+      if ($updateStmt) {
+        mysqli_stmt_close($updateStmt);
+      }
+    }
+  }
 }
 ?>
 <!DOCTYPE html>
@@ -119,24 +260,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && $student) {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Class *</label>
-              <input type="text" class="form-control" name="class" placeholder="e.g., Grade 10A" required value="<?php echo htmlspecialchars($student['class']); ?>">
+              <input list="class-list" type="text" class="form-control" name="class" placeholder="e.g., Grade 10A" required value="<?php echo htmlspecialchars((string) ($student['class'] ?? '')); ?>">
+              <datalist id="class-list">
+                <?php foreach ($classOptions as $classOption): ?>
+                  <option value="<?php echo htmlspecialchars((string) $classOption['class_name']); ?>"></option>
+                <?php endforeach; ?>
+              </datalist>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Email</label>
-              <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($student['email']); ?>">
+              <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars((string) ($student['email'] ?? '')); ?>">
             </div>
           </div>
           
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Phone Number</label>
-              <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars($student['phone']); ?>">
+              <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars((string) ($student['phone'] ?? '')); ?>">
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Status</label>
               <select class="form-select" name="status">
-                <option value="Active" <?php echo ($student['status'] == 'Active') ? 'selected' : ''; ?>>Active</option>
-                <option value="Inactive" <?php echo ($student['status'] == 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
+                <option value="Active" <?php echo (($student['status'] ?? 'Active') == 'Active') ? 'selected' : ''; ?>>Active</option>
+                <option value="Inactive" <?php echo (($student['status'] ?? 'Active') == 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
               </select>
             </div>
           </div>

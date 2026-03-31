@@ -3,15 +3,61 @@ require_once __DIR__ . '/auth.php';
 
 include '../dbconfig.php';
 
+function table_exists($connection, $tableName)
+{
+  $safeTable = mysqli_real_escape_string($connection, $tableName);
+  $result = mysqli_query($connection, "SHOW TABLES LIKE '{$safeTable}'");
+  return $result && mysqli_num_rows($result) > 0;
+}
+
+function column_exists($connection, $tableName, $columnName)
+{
+  if (!table_exists($connection, $tableName)) {
+    return false;
+  }
+
+  $safeTable = mysqli_real_escape_string($connection, $tableName);
+  $safeColumn = mysqli_real_escape_string($connection, $columnName);
+  $result = mysqli_query($connection, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+  return $result && mysqli_num_rows($result) > 0;
+}
+
+function bind_dynamic_params($stmt, $types, array &$params)
+{
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$stmt, $types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array('mysqli_stmt_bind_param', $bindArgs);
+}
+
 $message = '';
 $message_type = '';
 $classes = [];
 
-$classQuery = mysqli_query($connection, "SELECT COALESCE(NULLIF(name, ''), class_name) AS class_name FROM classes ORDER BY id ASC");
-if ($classQuery) {
+$classesHasName = column_exists($connection, 'classes', 'name');
+$classesHasClassName = column_exists($connection, 'classes', 'class_name');
+
+if (table_exists($connection, 'classes') && ($classesHasName || $classesHasClassName)) {
+  if ($classesHasName && $classesHasClassName) {
+    $classQuerySql = "SELECT COALESCE(NULLIF(name, ''), class_name) AS class_name FROM classes ORDER BY id ASC";
+  } elseif ($classesHasName) {
+    $classQuerySql = "SELECT name AS class_name FROM classes ORDER BY id ASC";
+  } else {
+    $classQuerySql = "SELECT class_name AS class_name FROM classes ORDER BY id ASC";
+  }
+
+  $classQuery = mysqli_query($connection, $classQuerySql);
+  if ($classQuery) {
     while ($row = mysqli_fetch_assoc($classQuery)) {
-        if (!empty($row['class_name'])) {
-            $classes[] = $row['class_name'];
+      if (!empty($row['class_name'])) {
+        $classes[] = $row['class_name'];
+      }
         }
     }
 }
@@ -43,31 +89,151 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $message = 'Roll number already exists!';
             $message_type = 'danger';
         } else {
+          $studentsHasClass = column_exists($connection, 'students', 'class');
+          $studentsHasClassId = column_exists($connection, 'students', 'class_id');
+          $studentsHasEmail = column_exists($connection, 'students', 'email');
+          $studentsHasPhone = column_exists($connection, 'students', 'phone');
+          $studentsHasStatus = column_exists($connection, 'students', 'status');
+
+          $classesHasStatus = column_exists($connection, 'classes', 'status');
             $class_id = null;
-            $classStmt = mysqli_prepare($connection, 'SELECT id FROM classes WHERE name = ? OR class_name = ? LIMIT 1');
-            if ($classStmt) {
-                mysqli_stmt_bind_param($classStmt, 'ss', $class, $class);
+
+          if ($class !== '' && table_exists($connection, 'classes') && ($classesHasName || $classesHasClassName)) {
+            $classWhere = [];
+            $classBindTypes = '';
+            $classBindValues = [];
+
+            if ($classesHasName) {
+              $classWhere[] = 'name = ?';
+              $classBindTypes .= 's';
+              $classBindValues[] = $class;
+                }
+
+            if ($classesHasClassName) {
+              $classWhere[] = 'class_name = ?';
+              $classBindTypes .= 's';
+              $classBindValues[] = $class;
+            }
+
+            if (!empty($classWhere)) {
+              $findClassSql = 'SELECT id FROM classes WHERE ' . implode(' OR ', $classWhere) . ' LIMIT 1';
+              $classStmt = mysqli_prepare($connection, $findClassSql);
+              if ($classStmt && bind_dynamic_params($classStmt, $classBindTypes, $classBindValues)) {
                 mysqli_stmt_execute($classStmt);
                 $classResult = mysqli_stmt_get_result($classStmt);
                 if ($classResult && mysqli_num_rows($classResult) > 0) {
-                    $classRow = mysqli_fetch_assoc($classResult);
-                    $class_id = (int) $classRow['id'];
+                  $classRow = mysqli_fetch_assoc($classResult);
+                  $class_id = (int) ($classRow['id'] ?? 0);
                 }
                 mysqli_stmt_close($classStmt);
+              }
             }
 
-            $insertSql = 'INSERT INTO students (roll_no, name, class, class_id, email, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?)';
-            $insertStmt = mysqli_prepare($connection, $insertSql);
+            // If class doesn't exist yet, create it to avoid FK issues on class_id.
+            if ($class_id === null) {
+              $classInsertColumns = [];
+              $classInsertValues = [];
+              $classInsertTypes = '';
+              $classInsertBindValues = [];
+
+              if ($classesHasName) {
+                $classInsertColumns[] = 'name';
+                $classInsertValues[] = '?';
+                $classInsertTypes .= 's';
+                $classInsertBindValues[] = $class;
+              }
+
+              if ($classesHasClassName) {
+                $classInsertColumns[] = 'class_name';
+                $classInsertValues[] = '?';
+                $classInsertTypes .= 's';
+                $classInsertBindValues[] = $class;
+              }
+
+              if ($classesHasStatus) {
+                $classInsertColumns[] = 'status';
+                $classInsertValues[] = '?';
+                $classInsertTypes .= 's';
+                $classInsertBindValues[] = 'Active';
+              }
+
+              if (!empty($classInsertColumns)) {
+                $createClassSql = 'INSERT INTO classes (' . implode(', ', $classInsertColumns) . ') VALUES (' . implode(', ', $classInsertValues) . ')';
+                $createClassStmt = mysqli_prepare($connection, $createClassSql);
+
+                if ($createClassStmt && bind_dynamic_params($createClassStmt, $classInsertTypes, $classInsertBindValues)) {
+                  if (mysqli_stmt_execute($createClassStmt)) {
+                    $newClassId = (int) mysqli_insert_id($connection);
+                    if ($newClassId > 0) {
+                      $class_id = $newClassId;
+                    }
+                  }
+                  mysqli_stmt_close($createClassStmt);
+                }
+              }
+            }
+            }
+
+          $insertColumns = ['roll_no', 'name'];
+          $insertValues = ['?', '?'];
+          $insertTypes = 'ss';
+          $insertBindValues = [$roll_no, $name];
+
+          if ($studentsHasClass) {
+            $insertColumns[] = 'class';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertBindValues[] = $class;
+          }
+
+          if ($studentsHasClassId) {
+            $insertColumns[] = 'class_id';
+            if ($class_id === null) {
+              $insertValues[] = 'NULL';
+            } else {
+              $insertValues[] = '?';
+              $insertTypes .= 'i';
+              $insertBindValues[] = $class_id;
+            }
+          }
+
+          if ($studentsHasEmail) {
+            $insertColumns[] = 'email';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertBindValues[] = $email;
+          }
+
+          if ($studentsHasPhone) {
+            $insertColumns[] = 'phone';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertBindValues[] = $phone;
+          }
+
+          if ($studentsHasStatus) {
+            $insertColumns[] = 'status';
+            $insertValues[] = '?';
+            $insertTypes .= 's';
+            $insertBindValues[] = $status;
+          }
+
+          $insertSql = 'INSERT INTO students (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
+          $insertStmt = mysqli_prepare($connection, $insertSql);
 
             if ($insertStmt) {
-                mysqli_stmt_bind_param($insertStmt, 'sssisss', $roll_no, $name, $class, $class_id, $email, $phone, $status);
-                if (mysqli_stmt_execute($insertStmt)) {
-                    $message = 'Student added successfully!';
-                    $message_type = 'success';
-                    $_POST = [];
+            if (!bind_dynamic_params($insertStmt, $insertTypes, $insertBindValues)) {
+              $message = 'Failed to bind query parameters.';
+              $message_type = 'danger';
                 } else {
-                    $message = 'Error adding student: ' . mysqli_error($connection);
-                    $message_type = 'danger';
+              if (mysqli_stmt_execute($insertStmt)) {
+                $message = 'Student added successfully!';
+                $message_type = 'success';
+                $_POST = [];
+              } else {
+                $message = 'Error adding student: ' . mysqli_error($connection);
+                $message_type = 'danger';
+              }
                 }
                 mysqli_stmt_close($insertStmt);
             } else {

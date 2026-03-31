@@ -1,5 +1,154 @@
 <?php
 require_once __DIR__ . '/auth.php';
+include '../dbconfig.php';
+require_once __DIR__ . '/db_helpers.php';
+
+admin_ensure_column($connection, 'classes', 'room_number', "VARCHAR(30) NULL");
+admin_ensure_column($connection, 'classes', 'capacity', 'INT NULL');
+admin_ensure_column($connection, 'classes', 'academic_year', "VARCHAR(30) NULL");
+admin_ensure_column($connection, 'classes', 'description', 'TEXT NULL');
+
+$teachers = [];
+if (admin_table_exists($connection, 'teachers')) {
+  $teacherResult = mysqli_query($connection, 'SELECT id, name FROM teachers ORDER BY name ASC');
+  if ($teacherResult) {
+    while ($teacherRow = mysqli_fetch_assoc($teacherResult)) {
+      $teachers[] = $teacherRow;
+    }
+  }
+}
+
+$formData = [
+  'class_name' => '',
+  'section' => '',
+  'class_teacher' => '',
+  'room_number' => '',
+  'capacity' => '',
+  'academic_year' => '',
+  'description' => '',
+];
+
+$errorMessage = '';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  foreach ($formData as $key => $value) {
+    $formData[$key] = trim((string) ($_POST[$key] ?? ''));
+  }
+
+  if (
+    $formData['class_name'] === '' ||
+    $formData['section'] === '' ||
+    $formData['class_teacher'] === '' ||
+    $formData['room_number'] === '' ||
+    $formData['capacity'] === '' ||
+    $formData['academic_year'] === ''
+  ) {
+    $errorMessage = 'Please fill in all required fields.';
+  } elseif (!is_numeric($formData['capacity']) || (int) $formData['capacity'] <= 0) {
+    $errorMessage = 'Capacity must be a positive number.';
+  }
+
+  if ($errorMessage === '') {
+    $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
+    if ($classNameColumn !== null) {
+      $duplicateCheckSql = "SELECT id FROM classes WHERE {$classNameColumn} = ? AND section = ? LIMIT 1";
+      $duplicateStmt = mysqli_prepare($connection, $duplicateCheckSql);
+      if ($duplicateStmt) {
+        mysqli_stmt_bind_param($duplicateStmt, 'ss', $formData['class_name'], $formData['section']);
+        mysqli_stmt_execute($duplicateStmt);
+        $duplicateResult = mysqli_stmt_get_result($duplicateStmt);
+        if ($duplicateResult && mysqli_num_rows($duplicateResult) > 0) {
+          $errorMessage = 'This class and section already exists.';
+        }
+        mysqli_stmt_close($duplicateStmt);
+      }
+    }
+  }
+
+  if ($errorMessage === '') {
+    $insertColumns = [];
+    $insertValues = [];
+    $insertTypes = '';
+    $insertParams = [];
+
+    if (admin_column_exists($connection, 'classes', 'name')) {
+      $insertColumns[] = 'name';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['class_name'];
+    }
+    if (admin_column_exists($connection, 'classes', 'class_name')) {
+      $insertColumns[] = 'class_name';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['class_name'];
+    }
+    if (admin_column_exists($connection, 'classes', 'section')) {
+      $insertColumns[] = 'section';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['section'];
+    }
+    if (admin_column_exists($connection, 'classes', 'teacher_id')) {
+      $insertColumns[] = 'teacher_id';
+      $insertValues[] = '?';
+      $insertTypes .= 'i';
+      $insertParams[] = (int) $formData['class_teacher'];
+    }
+    if (admin_column_exists($connection, 'classes', 'room_number')) {
+      $insertColumns[] = 'room_number';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['room_number'];
+    }
+    if (admin_column_exists($connection, 'classes', 'capacity')) {
+      $insertColumns[] = 'capacity';
+      $insertValues[] = '?';
+      $insertTypes .= 'i';
+      $insertParams[] = (int) $formData['capacity'];
+    }
+    if (admin_column_exists($connection, 'classes', 'academic_year')) {
+      $insertColumns[] = 'academic_year';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['academic_year'];
+    }
+    if (admin_column_exists($connection, 'classes', 'description')) {
+      $insertColumns[] = 'description';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['description'];
+    }
+    if (admin_column_exists($connection, 'classes', 'status')) {
+      $insertColumns[] = 'status';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = 'Active';
+    }
+
+    $insertSql = 'INSERT INTO classes (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
+    $insertStmt = mysqli_prepare($connection, $insertSql);
+
+    if (!$insertStmt) {
+      $errorMessage = 'Unable to save class right now.';
+    } else {
+      if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
+        $errorMessage = 'Unable to bind class parameters.';
+      } elseif (!mysqli_stmt_execute($insertStmt)) {
+        $errorMessage = 'Failed to add class. Please try again.';
+      }
+      mysqli_stmt_close($insertStmt);
+    }
+  }
+
+  if ($errorMessage === '') {
+    admin_set_flash('success', 'Class added successfully.');
+    header('Location: add-class.php');
+    exit();
+  }
+}
+
+$flash = admin_pull_flash();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -35,16 +184,30 @@ require_once __DIR__ . '/auth.php';
     </div>
     
     <div class="form-card">
+      <?php if ($flash): ?>
+        <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+          <?php echo htmlspecialchars($flash['message']); ?>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <?php endif; ?>
+
+      <?php if ($errorMessage !== ''): ?>
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+          <?php echo htmlspecialchars($errorMessage); ?>
+          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+      <?php endif; ?>
+
       <form method="POST" action="">
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Class Name *</label>
-            <input type="text" class="form-control" name="class_name" placeholder="e.g., Grade 10A" data-validation="required,min" data-min="2">
+            <input type="text" class="form-control" name="class_name" placeholder="e.g., Grade 10A" data-validation="required,min" data-min="2" value="<?php echo htmlspecialchars($formData['class_name']); ?>">
             <div id="class_name_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Section *</label>
-            <input type="text" class="form-control" name="section" placeholder="e.g., A, B, C" data-validation="required,alphabetic" data-min="1">
+            <input type="text" class="form-control" name="section" placeholder="e.g., A, B, C" data-validation="required,alphabetic" data-min="1" value="<?php echo htmlspecialchars($formData['section']); ?>">
             <div id="section_error" class="invalid-feedback"></div>
           </div>
         </div>
@@ -54,15 +217,17 @@ require_once __DIR__ . '/auth.php';
             <label class="form-label">Class Teacher *</label>
             <select class="form-select" name="class_teacher" data-validation="required,select">
               <option value="">Select Teacher</option>
-              <option value="1">Prof. Priya Patel</option>
-              <option value="2">Dr. Rajesh Kumar</option>
-              <option value="3">Ms. Anjali Gupta</option>
+              <?php foreach ($teachers as $teacher): ?>
+                <option value="<?php echo (int) $teacher['id']; ?>" <?php echo ((string) $teacher['id'] === $formData['class_teacher']) ? 'selected' : ''; ?>>
+                  <?php echo htmlspecialchars((string) $teacher['name']); ?>
+                </option>
+              <?php endforeach; ?>
             </select>
             <div id="class_teacher_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Room Number *</label>
-            <input type="text" class="form-control" name="room_number" placeholder="e.g., 101" data-validation="required,min,number" data-min="1">
+            <input type="text" class="form-control" name="room_number" placeholder="e.g., 101" data-validation="required,min,number" data-min="1" value="<?php echo htmlspecialchars($formData['room_number']); ?>">
             <div id="room_number_error" class="invalid-feedback"></div>
           </div>
         </div>
@@ -70,19 +235,19 @@ require_once __DIR__ . '/auth.php';
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Capacity *</label>
-            <input type="text" class="form-control" name="capacity" placeholder="Maximum students" data-validation="required,number" data-min="1">
+            <input type="text" class="form-control" name="capacity" placeholder="Maximum students" data-validation="required,number" data-min="1" value="<?php echo htmlspecialchars($formData['capacity']); ?>">
             <div id="capacity_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Academic Year *</label>
-            <input type="text" class="form-control" name="academic_year" placeholder="e.g., 2024-2025" data-validation="required,min" data-min="4">
+            <input type="text" class="form-control" name="academic_year" placeholder="e.g., 2024-2025" data-validation="required,min" data-min="4" value="<?php echo htmlspecialchars($formData['academic_year']); ?>">
             <div id="academic_year_error" class="invalid-feedback"></div>
           </div>
         </div>
         
         <div class="mb-3">
           <label class="form-label">Description</label>
-          <textarea class="form-control" name="description" rows="3" placeholder="Optional class description" data-validation="max" data-max="500"></textarea>
+          <textarea class="form-control" name="description" rows="3" placeholder="Optional class description" data-validation="max" data-max="500"><?php echo htmlspecialchars($formData['description']); ?></textarea>
           <div id="description_error" class="invalid-feedback"></div>
         </div>
         

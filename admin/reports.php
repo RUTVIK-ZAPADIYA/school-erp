@@ -1,4 +1,32 @@
-<?php require_once __DIR__ . '/auth.php'; ?>
+<?php
+require_once __DIR__ . '/auth.php';
+include '../dbconfig.php';
+require_once __DIR__ . '/db_helpers.php';
+
+$studentCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM students', 0);
+$teacherCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM teachers', 0);
+$classCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM classes', 0);
+$examCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM exams', 0);
+
+$feesCollected = (float) admin_scalar_value(
+  $connection,
+  "SELECT COALESCE(SUM(amount), 0) FROM fees WHERE LOWER(COALESCE(status, '')) IN ('paid', 'completed')",
+  0
+);
+$feesPending = (float) admin_scalar_value(
+  $connection,
+  "SELECT COALESCE(SUM(amount), 0) FROM fees WHERE LOWER(COALESCE(status, '')) IN ('pending', 'partial', 'overdue')",
+  0
+);
+
+$attendancePresent = (int) admin_scalar_value(
+  $connection,
+  "SELECT COUNT(*) FROM attendance WHERE LOWER(COALESCE(status, '')) IN ('present', 'p')",
+  0
+);
+$attendanceTotal = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM attendance', 0);
+$attendancePct = $attendanceTotal > 0 ? (int) round(($attendancePresent / $attendanceTotal) * 100) : 0;
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -21,6 +49,7 @@
     .report-icon i { font-size: 2rem; color: #3498db; }
     .report-title { font-size: 1.25rem; font-weight: 600; color: #2c3e50; margin-bottom: 12px; }
     .report-desc { color: #7f8c8d; font-size: 0.95rem; line-height: 1.6; }
+    .report-metric { color: #1f4ea3; font-size: 1.4rem; font-weight: 800; margin-bottom: 6px; }
     .report-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 25px; }
     @media (max-width: 991px) { .main-content { margin-left: 0; } }
   </style>
@@ -32,12 +61,42 @@
       <h2><i class="fas fa-chart-line"></i> Reports & Analytics</h2>
     </div>
     <div class="report-row">
-      <div class="report-card"><div class="report-icon"><i class="fas fa-user-graduate"></i></div><div class="report-title">Student Report</div><div class="report-desc">View detailed student performance and attendance reports</div></div>
-      <div class="report-card"><div class="report-icon"><i class="fas fa-chalkboard-teacher"></i></div><div class="report-title">Teacher Report</div><div class="report-desc">Analyze teacher performance and class statistics</div></div>
-      <div class="report-card"><div class="report-icon"><i class="fas fa-dollar-sign"></i></div><div class="report-title">Financial Report</div><div class="report-desc">Track fee collection and financial analytics</div></div>
-      <div class="report-card"><div class="report-icon"><i class="fas fa-calendar-check"></i></div><div class="report-title">Attendance Report</div><div class="report-desc">Monthly and yearly attendance statistics</div></div>
-      <div class="report-card"><div class="report-icon"><i class="fas fa-chart-bar"></i></div><div class="report-title">Exam Report</div><div class="report-desc">Exam results and grade distribution analysis</div></div>
-      <div class="report-card"><div class="report-icon"><i class="fas fa-school"></i></div><div class="report-title">Class Report</div><div class="report-desc">Class-wise performance and statistics</div></div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-user-graduate"></i></div>
+        <div class="report-title">Student Report</div>
+        <div class="report-metric"><?php echo (int) $studentCount; ?> Students</div>
+        <div class="report-desc">Live student count from the database with real enrollment visibility.</div>
+      </div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-chalkboard-teacher"></i></div>
+        <div class="report-title">Teacher Report</div>
+        <div class="report-metric"><?php echo (int) $teacherCount; ?> Teachers</div>
+        <div class="report-desc">Track currently available teaching staff from teacher records.</div>
+      </div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="report-title">Financial Report</div>
+        <div class="report-metric">₹<?php echo number_format($feesCollected, 2); ?></div>
+        <div class="report-desc">Collected amount with ₹<?php echo number_format($feesPending, 2); ?> still pending.</div>
+      </div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-calendar-check"></i></div>
+        <div class="report-title">Attendance Report</div>
+        <div class="report-metric"><?php echo (int) $attendancePct; ?>%</div>
+        <div class="report-desc">Overall attendance based on all marked attendance records.</div>
+      </div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-chart-bar"></i></div>
+        <div class="report-title">Exam Report</div>
+        <div class="report-metric"><?php echo (int) $examCount; ?> Exams</div>
+        <div class="report-desc">Scheduled and completed exams available for analysis.</div>
+      </div>
+      <div class="report-card">
+        <div class="report-icon"><i class="fas fa-school"></i></div>
+        <div class="report-title">Class Report</div>
+        <div class="report-metric"><?php echo (int) $classCount; ?> Classes</div>
+        <div class="report-desc">Class structure and coverage across the academic system.</div>
+      </div>
     </div>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>

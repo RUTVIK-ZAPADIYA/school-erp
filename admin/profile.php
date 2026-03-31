@@ -1,5 +1,79 @@
 <?php
 require_once __DIR__ . '/auth.php';
+include '../dbconfig.php';
+require_once __DIR__ . '/db_helpers.php';
+
+$adminUserId = (int) ($_SESSION['admin_id'] ?? $_SESSION['user_id'] ?? 0);
+$profile = [
+  'id' => $adminUserId,
+  'username' => 'admin',
+  'name' => (string) ($_SESSION['admin_name'] ?? 'Admin User'),
+  'email' => '',
+  'phone' => '',
+  'status' => 'Active',
+  'created_at' => date('Y-m-d'),
+];
+
+if ($adminUserId > 0 && admin_table_exists($connection, 'users')) {
+  $fetchStmt = mysqli_prepare($connection, "SELECT id, username, name, email, phone, status, created_at FROM users WHERE id = ? AND role = 'admin' LIMIT 1");
+  if ($fetchStmt) {
+    mysqli_stmt_bind_param($fetchStmt, 'i', $adminUserId);
+    mysqli_stmt_execute($fetchStmt);
+    $fetchResult = mysqli_stmt_get_result($fetchStmt);
+    $fetchRow = $fetchResult ? mysqli_fetch_assoc($fetchResult) : null;
+    if ($fetchRow) {
+      $profile = array_merge($profile, $fetchRow);
+    }
+    mysqli_stmt_close($fetchStmt);
+  }
+}
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $adminUserId > 0) {
+  $name = trim((string) ($_POST['name'] ?? ''));
+  $email = trim((string) ($_POST['email'] ?? ''));
+  $phone = trim((string) ($_POST['phone'] ?? ''));
+  $status = admin_normalize_status($_POST['status'] ?? 'Active', 'Active');
+  $newPassword = trim((string) ($_POST['new_password'] ?? ''));
+
+  if ($name === '' || $email === '') {
+    admin_set_flash('danger', 'Name and email are required.');
+  } else {
+    $updateSql = 'UPDATE users SET name = ?, email = ?, phone = ?, status = ?';
+    $types = 'ssss';
+    $params = [$name, $email, $phone, $status];
+
+    if ($newPassword !== '') {
+      $updateSql .= ', password = ?';
+      $types .= 's';
+      $params[] = password_hash($newPassword, PASSWORD_DEFAULT);
+    }
+
+    $updateSql .= ' WHERE id = ?';
+    $types .= 'i';
+    $params[] = $adminUserId;
+
+    $updateStmt = mysqli_prepare($connection, $updateSql);
+    if ($updateStmt && admin_bind_dynamic_params($updateStmt, $types, $params) && mysqli_stmt_execute($updateStmt)) {
+      $_SESSION['admin_name'] = $name;
+      $_SESSION['name'] = $name;
+      admin_set_flash('success', 'Profile updated successfully.');
+    } else {
+      admin_set_flash('danger', 'Unable to update profile right now.');
+    }
+
+    if ($updateStmt) {
+      mysqli_stmt_close($updateStmt);
+    }
+  }
+
+  header('Location: profile.php');
+  exit();
+}
+
+$flash = admin_pull_flash();
+
+$createdDate = !empty($profile['created_at']) ? date('F j, Y', strtotime((string) $profile['created_at'])) : '-';
+$adminCode = 'ADM' . str_pad((string) ((int) $profile['id']), 3, '0', STR_PAD_LEFT);
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -40,13 +114,20 @@ require_once __DIR__ . '/auth.php';
     <div class="header">
       <h2><i class="fas fa-user"></i> My Profile</h2>
     </div>
+
+    <?php if ($flash): ?>
+      <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
+        <?php echo htmlspecialchars($flash['message']); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
     
     <div class="profile-card">
       <div class="profile-header">
         <div class="profile-avatar">
           <i class="fas fa-user-shield"></i>
         </div>
-        <div class="profile-name">Admin User</div>
+        <div class="profile-name"><?php echo htmlspecialchars((string) $profile['name']); ?></div>
         <div class="profile-role">System Administrator</div>
       </div>
       
@@ -54,15 +135,15 @@ require_once __DIR__ . '/auth.php';
         <h5>Personal Information</h5>
         <div class="info-row">
           <div class="info-label">Full Name</div>
-          <div class="info-value">Admin User</div>
+          <div class="info-value"><?php echo htmlspecialchars((string) $profile['name']); ?></div>
         </div>
         <div class="info-row">
           <div class="info-label">Email</div>
-          <div class="info-value">admin@school.com</div>
+          <div class="info-value"><?php echo htmlspecialchars((string) ($profile['email'] ?? '-')); ?></div>
         </div>
         <div class="info-row">
           <div class="info-label">Phone</div>
-          <div class="info-value">+1 234 567 8900</div>
+          <div class="info-value"><?php echo htmlspecialchars((string) ($profile['phone'] ?? '-')); ?></div>
         </div>
       </div>
       
@@ -70,7 +151,7 @@ require_once __DIR__ . '/auth.php';
         <h5>Account Details</h5>
         <div class="info-row">
           <div class="info-label">Admin ID</div>
-          <div class="info-value">ADM001</div>
+          <div class="info-value"><?php echo htmlspecialchars($adminCode); ?></div>
         </div>
         <div class="info-row">
           <div class="info-label">Role</div>
@@ -78,16 +159,48 @@ require_once __DIR__ . '/auth.php';
         </div>
         <div class="info-row">
           <div class="info-label">Joined Date</div>
-          <div class="info-value">January 1, 2024</div>
+          <div class="info-value"><?php echo htmlspecialchars($createdDate); ?></div>
         </div>
         <div class="info-row">
           <div class="info-label">Status</div>
-          <div class="info-value"><span class="badge bg-success">Active</span></div>
+          <div class="info-value"><span class="badge <?php echo (admin_normalize_status($profile['status'] ?? 'Active', 'Active') === 'Active') ? 'bg-success' : 'bg-secondary'; ?>"><?php echo htmlspecialchars(admin_normalize_status($profile['status'] ?? 'Active', 'Active')); ?></span></div>
         </div>
       </div>
       
-      <div class="text-center">
-        <button class="btn-edit"><i class="fas fa-edit"></i> Edit Profile</button>
+      <div class="info-section">
+        <h5>Edit Profile</h5>
+        <form method="POST" action="">
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Full Name</label>
+              <input type="text" class="form-control" name="name" required value="<?php echo htmlspecialchars((string) $profile['name']); ?>">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Email</label>
+              <input type="email" class="form-control" name="email" required value="<?php echo htmlspecialchars((string) ($profile['email'] ?? '')); ?>">
+            </div>
+          </div>
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Phone</label>
+              <input type="text" class="form-control" name="phone" value="<?php echo htmlspecialchars((string) ($profile['phone'] ?? '')); ?>">
+            </div>
+            <div class="col-md-6 mb-3">
+              <label class="form-label">Status</label>
+              <select class="form-select" name="status">
+                <option value="Active" <?php echo admin_normalize_status($profile['status'] ?? 'Active', 'Active') === 'Active' ? 'selected' : ''; ?>>Active</option>
+                <option value="Inactive" <?php echo admin_normalize_status($profile['status'] ?? 'Active', 'Active') === 'Inactive' ? 'selected' : ''; ?>>Inactive</option>
+              </select>
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">New Password (optional)</label>
+            <input type="password" class="form-control" name="new_password" placeholder="Leave blank to keep current password">
+          </div>
+          <div class="text-center">
+            <button type="submit" class="btn-edit"><i class="fas fa-save"></i> Update Profile</button>
+          </div>
+        </form>
       </div>
     </div>
   </div>
