@@ -1,6 +1,8 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve student context
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
 
@@ -13,13 +15,15 @@ $highest = 0;
 $lowest = 100;
 
 try {
+  // Track loaded source
   $recordsLoaded = false;
 
-  // Primary source: grades table.
+  // Read grades source
   if (
     student_auth_table_exists($conn, 'grades')
     && student_auth_column_exists($conn, 'grades', 'obtained_marks')
   ) {
+    // Build grades filter
     $gradesFilter = student_auth_link_filter_sql($conn, 'grades', 'student_id', 'student_user_id', 'g');
     $subjectNameExpr = "CONCAT('Subject ', g.subject_id)";
     $subjectJoinSql = '';
@@ -39,6 +43,7 @@ try {
       ? 'COALESCE(g.total_marks, 100)'
       : '100';
 
+    // Build grades query
     $sql = "SELECT {$subjectNameExpr} AS subject, {$totalMarksExpr} AS total_marks, COALESCE(g.obtained_marks, 0) AS obtained_marks
         FROM grades g{$subjectJoinSql}
         WHERE {$gradesFilter['sql']}
@@ -46,10 +51,12 @@ try {
 
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
+      // Bind grades params
       $filterParams = $gradesFilter['params'];
       if (student_auth_bind_dynamic_params($stmt, $gradesFilter['types'], $filterParams)) {
         $stmt->execute();
         $result = $stmt->get_result();
+        // Collect grades rows
         while ($result && ($row = $result->fetch_assoc())) {
           $marks_records[] = $row;
           $recordsLoaded = true;
@@ -59,7 +66,7 @@ try {
     }
   }
 
-  // Fallback source: marks table (legacy/new variants).
+  // Read legacy marks
   if (!$recordsLoaded && student_auth_table_exists($conn, 'marks')) {
     $marksValueColumn = null;
     if (student_auth_column_exists($conn, 'marks', 'marks')) {
@@ -69,6 +76,7 @@ try {
     }
 
     if ($marksValueColumn !== null) {
+      // Build marks filter
       $marksFilter = student_auth_link_filter_sql($conn, 'marks', 'student_id', 'student_user_id', 'm');
       $subjectNameExpr = "CONCAT('Subject ', m.subject_id)";
       $subjectJoinSql = '';
@@ -90,6 +98,7 @@ try {
         ? 'COALESCE(m.total_marks, 100)'
         : '100';
 
+      // Build marks query
       $sql = "SELECT {$subjectNameExpr} AS subject, {$totalMarksExpr} AS total_marks, COALESCE(m.{$marksValueColumn}, 0) AS obtained_marks
           FROM marks m{$subjectJoinSql}
           WHERE {$marksFilter['sql']}
@@ -97,10 +106,12 @@ try {
 
       $stmt = $conn->prepare( $sql);
       if ($stmt) {
+        // Bind marks params
         $filterParams = $marksFilter['params'];
         if (student_auth_bind_dynamic_params($stmt, $marksFilter['types'], $filterParams)) {
           $stmt->execute();
           $result = $stmt->get_result();
+          // Collect marks rows
           while ($result && ($row = $result->fetch_assoc())) {
             $marks_records[] = $row;
             $recordsLoaded = true;
@@ -111,6 +122,7 @@ try {
     }
   }
 
+  // Compute marks stats
   foreach ($marks_records as $row) {
     $recordTotalMarks = (float) ($row['total_marks'] ?? 0);
     $recordObtainedMarks = (float) ($row['obtained_marks'] ?? 0);
@@ -123,7 +135,7 @@ try {
     if ($percentage < $lowest) $lowest = $percentage;
   }
 
-  // Calculate average
+  // Calculate average score
   if (count($marks_records) > 0 && $total_marks > 0) {
     $average = round(($obtained_marks / $total_marks) * 100, 2);
   } else {

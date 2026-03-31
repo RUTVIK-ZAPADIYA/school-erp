@@ -1,16 +1,20 @@
 <?php
+// Start student session
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+// Enforce student role
 if ((string) ($_SESSION['role'] ?? '') !== 'student') {
     header('Location: ../login.php');
     exit();
 }
 
+// Load database connection
 require_once __DIR__ . '/../includes/db_connect.php';
 
 if (!function_exists('student_auth_table_exists')) {
+    // Verify table present
     function student_auth_table_exists($conn, $tableName)
     {
         if (!$conn instanceof mysqli) {
@@ -25,6 +29,7 @@ if (!function_exists('student_auth_table_exists')) {
 }
 
 if (!function_exists('student_auth_column_exists')) {
+    // Verify column present
     function student_auth_column_exists($conn, $tableName, $columnName)
     {
         if (!student_auth_table_exists($conn, $tableName)) {
@@ -40,6 +45,7 @@ if (!function_exists('student_auth_column_exists')) {
 }
 
 if (!function_exists('student_auth_resolve_context')) {
+    // Resolve identity context
     function student_auth_resolve_context($conn)
     {
         $sessionUserId = (int) ($_SESSION['user_id'] ?? 0);
@@ -54,6 +60,7 @@ if (!function_exists('student_auth_resolve_context')) {
         $userEmail = '';
         $userUsername = '';
 
+        // Query users table
         if (student_auth_table_exists($conn, 'users')) {
             if ($resolvedUserId > 0) {
                 $userStmt = $conn->prepare("SELECT id, username, name, email FROM users WHERE id = ? AND role = 'student' LIMIT 1");
@@ -94,6 +101,7 @@ if (!function_exists('student_auth_resolve_context')) {
             }
         }
 
+        // Query students table
         $studentRow = null;
         if (student_auth_table_exists($conn, 'students')) {
             if ($resolvedStudentId > 0) {
@@ -173,6 +181,7 @@ if (!function_exists('student_auth_resolve_context')) {
                 }
             }
 
+            // Sync resolved student
             if ($studentRow) {
                 $resolvedStudentId = (int) ($studentRow['id'] ?? $resolvedStudentId);
 
@@ -213,6 +222,7 @@ if (!function_exists('student_auth_resolve_context')) {
             }
         }
 
+        // Fill missing ids
         if ($resolvedStudentId <= 0 && $legacyStudentId > 0) {
             $resolvedStudentId = $legacyStudentId;
         }
@@ -224,6 +234,7 @@ if (!function_exists('student_auth_resolve_context')) {
             $resolvedName = 'Student';
         }
 
+        // Persist session values
         if ($resolvedUserId > 0) {
             $_SESSION['user_id'] = $resolvedUserId;
             $_SESSION['student_user_id'] = $resolvedUserId;
@@ -244,10 +255,12 @@ if (!function_exists('student_auth_resolve_context')) {
 }
 
 if (!isset($GLOBALS['student_auth_context']) || !is_array($GLOBALS['student_auth_context'])) {
+    // Cache global context
     $GLOBALS['student_auth_context'] = student_auth_resolve_context($conn);
 }
 
 if (!function_exists('student_auth_context')) {
+    // Read cached context
     function student_auth_context()
     {
         return (array) ($GLOBALS['student_auth_context'] ?? []);
@@ -255,6 +268,7 @@ if (!function_exists('student_auth_context')) {
 }
 
 if (!function_exists('student_auth_student_ids')) {
+    // Build candidate ids
     function student_auth_student_ids()
     {
         $context = student_auth_context();
@@ -277,6 +291,7 @@ if (!function_exists('student_auth_student_ids')) {
 }
 
 if (!function_exists('student_auth_student_id_filter_sql')) {
+    // Build SQL filter
     function student_auth_student_id_filter_sql($columnName = 'student_id')
     {
         $ids = student_auth_student_ids();
@@ -299,6 +314,7 @@ if (!function_exists('student_auth_student_id_filter_sql')) {
 }
 
 if (!function_exists('student_auth_bind_dynamic_params')) {
+    // Bind dynamic values
     function student_auth_bind_dynamic_params($stmt, $types, array &$params)
     {
         if (!$stmt || $types === '') {
@@ -315,6 +331,7 @@ if (!function_exists('student_auth_bind_dynamic_params')) {
 }
 
 if (!function_exists('student_auth_link_filter_sql')) {
+    // Build linked filter
     function student_auth_link_filter_sql($conn, $tableName, $studentIdColumn = 'student_id', $studentUserIdColumn = 'student_user_id', $tableAlias = '')
     {
         $ids = student_auth_student_ids();

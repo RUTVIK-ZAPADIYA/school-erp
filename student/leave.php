@@ -1,21 +1,27 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve student context
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
+// Build leave filter
 $studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get leave records
 $leave_records = [];
 
 try {
+  // Query leave history
   $sql = "SELECT application_id, leave_type, from_date, to_date, days, status FROM leave_applications WHERE {$studentFilter['sql']} ORDER BY from_date DESC LIMIT 10";
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
+    // Bind leave filter
     $filterParams = $studentFilter['params'];
     if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
       $stmt->execute();
       $result = $stmt->get_result();
+      // Collect leave rows
       while ($row = $result->fetch_assoc()) {
         $leave_records[] = $row;
       }

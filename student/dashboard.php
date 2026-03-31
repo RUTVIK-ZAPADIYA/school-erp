@@ -1,10 +1,13 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve dashboard user
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
 $student_user_id = (int) ($studentContext['user_id'] ?? 0);
 $student_name = (string) ($studentContext['student_name'] ?? 'Student');
+// Build student filter
 $studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get dashboard statistics with error handling
@@ -17,10 +20,11 @@ $stats = [
 ];
 
 try {
-    // Get attendance percentage
+  // Count attendance records
   $sql_attendance = "SELECT COUNT(*) as total FROM attendance WHERE {$studentFilter['sql']}";
     $stmt = $conn->prepare( $sql_attendance);
     if ($stmt) {
+    // Bind attendance filter
     $filterParams = $studentFilter['params'];
     if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
       $stmt->execute();
@@ -31,7 +35,7 @@ try {
         $stmt->close();
     }
 
-    // Get average marks (prefer grades table, fallback to marks table).
+    // Prepare marks source
     $marksAverageSql = '';
     $marksAverageFilter = null;
 
@@ -52,6 +56,7 @@ try {
       }
     }
 
+    // Execute marks query
     if ($marksAverageSql !== '' && is_array($marksAverageFilter)) {
       $stmt = $conn->prepare( $marksAverageSql);
       if ($stmt) {
@@ -66,7 +71,7 @@ try {
       }
     }
 
-    // Get pending fees
+    // Sum pending fees
   $sql_fees = "SELECT SUM(amount) as total_fees FROM fees WHERE {$studentFilter['sql']} AND LOWER(COALESCE(status, '')) = 'pending'";
     $stmt = $conn->prepare( $sql_fees);
     if ($stmt) {
@@ -80,7 +85,7 @@ try {
         $stmt->close();
     }
 
-    // Get leave applications
+    // Count leave entries
   $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$studentFilter['sql']}";
     $stmt = $conn->prepare( $sql_leave);
     if ($stmt) {
@@ -94,7 +99,7 @@ try {
         $stmt->close();
     }
 
-    // Get assignments for student's class
+    // Resolve student class
     $studentClassId = 0;
   $classStmt = $conn->prepare( 'SELECT class_id FROM students WHERE id = ? LIMIT 1');
     if ($classStmt) {
@@ -123,6 +128,7 @@ try {
     }
   }
 
+    // Count class assignments
     if ($studentClassId > 0) {
       $assignmentStmt = $conn->prepare( 'SELECT COUNT(*) AS total FROM assignments WHERE class_id = ?');
       if ($assignmentStmt) {

@@ -1,11 +1,14 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve profile context
 $studentContext = student_auth_context();
 $studentProfileId = (int) ($studentContext['student_id'] ?? 0);
 $studentUserId = (int) ($studentContext['user_id'] ?? 0);
 $studentSessionName = (string) ($studentContext['student_name'] ?? 'Student');
 
+// Check table presence
 function table_exists($conn, $tableName)
 {
   $safeTable = $conn->real_escape_string( $tableName);
@@ -14,6 +17,7 @@ function table_exists($conn, $tableName)
   return $result && $result->num_rows > 0;
 }
 
+// Check column presence
 function column_exists($conn, $tableName, $columnName)
 {
   if (!table_exists($conn, $tableName)) {
@@ -27,6 +31,7 @@ function column_exists($conn, $tableName, $columnName)
   return $result && $result->num_rows > 0;
 }
 
+// Fetch single result
 function fetch_one_row($conn, $sql, $types = '', array $params = [])
 {
   $stmt = $conn->prepare( $sql);
@@ -57,6 +62,7 @@ function fetch_one_row($conn, $sql, $types = '', array $params = [])
   return $row ?: null;
 }
 
+// Pick first value
 function first_non_empty_value(array $row, array $keys, $defaultValue = '')
 {
   foreach ($keys as $key) {
@@ -85,6 +91,7 @@ $profile = [
 ];
 
 $userAccount = null;
+// Read user account
 if (table_exists($conn, 'users')) {
   $userAccount = fetch_one_row(
     $conn,
@@ -94,6 +101,7 @@ if (table_exists($conn, 'users')) {
   );
 }
 
+// Merge user values
 if ($userAccount) {
   $profile['name'] = (string) first_non_empty_value($userAccount, ['name'], $profile['name']);
   $profile['email'] = (string) first_non_empty_value($userAccount, ['email'], $profile['email']);
@@ -101,6 +109,7 @@ if ($userAccount) {
 }
 
 $studentRow = null;
+// Read student record
 if (table_exists($conn, 'students')) {
   if ($studentProfileId > 0 && column_exists($conn, 'students', 'id')) {
     $studentRow = fetch_one_row($conn, 'SELECT * FROM students WHERE id = ? LIMIT 1', 'i', [$studentProfileId]);
@@ -125,6 +134,7 @@ if (table_exists($conn, 'students')) {
   }
 }
 
+// Merge student values
 if ($studentRow) {
   $profile['name'] = (string) first_non_empty_value($studentRow, ['name'], $profile['name']);
   $profile['student_id'] = (string) first_non_empty_value($studentRow, ['id', 'student_id'], (string) $profile['student_id']);

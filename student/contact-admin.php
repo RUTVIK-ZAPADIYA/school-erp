@@ -1,27 +1,33 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve student details
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['user_id'] ?? 0);
 $success_message = '';
 $error_message = '';
 
-// Handle form submission
+// Process ticket form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $title = trim($_POST['title'] ?? '');
     $message = trim($_POST['message'] ?? '');
     $category = trim($_POST['category'] ?? 'Technical Issue');
 
     if (empty($title) || empty($message)) {
+      // Validate required fields
         $error_message = 'Please fill in all required fields';
     } else {
+      // Insert support ticket
         $sql = "INSERT INTO support_tickets (student_id, title, message, category, status) VALUES (?, ?, ?, ?, 'Open')";
         $stmt = $conn->prepare( $sql);
         if ($stmt) {
             $stmt->bind_param( "isss", $student_id, $title, $message, $category);
             if ($stmt->execute()) {
+              // Show success message
                 $success_message = 'Your ticket has been submitted successfully! Admin will respond soon.';
             } else {
+              // Show error message
                 $error_message = 'Error submitting ticket. Please try again.';
             }
             $stmt->close();
@@ -29,15 +35,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-// Get support tickets for this student
+// Fetch student tickets
 $tickets = [];
 try {
     $sql = "SELECT id, title, category, status, message, admin_reply, created_at, replied_at FROM support_tickets WHERE student_id = ? ORDER BY created_at DESC";
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
+      // Bind student id
         $stmt->bind_param( "i", $student_id);
         $stmt->execute();
         $result = $stmt->get_result();
+        // Collect ticket rows
         while ($row = $result->fetch_assoc()) {
             $tickets[] = $row;
         }

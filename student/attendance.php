@@ -1,22 +1,27 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve current student
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
+// Build attendance filter
 $studentFilter = student_auth_student_id_filter_sql('student_id');
 
+// Detect date column
 $attendanceDateColumn = 'date';
 $dateColumnResult = $conn->query("SHOW COLUMNS FROM attendance LIKE 'date'");
 if (!$dateColumnResult || $dateColumnResult->num_rows === 0) {
     $attendanceDateColumn = 'attendance_date';
 }
 
-// Get attendance records
+// Fetch attendance records
 $attendance_records = [];
 try {
   $sql = "SELECT {$attendanceDateColumn} AS attendance_date, status FROM attendance WHERE {$studentFilter['sql']} ORDER BY {$attendanceDateColumn} DESC";
     $stmt = $conn->prepare( $sql);
   if ($stmt) {
+    // Bind filter params
     $filterParams = $studentFilter['params'];
     if (!student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
       $stmt->close();
@@ -24,6 +29,7 @@ try {
     }
 
         $stmt->execute();
+        // Collect attendance rows
         $result = $stmt->get_result();
         while ($row = $result->fetch_assoc()) {
             $attendance_records[] = $row;
@@ -34,10 +40,11 @@ try {
     error_log("Attendance query error: " . $e->getMessage());
 }
 
-// Calculate attendance percentage
+// Calculate attendance percent
 $total = count($attendance_records);
 $present = 0;
 foreach ($attendance_records as $record) {
+  // Count present days
     if (strtolower((string) ($record['status'] ?? '')) === 'present') {
       $present++;
     }

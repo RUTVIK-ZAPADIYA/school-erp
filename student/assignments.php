@@ -1,10 +1,13 @@
 <?php
+// Include auth checks
 require_once __DIR__ . '/auth.php';
 
+// Resolve student context
 $studentContext = student_auth_context();
 $studentId = (int) ($studentContext['student_id'] ?? 0);
 $studentUserId = (int) ($studentContext['user_id'] ?? 0);
 
+// Check table existence
 function student_page_table_exists($conn, $tableName)
 {
     $safeTable = $conn->real_escape_string($tableName);
@@ -13,6 +16,7 @@ function student_page_table_exists($conn, $tableName)
     return $result && $result->num_rows > 0;
 }
 
+  // Check column existence
 function student_page_column_exists($conn, $tableName, $columnName)
 {
     if (!student_page_table_exists($conn, $tableName)) {
@@ -28,8 +32,10 @@ function student_page_column_exists($conn, $tableName, $columnName)
 
 $studentClassId = 0;
 $studentClassLabel = '';
+// Build submission filter
 $submissionFilter = student_auth_student_id_filter_sql('sub.student_id');
 
+// Resolve student class
 if (student_page_table_exists($conn, 'students') && $studentId > 0) {
     $studentStmt = $conn->prepare('SELECT class_id, class FROM students WHERE id = ? LIMIT 1');
     if ($studentStmt) {
@@ -45,6 +51,7 @@ if (student_page_table_exists($conn, 'students') && $studentId > 0) {
     }
 }
 
+  // Try user fallback
     if ($studentClassId <= 0 && $studentUserId > 0 && $studentUserId !== $studentId && student_page_table_exists($conn, 'students')) {
       if (student_page_column_exists($conn, 'students', 'user_id')) {
         $studentByUserStmt = $conn->prepare('SELECT class_id, class FROM students WHERE user_id = ? LIMIT 1');
@@ -65,6 +72,7 @@ if (student_page_table_exists($conn, 'students') && $studentId > 0) {
       }
     }
 
+  // Build subject expression
 $subjectNameExpr = "''";
 if (student_page_column_exists($conn, 'subjects', 'name') && student_page_column_exists($conn, 'subjects', 'subject_name')) {
     $subjectNameExpr = "COALESCE(NULLIF(s.name, ''), s.subject_name, CONCAT('Subject ', s.id))";
@@ -74,6 +82,7 @@ if (student_page_column_exists($conn, 'subjects', 'name') && student_page_column
     $subjectNameExpr = 's.subject_name';
 }
 
+// Build class expression
 $classNameExpr = "CONCAT('Class ', c.id)";
 if (student_page_column_exists($conn, 'classes', 'name') && student_page_column_exists($conn, 'classes', 'class_name')) {
   $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
@@ -83,6 +92,7 @@ if (student_page_column_exists($conn, 'classes', 'name') && student_page_column_
   $classNameExpr = 'c.class_name';
 }
 
+// Build points expression
 $pointsExpr = '0';
 if (student_page_column_exists($conn, 'assignments', 'total_points')) {
   $pointsExpr = 'a.total_points';
@@ -92,6 +102,7 @@ if (student_page_column_exists($conn, 'assignments', 'total_points')) {
 
 $assignments = [];
 
+// Load assignment rows
 if (
     student_page_table_exists($conn, 'assignments')
     && student_page_table_exists($conn, 'assignment_submissions')
@@ -135,6 +146,7 @@ if (
 
     $stmt = $conn->prepare($sql);
     if ($stmt) {
+    // Bind dynamic params
     $queryParams = $params;
     if (!student_auth_bind_dynamic_params($stmt, $types, $queryParams)) {
       $stmt->close();
@@ -143,6 +155,7 @@ if (
   }
 
   if ($stmt) {
+      // Collect assignment data
         $stmt->execute();
         $result = $stmt->get_result();
         while ($result && ($row = $result->fetch_assoc())) {
@@ -159,6 +172,7 @@ $stats = [
     'graded' => 0,
 ];
 
+// Compute dashboard stats
 foreach ($assignments as $assignment) {
     $stats['total']++;
 

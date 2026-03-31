@@ -1,8 +1,11 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve student context
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
+// Build fees filter
 $studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get fee records
@@ -11,13 +14,16 @@ $total_fees = 0;
 $paid_amount = 0;
 
 try {
+  // Query recent fees
   $sql = "SELECT receipt_no, date, description, amount, status FROM fees WHERE {$studentFilter['sql']} ORDER BY date DESC LIMIT 10";
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
+    // Bind fee filter
     $filterParams = $studentFilter['params'];
     if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
       $stmt->execute();
       $result = $stmt->get_result();
+      // Aggregate fee totals
       while ($row = $result->fetch_assoc()) {
         $fee_records[] = $row;
         $total_fees += $row['amount'];
@@ -32,6 +38,7 @@ try {
     error_log("Fees query error: " . $e->getMessage());
 }
 
+// Compute payment totals
 $pending_amount = $total_fees - $paid_amount;
 $payment_percentage = $total_fees > 0 ? round(($paid_amount / $total_fees) * 100) : 0;
 ?>

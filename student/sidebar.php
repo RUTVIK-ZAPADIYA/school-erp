@@ -1,11 +1,14 @@
 <?php
+// Include auth guard
 require_once __DIR__ . '/auth.php';
 
+// Resolve sidebar user
 $studentContext = student_auth_context();
 $studentDisplayName = (string) ($studentContext['student_name'] ?? $_SESSION['student_name'] ?? 'Student');
 $studentRollNo = (string) ($studentContext['student_roll_no'] ?? '-');
 
 // Get current page filename
+// Detect active page
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!-- SideNavBar Shell -->
