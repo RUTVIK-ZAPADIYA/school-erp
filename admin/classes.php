@@ -10,24 +10,65 @@ admin_ensure_column($connection, 'classes', 'academic_year', "VARCHAR(30) NULL")
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $classId = (int) ($_POST['class_id'] ?? 0);
   if ($classId > 0) {
-    if (admin_column_exists($connection, 'students', 'class_id')) {
-      $resetStmt = mysqli_prepare($connection, 'UPDATE students SET class_id = NULL WHERE class_id = ?');
-      if ($resetStmt) {
-        mysqli_stmt_bind_param($resetStmt, 'i', $classId);
-        mysqli_stmt_execute($resetStmt);
-        mysqli_stmt_close($resetStmt);
+    $deleteError = '';
+    $transactionStarted = false;
+
+    if ($connection->begin_transaction()) {
+      $transactionStarted = true;
+    }
+
+    $nullifyTargets = [
+      ['students', 'class_id', true],
+      ['subjects', 'class_id', true],
+      ['schedule', 'class_id', true],
+      ['attendance', 'class_id', true],
+      ['assignments', 'class_id', true],
+      ['exams', 'class_id', true],
+    ];
+
+    foreach ($nullifyTargets as $target) {
+      [$tableName, $columnName, $allowDeleteFallback] = $target;
+      $referenceError = '';
+      if (!admin_clear_reference($connection, $tableName, $columnName, $classId, $allowDeleteFallback, $referenceError)) {
+        $deleteError = 'Unable to clear related class data in ' . $tableName . '.';
+        if ($referenceError !== '') {
+          $deleteError .= ' ' . $referenceError;
+        }
+      }
+
+      if ($deleteError !== '') {
+        break;
       }
     }
 
-    $deleteStmt = mysqli_prepare($connection, 'DELETE FROM classes WHERE id = ?');
-    if ($deleteStmt) {
-      mysqli_stmt_bind_param($deleteStmt, 'i', $classId);
-      if (mysqli_stmt_execute($deleteStmt)) {
-        admin_set_flash('success', 'Class deleted successfully.');
+    if ($deleteError === '') {
+      $deleteStmt = $connection->prepare( 'DELETE FROM classes WHERE id = ?');
+      if (!$deleteStmt) {
+        $deleteError = 'Unable to process class delete request.';
       } else {
-        admin_set_flash('danger', 'Unable to delete class right now.');
+        $deleteStmt->bind_param( 'i', $classId);
+        if (!$deleteStmt->execute()) {
+          $deleteError = 'Unable to delete class right now.';
+        } elseif ($deleteStmt->affected_rows < 1) {
+          $deleteError = 'Class record was not found.';
+        }
+        $deleteStmt->close();
       }
-      mysqli_stmt_close($deleteStmt);
+    }
+
+    if ($deleteError === '') {
+      if ($transactionStarted && !$connection->commit()) {
+        $deleteError = 'Unable to finalize class deletion. Please try again.';
+      }
+    }
+
+    if ($deleteError !== '') {
+      if ($transactionStarted) {
+        $connection->rollback();
+      }
+      admin_set_flash('danger', $deleteError);
+    } else {
+      admin_set_flash('success', 'Class deleted successfully.');
     }
   }
 
@@ -56,23 +97,23 @@ if (admin_table_exists($connection, 'classes')) {
 
   if ($search !== '') {
     $searchSql = $baseSql . " WHERE {$classNameExpression} LIKE ? OR c.section LIKE ? OR t.name LIKE ? ORDER BY c.id DESC";
-    $searchStmt = mysqli_prepare($connection, $searchSql);
+    $searchStmt = $connection->prepare( $searchSql);
     if ($searchStmt) {
       $searchTerm = '%' . $search . '%';
-      mysqli_stmt_bind_param($searchStmt, 'sss', $searchTerm, $searchTerm, $searchTerm);
-      mysqli_stmt_execute($searchStmt);
-      $result = mysqli_stmt_get_result($searchStmt);
+      $searchStmt->bind_param( 'sss', $searchTerm, $searchTerm, $searchTerm);
+      $searchStmt->execute();
+      $result = $searchStmt->get_result();
       if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $result->fetch_assoc()) {
           $classes[] = $row;
         }
       }
-      mysqli_stmt_close($searchStmt);
+      $searchStmt->close();
     }
   } else {
-    $result = mysqli_query($connection, $baseSql . ' ORDER BY c.id DESC');
+    $result = $connection->query( $baseSql . ' ORDER BY c.id DESC');
     if ($result) {
-      while ($row = mysqli_fetch_assoc($result)) {
+      while ($row = $result->fetch_assoc()) {
         $classes[] = $row;
       }
     }
@@ -86,29 +127,29 @@ foreach ($classes as $index => $classRow) {
   $totalStudents = 0;
 
   if ($hasStudentClassId) {
-    $countStmt = mysqli_prepare($connection, 'SELECT COUNT(*) AS total FROM students WHERE class_id = ?');
+    $countStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class_id = ?');
     if ($countStmt) {
       $classId = (int) $classRow['id'];
-      mysqli_stmt_bind_param($countStmt, 'i', $classId);
-      mysqli_stmt_execute($countStmt);
-      $countResult = mysqli_stmt_get_result($countStmt);
-      $countRow = $countResult ? mysqli_fetch_assoc($countResult) : null;
+      $countStmt->bind_param( 'i', $classId);
+      $countStmt->execute();
+      $countResult = $countStmt->get_result();
+      $countRow = $countResult ? $countResult->fetch_assoc() : null;
       $totalStudents = (int) ($countRow['total'] ?? 0);
-      mysqli_stmt_close($countStmt);
+      $countStmt->close();
     }
   }
 
   if ($totalStudents === 0 && $hasStudentClass) {
     $className = (string) ($classRow['class_name'] ?? '');
     if ($className !== '') {
-      $nameCountStmt = mysqli_prepare($connection, 'SELECT COUNT(*) AS total FROM students WHERE class = ?');
+      $nameCountStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class = ?');
       if ($nameCountStmt) {
-        mysqli_stmt_bind_param($nameCountStmt, 's', $className);
-        mysqli_stmt_execute($nameCountStmt);
-        $nameCountResult = mysqli_stmt_get_result($nameCountStmt);
-        $nameCountRow = $nameCountResult ? mysqli_fetch_assoc($nameCountResult) : null;
+        $nameCountStmt->bind_param( 's', $className);
+        $nameCountStmt->execute();
+        $nameCountResult = $nameCountStmt->get_result();
+        $nameCountRow = $nameCountResult ? $nameCountResult->fetch_assoc() : null;
         $totalStudents = (int) ($nameCountRow['total'] ?? 0);
-        mysqli_stmt_close($nameCountStmt);
+        $nameCountStmt->close();
       }
     }
   }
@@ -187,7 +228,9 @@ $flash = admin_pull_flash();
                   <td><?php echo htmlspecialchars((string) ($classRow['room_number'] ?? '-')); ?></td>
                   <td><span class="badge <?php echo $badgeClass; ?>"><?php echo htmlspecialchars($status); ?></span></td>
                   <td>
-                    <a class="btn btn-sm btn-outline-primary" href="add-class.php"><i class="fas fa-plus"></i></a>
+                    <a class="btn btn-sm btn-outline-primary" href="edit-class.php?id=<?php echo (int) $classRow['id']; ?>" title="Edit Class">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     <form method="POST" action="" style="display:inline-block;">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="class_id" value="<?php echo (int) $classRow['id']; ?>">
