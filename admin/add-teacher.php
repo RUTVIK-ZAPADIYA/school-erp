@@ -10,16 +10,16 @@ admin_ensure_column($connection, 'teachers', 'experience', 'INT NULL');
 admin_ensure_column($connection, 'teachers', 'joining_date', 'DATE NULL');
 admin_ensure_column($connection, 'teachers', 'address', 'TEXT NULL');
 admin_ensure_column($connection, 'teachers', 'salary', 'DECIMAL(10,2) NULL');
+admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 
 $subjects = [];
 $subjectColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectColumn !== null) {
-  $subjectResult = mysqli_query(
-    $connection,
+  $subjectResult = $connection->query(
     "SELECT DISTINCT {$subjectColumn} AS subject_name FROM subjects WHERE {$subjectColumn} IS NOT NULL AND {$subjectColumn} != '' ORDER BY {$subjectColumn} ASC"
   );
   if ($subjectResult) {
-    while ($subjectRow = mysqli_fetch_assoc($subjectResult)) {
+    while ($subjectRow = $subjectResult->fetch_assoc()) {
       $subjects[] = $subjectRow['subject_name'];
     }
   }
@@ -32,6 +32,7 @@ if (empty($subjects)) {
 $formData = [
   'first_name' => '',
   'last_name' => '',
+  'username' => '',
   'email' => '',
   'phone' => '',
   'subject' => '',
@@ -44,17 +45,23 @@ $formData = [
 ];
 
 $errorMessage = '';
+$passwordValue = '';
+$confirmPasswordValue = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
+  $passwordValue = (string) ($_POST['password'] ?? '');
+  $confirmPasswordValue = (string) ($_POST['confirm_password'] ?? '');
+
   $formData['status'] = admin_normalize_status($formData['status'], 'Active');
 
   if (
     $formData['first_name'] === '' ||
     $formData['last_name'] === '' ||
+    $formData['username'] === '' ||
     $formData['email'] === '' ||
     $formData['phone'] === '' ||
     $formData['subject'] === '' ||
@@ -62,38 +69,113 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formData['experience'] === '' ||
     $formData['joining_date'] === '' ||
     $formData['address'] === '' ||
-    $formData['salary'] === ''
+    $formData['salary'] === '' ||
+    $passwordValue === '' ||
+    $confirmPasswordValue === ''
   ) {
     $errorMessage = 'Please fill in all required fields.';
   } elseif (!is_numeric($formData['experience']) || (int) $formData['experience'] < 0) {
     $errorMessage = 'Experience must be a valid non-negative number.';
   } elseif (!is_numeric($formData['salary']) || (float) $formData['salary'] <= 0) {
     $errorMessage = 'Salary must be a valid amount greater than zero.';
+  } elseif (!preg_match('/^[A-Za-z0-9._-]{3,30}$/', $formData['username'])) {
+    $errorMessage = 'Username must be 3-30 characters and contain only letters, numbers, dot, underscore, or hyphen.';
+  } elseif (strlen($passwordValue) < 6) {
+    $errorMessage = 'Password must be at least 6 characters long.';
+  } elseif ($passwordValue !== $confirmPasswordValue) {
+    $errorMessage = 'Password and confirm password must match.';
   }
 
   if ($errorMessage === '') {
     $teachersHasEmail = admin_column_exists($connection, 'teachers', 'email');
     if ($teachersHasEmail) {
-      $emailCheckStmt = mysqli_prepare($connection, 'SELECT id FROM teachers WHERE email = ? LIMIT 1');
+      $emailCheckStmt = $connection->prepare( 'SELECT id FROM teachers WHERE email = ? LIMIT 1');
       if ($emailCheckStmt) {
-        mysqli_stmt_bind_param($emailCheckStmt, 's', $formData['email']);
-        mysqli_stmt_execute($emailCheckStmt);
-        $emailCheckResult = mysqli_stmt_get_result($emailCheckStmt);
-        if ($emailCheckResult && mysqli_num_rows($emailCheckResult) > 0) {
+        $emailCheckStmt->bind_param( 's', $formData['email']);
+        $emailCheckStmt->execute();
+        $emailCheckResult = $emailCheckStmt->get_result();
+        if ($emailCheckResult && $emailCheckResult->num_rows > 0) {
           $errorMessage = 'A teacher with this email already exists.';
         }
-        mysqli_stmt_close($emailCheckStmt);
+        $emailCheckStmt->close();
       }
     }
   }
 
   if ($errorMessage === '') {
-    $teacherName = trim($formData['first_name'] . ' ' . $formData['last_name']);
+    if (admin_column_exists($connection, 'teachers', 'username')) {
+      $usernameCheckStmt = $connection->prepare( 'SELECT id FROM teachers WHERE username = ? LIMIT 1');
+      if ($usernameCheckStmt) {
+        $usernameCheckStmt->bind_param( 's', $formData['username']);
+        $usernameCheckStmt->execute();
+        $usernameCheckResult = $usernameCheckStmt->get_result();
+        if ($usernameCheckResult && $usernameCheckResult->num_rows > 0) {
+          $errorMessage = 'A teacher with this username already exists.';
+        }
+        $usernameCheckStmt->close();
+      }
+    }
+  }
 
-    $insertColumns = ['name'];
+  if ($errorMessage === '') {
+    $userCheckStmt = $connection->prepare( 'SELECT id FROM users WHERE username = ? OR email = ? OR username = ? OR email = ? LIMIT 1');
+    if (!$userCheckStmt) {
+      $errorMessage = 'Unable to validate teacher login account right now.';
+    } else {
+      $userCheckStmt->bind_param( 'ssss', $formData['username'], $formData['username'], $formData['email'], $formData['email']);
+      $userCheckStmt->execute();
+      $userCheckResult = $userCheckStmt->get_result();
+      if ($userCheckResult && $userCheckResult->num_rows > 0) {
+        $errorMessage = 'A user account with this username or email already exists.';
+      }
+      $userCheckStmt->close();
+    }
+  }
+
+  if ($errorMessage === '') {
+    $teacherName = trim($formData['first_name'] . ' ' . $formData['last_name']);
+    $loginIdentifier = $formData['username'];
+    $passwordHash = password_hash($passwordValue, PASSWORD_DEFAULT);
+    $teacherRole = 'teacher';
+    $teacherUserId = 0;
+    $transactionStarted = false;
+
+    if ($connection->begin_transaction()) {
+      $transactionStarted = true;
+    }
+
+    $userInsertStmt = $connection->prepare(
+      'INSERT INTO users (username, password, role, name, email, phone, status) VALUES (?, ?, ?, ?, ?, ?, ?)'
+    );
+    if (!$userInsertStmt) {
+      $errorMessage = 'Unable to create teacher login account right now.';
+    } else {
+      $userInsertStmt->bind_param(
+        'sssssss',
+        $loginIdentifier,
+        $passwordHash,
+        $teacherRole,
+        $teacherName,
+        $formData['email'],
+        $formData['phone'],
+        $formData['status']
+      );
+      if (!$userInsertStmt->execute()) {
+        $errorMessage = 'Failed to create teacher login account. This email may already be in use.';
+      } else {
+        $teacherUserId = (int) $connection->insert_id;
+      }
+      $userInsertStmt->close();
+    }
+
+    admin_ensure_column($connection, 'teachers', 'user_id', 'INT NULL');
+
+    $insertColumns = ['name', 'user_id'];
     $insertValues = ['?'];
-    $insertTypes = 's';
+    $insertValues[] = '?';
+    $insertTypes = 'si';
     $insertParams = [$teacherName];
+    $insertParams[] = $teacherUserId;
 
     if (admin_column_exists($connection, 'teachers', 'first_name')) {
       $insertColumns[] = 'first_name';
@@ -112,6 +194,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $insertValues[] = '?';
       $insertTypes .= 's';
       $insertParams[] = $formData['email'];
+    }
+    if (admin_column_exists($connection, 'teachers', 'username')) {
+      $insertColumns[] = 'username';
+      $insertValues[] = '?';
+      $insertTypes .= 's';
+      $insertParams[] = $formData['username'];
     }
     if (admin_column_exists($connection, 'teachers', 'phone')) {
       $insertColumns[] = 'phone';
@@ -163,22 +251,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $insertSql = 'INSERT INTO teachers (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-    $insertStmt = mysqli_prepare($connection, $insertSql);
+    if ($errorMessage === '') {
+      $insertStmt = $connection->prepare( $insertSql);
 
-    if (!$insertStmt) {
-      $errorMessage = 'Unable to save teacher right now.';
-    } else {
-      if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
-        $errorMessage = 'Unable to bind insert parameters.';
-      } elseif (!mysqli_stmt_execute($insertStmt)) {
-        $errorMessage = 'Failed to add teacher. Please try again.';
+      if (!$insertStmt) {
+        $errorMessage = 'Unable to save teacher right now.';
+      } else {
+        if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
+          $errorMessage = 'Unable to bind insert parameters.';
+        } elseif (!$insertStmt->execute()) {
+          $errorMessage = 'Failed to add teacher. Please try again.';
+        }
+        $insertStmt->close();
       }
-      mysqli_stmt_close($insertStmt);
+    }
+
+    if ($errorMessage === '') {
+      if ($transactionStarted && !$connection->commit()) {
+        $errorMessage = 'Unable to finalize teacher creation. Please try again.';
+      }
+    }
+
+    if ($errorMessage !== '') {
+      if ($transactionStarted) {
+        $connection->rollback();
+      } elseif ($teacherUserId > 0) {
+        $cleanupStmt = $connection->prepare( "DELETE FROM users WHERE id = ? AND role = 'teacher' LIMIT 1");
+        if ($cleanupStmt) {
+          $cleanupStmt->bind_param( 'i', $teacherUserId);
+          $cleanupStmt->execute();
+          $cleanupStmt->close();
+        }
+      }
     }
   }
 
   if ($errorMessage === '') {
-    admin_set_flash('success', 'Teacher added successfully.');
+    admin_set_flash('success', 'Teacher added successfully. Login username: ' . $formData['username']);
     header('Location: add-teacher.php');
     exit();
   }
@@ -255,9 +364,30 @@ $flash = admin_pull_flash();
             <div id="email_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
+            <label class="form-label">Username *</label>
+            <input type="text" class="form-control" name="username" data-validation="required,min,max" data-min="3" data-max="30" value="<?php echo htmlspecialchars($formData['username']); ?>">
+            <div id="username_error" class="invalid-feedback"></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
             <label class="form-label">Phone Number *</label>
             <input type="text" class="form-control" name="phone" data-validation="required,number,min" data-min="10" value="<?php echo htmlspecialchars($formData['phone']); ?>">
             <div id="phone_error" class="invalid-feedback"></div>
+          </div>
+        </div>
+
+        <div class="row">
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Password *</label>
+            <input type="password" class="form-control" name="password" data-validation="required,min" data-min="6" autocomplete="new-password">
+            <div id="password_error" class="invalid-feedback"></div>
+          </div>
+          <div class="col-md-6 mb-3">
+            <label class="form-label">Confirm Password *</label>
+            <input type="password" class="form-control" name="confirm_password" data-validation="required,min" data-min="6" autocomplete="new-password">
+            <div id="confirm_password_error" class="invalid-feedback"></div>
           </div>
         </div>
         
