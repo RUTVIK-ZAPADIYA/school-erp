@@ -10,9 +10,9 @@ admin_ensure_column($connection, 'classes', 'description', 'TEXT NULL');
 
 $teachers = [];
 if (admin_table_exists($connection, 'teachers')) {
-  $teacherResult = mysqli_query($connection, 'SELECT id, name FROM teachers ORDER BY name ASC');
+  $teacherResult = $connection->query( 'SELECT id, name FROM teachers ORDER BY name ASC');
   if ($teacherResult) {
-    while ($teacherRow = mysqli_fetch_assoc($teacherResult)) {
+    while ($teacherRow = $teacherResult->fetch_assoc()) {
       $teachers[] = $teacherRow;
     }
   }
@@ -52,15 +52,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
     if ($classNameColumn !== null) {
       $duplicateCheckSql = "SELECT id FROM classes WHERE {$classNameColumn} = ? AND section = ? LIMIT 1";
-      $duplicateStmt = mysqli_prepare($connection, $duplicateCheckSql);
+      $duplicateStmt = $connection->prepare( $duplicateCheckSql);
       if ($duplicateStmt) {
-        mysqli_stmt_bind_param($duplicateStmt, 'ss', $formData['class_name'], $formData['section']);
-        mysqli_stmt_execute($duplicateStmt);
-        $duplicateResult = mysqli_stmt_get_result($duplicateStmt);
-        if ($duplicateResult && mysqli_num_rows($duplicateResult) > 0) {
+        $duplicateStmt->bind_param( 'ss', $formData['class_name'], $formData['section']);
+        $duplicateStmt->execute();
+        $duplicateResult = $duplicateStmt->get_result();
+        if ($duplicateResult && $duplicateResult->num_rows > 0) {
           $errorMessage = 'This class and section already exists.';
         }
-        mysqli_stmt_close($duplicateStmt);
+        $duplicateStmt->close();
       }
     }
   }
@@ -127,17 +127,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $insertSql = 'INSERT INTO classes (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-    $insertStmt = mysqli_prepare($connection, $insertSql);
+    $insertStmt = $connection->prepare( $insertSql);
 
     if (!$insertStmt) {
       $errorMessage = 'Unable to save class right now.';
     } else {
       if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
         $errorMessage = 'Unable to bind class parameters.';
-      } elseif (!mysqli_stmt_execute($insertStmt)) {
+      } elseif (!$insertStmt->execute()) {
         $errorMessage = 'Failed to add class. Please try again.';
       }
-      mysqli_stmt_close($insertStmt);
+      $insertStmt->close();
     }
   }
 
