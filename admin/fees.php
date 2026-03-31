@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing fee records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -7,6 +8,7 @@ admin_ensure_column($connection, 'fees', 'payment_method', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'fees', 'remarks', 'TEXT NULL');
 admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
 
+// Formatting helper used by summary cards and table output.
 if (!function_exists('admin_format_currency')) {
   function admin_format_currency($amount)
   {
@@ -20,6 +22,7 @@ $transactions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classNameExpression = $classNameColumn !== null ? "c.{$classNameColumn}" : "''";
 
+// Handle delete requests for fee records.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $feeId = (int) ($_POST['fee_id'] ?? 0);
   if ($feeId > 0) {
@@ -43,6 +46,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
   exit();
 }
 
+// Fetch recent fee transactions, optionally filtered by search text.
 $baseSql = "SELECT f.id, f.amount, f.fee_type, f.due_date, f.status, s.name AS student_name, s.class AS student_class, s.class_id, {$classNameExpression} AS mapped_class
       FROM fees f
       LEFT JOIN students s ON s.id = f.student_id
@@ -72,6 +76,7 @@ if ($search !== '') {
   }
 }
 
+// Calculate dashboard totals shown above the transaction table.
 $totalCollected = (float) admin_scalar_value(
   $connection,
   "SELECT COALESCE(SUM(amount), 0) FROM fees WHERE LOWER(COALESCE(status, '')) IN ('paid', 'completed')",
@@ -92,6 +97,7 @@ $collectionRate = $totalAmount > 0 ? (int) round(($totalCollected / $totalAmount
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render fee analytics cards, search, and fee transaction rows. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

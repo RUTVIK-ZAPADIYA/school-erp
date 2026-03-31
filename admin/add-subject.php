@@ -1,4 +1,5 @@
 <?php
+// Admin page for creating subject records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -9,6 +10,7 @@ admin_ensure_column($connection, 'subjects', 'credits', 'INT NULL');
 admin_ensure_column($connection, 'subjects', 'type', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'subjects', 'description', 'TEXT NULL');
 
+// Load dropdown options for class and teacher assignments.
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
@@ -42,11 +44,13 @@ $formData = [
 
 $errorMessage = '';
 
+// Handle subject creation form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
+  // Validate required fields and numeric credits.
   if (
     $formData['subject_name'] === '' ||
     $formData['subject_code'] === '' ||
@@ -60,6 +64,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorMessage = 'Credits must be a positive number.';
   }
 
+  // Reject duplicate subject codes when the schema supports code.
   if ($errorMessage === '' && admin_column_exists($connection, 'subjects', 'code')) {
     $codeCheckStmt = $connection->prepare( 'SELECT id FROM subjects WHERE code = ? LIMIT 1');
     if ($codeCheckStmt) {
@@ -73,6 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  // Build and execute a dynamic insert for the subject record.
   if ($errorMessage === '') {
     $insertColumns = [];
     $insertValues = [];
@@ -158,6 +164,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render the subject form and server-side validation feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

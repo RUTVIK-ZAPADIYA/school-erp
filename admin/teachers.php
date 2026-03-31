@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing teachers.
 require_once __DIR__ . '/auth.php';
 require_once __DIR__ . '/../includes/db_connect.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -9,10 +10,12 @@ if (!($connection instanceof mysqli)) {
   die('Database connection is not available.');
 }
 
+// Ensure optional teacher fields exist before querying and rendering.
 admin_ensure_column($connection, 'teachers', 'experience', 'INT NULL');
 admin_ensure_column($connection, 'teachers', 'qualification', "VARCHAR(150) NULL");
 admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 
+// Handle teacher deletion and cleanup of dependent records/accounts.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $teacherId = (int) ($_POST['teacher_id'] ?? 0);
 
@@ -169,6 +172,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $search = trim((string) ($_GET['search'] ?? ''));
 $teachers = [];
 
+// Fetch teachers list with optional search filtering.
 if (admin_table_exists($connection, 'teachers')) {
   if ($search !== '') {
     $searchTerm = '%' . $search . '%';
@@ -198,6 +202,7 @@ if (admin_table_exists($connection, 'teachers')) {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render teacher list, search form, and row actions. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

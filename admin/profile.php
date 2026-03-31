@@ -1,4 +1,5 @@
 <?php
+// Admin profile page for viewing and updating account details.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -14,6 +15,7 @@ $profile = [
   'created_at' => date('Y-m-d'),
 ];
 
+// Load the persisted admin profile from users table when available.
 if ($adminUserId > 0 && admin_table_exists($connection, 'users')) {
   $fetchStmt = $connection->prepare( "SELECT id, username, name, email, phone, status, created_at FROM users WHERE id = ? AND role = 'admin' LIMIT 1");
   if ($fetchStmt) {
@@ -28,6 +30,7 @@ if ($adminUserId > 0 && admin_table_exists($connection, 'users')) {
   }
 }
 
+// Handle profile updates and optional password changes.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $adminUserId > 0) {
   $name = trim((string) ($_POST['name'] ?? ''));
   $email = trim((string) ($_POST['email'] ?? ''));
@@ -75,6 +78,7 @@ $flash = admin_pull_flash();
 $createdDate = !empty($profile['created_at']) ? date('F j, Y', strtotime((string) $profile['created_at'])) : '-';
 $adminCode = 'ADM' . str_pad((string) ((int) $profile['id']), 3, '0', STR_PAD_LEFT);
 ?>
+<!-- Render admin profile details and editable account form. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing class details.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -8,6 +9,7 @@ admin_ensure_column($connection, 'classes', 'capacity', 'INT NULL');
 admin_ensure_column($connection, 'classes', 'academic_year', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'classes', 'description', 'TEXT NULL');
 
+// Load teacher options for reassignment.
 $teachers = [];
 if (admin_table_exists($connection, 'teachers')) {
   $teacherResult = $connection->query('SELECT id, name FROM teachers ORDER BY name ASC');
@@ -32,6 +34,7 @@ if ($hasName && $hasClassName) {
 $classId = (int) ($_GET['id'] ?? $_POST['class_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the class record to prefill the form.
 $classRow = null;
 if ($classId > 0) {
   $classStmt = $connection->prepare("SELECT *, {$classNameExpression} AS resolved_class_name FROM classes WHERE id = ? LIMIT 1");
@@ -59,6 +62,7 @@ $formData = [
   'status' => admin_normalize_status($classRow['status'] ?? 'Active', 'Active'),
 ];
 
+// Handle class update submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $classRow) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -66,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $classRow) {
 
   $formData['status'] = admin_normalize_status($formData['status'], 'Active');
 
+  // Validate required class fields and capacity constraints.
   if (
     $formData['class_name'] === '' ||
     $formData['section'] === '' ||
@@ -79,6 +84,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $classRow) {
     $errorMessage = 'Capacity must be a positive number.';
   }
 
+  // Guard against duplicate class and section combinations.
   if ($errorMessage === '') {
     if ($hasName && $hasClassName) {
       $duplicateStmt = $connection->prepare('SELECT id FROM classes WHERE (name = ? OR class_name = ?) AND section = ? AND id != ? LIMIT 1');
@@ -106,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $classRow) {
     }
   }
 
+  // Build and execute the class update query.
   if ($errorMessage === '') {
     $updateFields = [];
     $updateTypes = '';
@@ -185,6 +192,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $classRow) {
   }
 }
 ?>
+<!-- Render the class edit form with feedback messaging. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

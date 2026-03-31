@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing attendance entries.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -13,6 +14,7 @@ $studentRollColumn = admin_first_existing_column($connection, 'students', ['roll
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 
+// Load dropdown data required by the attendance edit form.
 $classOptions = [];
 if ($classNameColumn !== null) {
   $classResult = $connection->query("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
@@ -77,6 +79,7 @@ if ($studentResult) {
 $attendanceId = (int) ($_GET['id'] ?? $_POST['attendance_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the attendance row being edited.
 $attendanceRow = null;
 if ($attendanceId > 0) {
   $attendanceStmt = $connection->prepare('SELECT * FROM attendance WHERE id = ? LIMIT 1');
@@ -108,6 +111,7 @@ if ($formData['status'] === '') {
   $formData['status'] = 'absent';
 }
 
+// Handle submitted updates for the attendance record.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $attendanceRow && $attendanceDateColumn !== null) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -118,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $attendanceRow && $attendanceDateCo
     $formData['status'] = 'absent';
   }
 
+  // Validate required selections and date format.
   if ((int) $formData['student_id'] <= 0) {
     $errorMessage = 'Please select a student.';
   } elseif (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $formData['date'])) {
@@ -144,6 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $attendanceRow && $attendanceDateCo
     $errorMessage = 'Please select a class.';
   }
 
+  // Build and execute a schema-aware update statement.
   if ($errorMessage === '') {
     $updateFields = [];
     $updateTypes = '';
@@ -223,6 +229,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $attendanceRow && $attendanceDateCo
   }
 }
 ?>
+<!-- Render the edit attendance form and validation feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

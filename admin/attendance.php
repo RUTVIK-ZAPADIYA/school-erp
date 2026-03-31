@@ -1,10 +1,12 @@
 <?php
+// Admin page for recording and reviewing attendance.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
 
 $today = date('Y-m-d');
 
+// Detect which attendance date column is available in the current schema.
 $attendanceDateColumn = null;
 if (admin_column_exists($connection, 'attendance', 'attendance_date')) {
   $attendanceDateColumn = 'attendance_date';
@@ -12,6 +14,7 @@ if (admin_column_exists($connection, 'attendance', 'attendance_date')) {
   $attendanceDateColumn = 'date';
 }
 
+// Handle delete requests for individual attendance records.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $attendanceId = (int) ($_POST['attendance_id'] ?? 0);
 
@@ -41,6 +44,7 @@ $absentToday = 0;
 $leaveToday = 0;
 $totalMarkedToday = 0;
 
+// Query today's attendance summary counters for dashboard cards.
 if ($attendanceDateColumn !== null) {
   $summarySql = "SELECT
     SUM(CASE WHEN LOWER(COALESCE(status, '')) IN ('present', 'p') THEN 1 ELSE 0 END) AS present_count,
@@ -74,6 +78,7 @@ $attendanceHasClassId = admin_column_exists($connection, 'attendance', 'class_id
 $attendanceHasSubjectId = admin_column_exists($connection, 'attendance', 'subject_id');
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 
+// Build class-wise attendance metrics with schema-aware joins.
 if ($classNameColumn !== null) {
   $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
   if ($classResult) {
@@ -165,6 +170,7 @@ if ($classNameColumn !== null) {
 }
 
 $recentAttendance = [];
+// Fetch recent attendance rows for tabular review and actions.
 if ($attendanceDateColumn !== null && admin_table_exists($connection, 'attendance')) {
   $classJoinOn = '1 = 0';
   if ($attendanceHasClassId) {
@@ -213,6 +219,7 @@ if ($attendanceDateColumn !== null && admin_table_exists($connection, 'attendanc
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render attendance dashboards, summaries, and recent records. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

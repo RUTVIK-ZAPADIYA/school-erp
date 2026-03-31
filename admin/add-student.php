@@ -1,8 +1,10 @@
 <?php
+// Admin page for registering new students.
 require_once __DIR__ . '/auth.php';
 
 include '../dbconfig.php';
 
+// Local helpers keep this page compatible with varying schema states.
 function table_exists($connection, $tableName)
 {
   $safeTable = $connection->real_escape_string( $tableName);
@@ -47,6 +49,7 @@ $message = '';
 $message_type = '';
 $classes = [];
 
+// Ensure expected student columns are available before insert logic runs.
 if (table_exists($connection, 'students')) {
   ensure_column($connection, 'students', 'user_id', 'INT NULL');
   ensure_column($connection, 'students', 'username', 'VARCHAR(100) NULL');
@@ -55,6 +58,7 @@ if (table_exists($connection, 'students')) {
 $classesHasName = column_exists($connection, 'classes', 'name');
 $classesHasClassName = column_exists($connection, 'classes', 'class_name');
 
+// Load class suggestions for the student form datalist.
 if (table_exists($connection, 'classes') && ($classesHasName || $classesHasClassName)) {
   if ($classesHasName && $classesHasClassName) {
     $classQuerySql = "SELECT COALESCE(NULLIF(name, ''), class_name) AS class_name FROM classes ORDER BY id ASC";
@@ -74,6 +78,7 @@ if (table_exists($connection, 'classes') && ($classesHasName || $classesHasClass
     }
 }
 
+    // Handle student form submission and lifecycle operations.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $roll_no = trim($_POST['roll_no'] ?? '');
     $name = trim($_POST['name'] ?? '');
@@ -85,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $phone = trim($_POST['phone'] ?? '');
     $status = ($_POST['status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
 
+    // Validate required fields, identifiers, and credential rules.
     if ($roll_no === '' || $name === '' || $class === '' || $username === '' || $password === '' || $confirm_password === '') {
         $message = 'Please fill in all required fields.';
         $message_type = 'danger';
@@ -118,6 +124,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+      // Check username uniqueness in the students table when supported.
     if ($message === '' && column_exists($connection, 'students', 'username')) {
       $usernameStmt = $connection->prepare( 'SELECT id FROM students WHERE username = ? LIMIT 1');
       if ($usernameStmt) {
@@ -132,6 +139,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
+    // Check credentials against the shared users table before account creation.
     if ($message === '' && table_exists($connection, 'users')) {
       if ($email !== '') {
         $userCheckSql = 'SELECT id FROM users WHERE username = ? OR email = ? OR username = ? OR email = ? LIMIT 1';
@@ -162,6 +170,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
+    // Resolve class references and insert user/student records transactionally.
     if ($message === '') {
       $studentsHasClass = column_exists($connection, 'students', 'class');
       $studentsHasClassId = column_exists($connection, 'students', 'class_id');
@@ -258,6 +267,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $studentUserId = 0;
       $transactionStarted = false;
 
+      // Keep login and profile inserts in a single transaction.
       if ($connection->begin_transaction()) {
         $transactionStarted = true;
       }
@@ -305,6 +315,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $userInsertStmt->close();
       }
 
+      // Insert the student profile row after account creation succeeds.
       if ($message === '') {
         $insertColumns = ['roll_no', 'name'];
         $insertValues = ['?', '?'];
@@ -399,6 +410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 ?>
+<!-- Render the add student form and inline status messaging. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

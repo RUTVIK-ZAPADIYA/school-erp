@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing subjects.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -7,6 +8,7 @@ admin_ensure_column($connection, 'subjects', 'class_id', 'INT NULL');
 admin_ensure_column($connection, 'subjects', 'teacher_id', 'INT NULL');
 admin_ensure_column($connection, 'subjects', 'credits', 'INT NULL');
 
+// Handle subject deletion with dependent-reference cleanup.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $subjectId = (int) ($_POST['subject_id'] ?? 0);
   if ($subjectId > 0) {
@@ -85,6 +87,7 @@ $subjectNameExpression = $subjectNameColumn !== null ? "s.{$subjectNameColumn}" 
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classNameExpression = $classNameColumn !== null ? "c.{$classNameColumn}" : "''";
 
+// Fetch subjects for listing, with optional search filtering.
 if (admin_table_exists($connection, 'subjects')) {
   $baseSql = "SELECT s.id, {$subjectNameExpression} AS subject_name, s.code, s.credits, s.status, t.name AS teacher_name, {$classNameExpression} AS class_name
         FROM subjects s
@@ -118,6 +121,7 @@ if (admin_table_exists($connection, 'subjects')) {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render subject management table and row-level actions. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

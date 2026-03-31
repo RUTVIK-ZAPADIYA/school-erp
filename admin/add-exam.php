@@ -1,4 +1,5 @@
 <?php
+// Admin page for creating exam records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -11,6 +12,7 @@ admin_ensure_column($connection, 'exams', 'room_number', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'exams', 'invigilator', 'INT NULL');
 admin_ensure_column($connection, 'exams', 'instructions', 'TEXT NULL');
 
+// Load class, subject, and teacher options for scheduling.
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
@@ -59,11 +61,13 @@ $formData = [
 
 $errorMessage = '';
 
+// Handle exam form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
+  // Validate required scheduling fields and numeric values.
   if (
     $formData['exam_name'] === '' ||
     $formData['exam_type'] === '' ||
@@ -82,6 +86,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorMessage = 'Total marks must be a positive number.';
   }
 
+  // Prepare and execute a dynamic insert based on available columns.
   if ($errorMessage === '') {
     $status = strtotime($formData['exam_date']) < strtotime(date('Y-m-d')) ? 'Completed' : 'Scheduled';
 
@@ -185,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render the exam scheduling form with server feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

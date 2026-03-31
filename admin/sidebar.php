@@ -1,4 +1,6 @@
 <?php
+// Reusable admin sidebar used across admin pages.
+// Align role-based session values to the admin namespace.
 if ((!isset($_SESSION['admin_id']) || !isset($_SESSION['admin_name'])) && isset($_SESSION['user_id']) && ($_SESSION['role'] ?? '') === 'admin') {
   $_SESSION['admin_id'] = (int) $_SESSION['user_id'];
   $_SESSION['admin_name'] = $_SESSION['name'] ?? 'Admin';
@@ -9,6 +11,7 @@ if (!isset($_SESSION['admin_id'])) {
     exit();
 }
 
+// Resolve active route state for sidebar highlighting.
 $currentPage = basename($_SERVER['PHP_SELF']);
 
 function isAdminActive(array $pages, $currentPage)
@@ -21,6 +24,7 @@ function isAdminActive(array $pages, $currentPage)
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
 
+<!-- Render global sidebar navigation for all admin views. -->
 <aside class="admin-sidebar" id="adminSidebar">
   <div class="admin-brand">
     <div class="admin-brand-mark">A</div>

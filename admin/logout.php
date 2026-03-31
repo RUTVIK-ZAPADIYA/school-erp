@@ -1,5 +1,8 @@
 <?php
+// Admin logout handler that clears session state.
 session_start();
+
+// Clear role-specific session keys for all portal personas.
 unset(
 	$_SESSION['admin_id'],
 	$_SESSION['admin_name'],
@@ -14,11 +17,13 @@ unset(
 );
 $_SESSION = [];
 
+// Expire the active session cookie before destroying the session.
 if (ini_get('session.use_cookies')) {
 	$params = session_get_cookie_params();
 	setcookie(session_name(), '', time() - 42000, $params['path'], $params['domain'], $params['secure'], $params['httponly']);
 }
 
+// Destroy session and redirect to login.
 session_destroy();
 header("Location: ../login.php");
 exit();

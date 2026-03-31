@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing student profiles and enrollment data.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -23,6 +24,7 @@ $usersHasEmail = admin_column_exists($connection, 'users', 'email');
 $usersHasPhone = admin_column_exists($connection, 'users', 'phone');
 $usersHasStatus = admin_column_exists($connection, 'users', 'status');
 
+// Track linked login account details for synchronized updates.
 $studentLogin = [
   'user_id' => 0,
   'username' => '',
@@ -32,6 +34,7 @@ $studentLogin = [
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classOptions = [];
 
+// Load class choices for the student edit datalist.
 if ($classNameColumn !== null) {
   $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
   if ($classResult) {
@@ -110,6 +113,7 @@ function resolve_student_login_account($connection, array $student)
   return $account;
 }
 
+// Load the student record for initial page render.
 if (isset($_GET['id'])) {
   $studentId = (int) $_GET['id'];
   if ($studentId > 0) {
@@ -125,6 +129,7 @@ if (isset($_GET['id'])) {
   }
 }
 
+// Handle submitted student profile and login updates.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $studentId = (int) ($_POST['student_id'] ?? 0);
   $student = fetch_student_by_id($connection, $studentId);
@@ -142,6 +147,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $phone = trim((string) ($_POST['phone'] ?? ''));
   $status = admin_normalize_status($_POST['status'] ?? 'Active', 'Active');
 
+  // Validate required fields, username rules, and optional password reset input.
   if (!$student) {
     $message = 'Student not found!';
     $message_type = 'danger';
@@ -193,6 +199,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     $linkedUserId = (int) ($studentLogin['user_id'] ?? 0);
 
+    // Validate uniqueness against shared user accounts when available.
     if ($message === '' && $usersTableAvailable) {
       if ($linkedUserId > 0) {
         $userDupStmt = $connection->prepare( 'SELECT id FROM users WHERE (username = ? OR email = ? OR username = ? OR email = ?) AND id != ? LIMIT 1');
@@ -226,6 +233,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       }
     }
 
+    // Resolve or create class mapping and update records in one transaction.
     if ($message === '') {
       $classId = null;
 
@@ -286,6 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $updatedUserId = $linkedUserId;
       $transactionStarted = false;
 
+      // Keep linked user and student updates atomic.
       if ($connection->begin_transaction()) {
         $transactionStarted = true;
       }
@@ -367,6 +376,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
       }
 
+      // Update the student profile row with resolved schema fields.
       $updateFields = ['roll_no = ?', 'name = ?'];
       $updateTypes = 'ss';
       $updateParams = [$rollNo, $name];
@@ -451,6 +461,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 }
 ?>
+<!-- Render the student edit form and operation status messages. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

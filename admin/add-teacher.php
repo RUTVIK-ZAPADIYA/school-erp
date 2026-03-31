@@ -1,4 +1,5 @@
 <?php
+// Admin page for registering teacher records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -12,6 +13,7 @@ admin_ensure_column($connection, 'teachers', 'address', 'TEXT NULL');
 admin_ensure_column($connection, 'teachers', 'salary', 'DECIMAL(10,2) NULL');
 admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 
+// Load subject options for assignment in the teacher profile.
 $subjects = [];
 $subjectColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectColumn !== null) {
@@ -48,6 +50,7 @@ $errorMessage = '';
 $passwordValue = '';
 $confirmPasswordValue = '';
 
+// Handle teacher form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -58,6 +61,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $formData['status'] = admin_normalize_status($formData['status'], 'Active');
 
+  // Validate required fields and credential constraints.
   if (
     $formData['first_name'] === '' ||
     $formData['last_name'] === '' ||
@@ -86,6 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorMessage = 'Password and confirm password must match.';
   }
 
+  // Verify teacher-specific uniqueness checks first.
   if ($errorMessage === '') {
     $teachersHasEmail = admin_column_exists($connection, 'teachers', 'email');
     if ($teachersHasEmail) {
@@ -117,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  // Verify conflicts against shared user accounts.
   if ($errorMessage === '') {
     $userCheckStmt = $connection->prepare( 'SELECT id FROM users WHERE username = ? OR email = ? OR username = ? OR email = ? LIMIT 1');
     if (!$userCheckStmt) {
@@ -132,6 +138,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  // Create user and teacher rows in one transaction for consistency.
   if ($errorMessage === '') {
     $teacherName = trim($formData['first_name'] . ' ' . $formData['last_name']);
     $loginIdentifier = $formData['username'];
@@ -295,6 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render the add teacher form with server-side feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

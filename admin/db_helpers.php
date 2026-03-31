@@ -1,8 +1,11 @@
 <?php
+// Shared database helper functions used by admin pages.
+// Ensure flash helpers can access session state.
 if (session_status() !== PHP_SESSION_ACTIVE) {
     session_start();
 }
 
+// Schema inspection helpers.
 if (!function_exists('admin_table_exists')) {
     function admin_table_exists($connection, $tableName)
     {
@@ -28,6 +31,7 @@ if (!function_exists('admin_column_exists')) {
     }
 }
 
+// Prepared statement binding helper for variable parameter lists.
 if (!function_exists('admin_bind_dynamic_params')) {
     function admin_bind_dynamic_params($stmt, $types, array &$params)
     {
@@ -44,6 +48,7 @@ if (!function_exists('admin_bind_dynamic_params')) {
     }
 }
 
+// Generic query value and schema convenience helpers.
 if (!function_exists('admin_scalar_value')) {
     function admin_scalar_value($connection, $sql, $defaultValue = 0)
     {
@@ -87,6 +92,7 @@ if (!function_exists('admin_first_non_empty_value')) {
     }
 }
 
+// Schema mutation helpers used by CRUD pages.
 if (!function_exists('admin_ensure_column')) {
     function admin_ensure_column($connection, $tableName, $columnName, $definition)
     {
@@ -139,6 +145,7 @@ if (!function_exists('admin_make_column_nullable')) {
     }
 }
 
+// Foreign-key cleanup helper for safe record deletion workflows.
 if (!function_exists('admin_clear_reference')) {
     function admin_clear_reference($connection, $tableName, $columnName, $idValue, $allowDeleteFallback = false, &$errorDetails = '')
     {
@@ -199,6 +206,7 @@ if (!function_exists('admin_clear_reference')) {
     }
 }
 
+// Flash messaging and status normalization utilities.
 if (!function_exists('admin_set_flash')) {
     function admin_set_flash($type, $message)
     {

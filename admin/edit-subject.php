@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing subject details.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -9,6 +10,7 @@ admin_ensure_column($connection, 'subjects', 'credits', 'INT NULL');
 admin_ensure_column($connection, 'subjects', 'type', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'subjects', 'description', 'TEXT NULL');
 
+// Load class and teacher options for selection fields.
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
@@ -44,6 +46,7 @@ if ($hasName && $hasSubjectName) {
 $subjectId = (int) ($_GET['id'] ?? $_POST['subject_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the subject row that will be edited.
 $subjectRow = null;
 if ($subjectId > 0) {
   $subjectStmt = $connection->prepare("SELECT *, {$subjectNameExpression} AS resolved_subject_name FROM subjects WHERE id = ? LIMIT 1");
@@ -71,6 +74,7 @@ $formData = [
   'status' => admin_normalize_status($subjectRow['status'] ?? 'Active', 'Active'),
 ];
 
+// Handle submitted subject updates.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subjectRow) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -78,6 +82,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subjectRow) {
 
   $formData['status'] = admin_normalize_status($formData['status'], 'Active');
 
+  // Validate required fields and numeric credits.
   if (
     $formData['subject_name'] === '' ||
     $formData['subject_code'] === '' ||
@@ -91,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subjectRow) {
     $errorMessage = 'Credits must be a positive number.';
   }
 
+  // Enforce unique subject codes across rows.
   if ($errorMessage === '' && admin_column_exists($connection, 'subjects', 'code')) {
     $codeCheckStmt = $connection->prepare('SELECT id FROM subjects WHERE code = ? AND id != ? LIMIT 1');
     if ($codeCheckStmt) {
@@ -104,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subjectRow) {
     }
   }
 
+  // Build and run the subject update query.
   if ($errorMessage === '') {
     $updateFields = [];
     $updateTypes = '';
@@ -183,6 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $subjectRow) {
   }
 }
 ?>
+<!-- Render the subject edit form and validation feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

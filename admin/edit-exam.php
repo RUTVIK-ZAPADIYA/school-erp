@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing exam details.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -11,6 +12,7 @@ admin_ensure_column($connection, 'exams', 'room_number', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'exams', 'invigilator', 'INT NULL');
 admin_ensure_column($connection, 'exams', 'instructions', 'TEXT NULL');
 
+// Load option lists for class, subject, and invigilator fields.
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
@@ -46,6 +48,7 @@ if (admin_table_exists($connection, 'teachers')) {
 $examId = (int) ($_GET['id'] ?? $_POST['exam_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the exam row currently being edited.
 $examRow = null;
 if ($examId > 0) {
   $examStmt = $connection->prepare('SELECT * FROM exams WHERE id = ? LIMIT 1');
@@ -76,11 +79,13 @@ $formData = [
   'instructions' => trim((string) ($examRow['instructions'] ?? '')),
 ];
 
+// Handle exam update form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $examRow) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
+  // Validate required scheduling fields and numeric values.
   if (
     $formData['exam_name'] === '' ||
     $formData['exam_type'] === '' ||
@@ -99,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $examRow) {
     $errorMessage = 'Total marks must be a positive number.';
   }
 
+  // Build and execute a dynamic update across available exam columns.
   if ($errorMessage === '') {
     $status = strtotime($formData['exam_date']) < strtotime(date('Y-m-d')) ? 'Completed' : 'Scheduled';
 
@@ -199,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $examRow) {
   }
 }
 ?>
+<!-- Render the exam edit form and server-side errors. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

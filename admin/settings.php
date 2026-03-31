@@ -1,8 +1,10 @@
 <?php
+// Admin settings page for application preferences.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
 
+// Ensure the settings storage table exists before reads/writes.
 $connection->query(
   "CREATE TABLE IF NOT EXISTS system_settings (
     id INT AUTO_INCREMENT PRIMARY KEY,
@@ -19,6 +21,7 @@ $defaultSettings = [
   'school_address' => '123 School St',
 ];
 
+// Handle settings form submission and validation.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $submittedSettings = [
     'school_name' => trim((string) ($_POST['school_name'] ?? '')),
@@ -59,6 +62,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   exit();
 }
 
+// Load persisted settings and merge them with defaults.
 $settings = $defaultSettings;
 $settingsResult = $connection->query( 'SELECT setting_key, setting_value FROM system_settings');
 if ($settingsResult) {
@@ -69,6 +73,7 @@ if ($settingsResult) {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render editable system settings with flash feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

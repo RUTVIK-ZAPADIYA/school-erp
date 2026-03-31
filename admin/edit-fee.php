@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing fee records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -7,6 +8,7 @@ admin_ensure_column($connection, 'fees', 'payment_method', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'fees', 'remarks', 'TEXT NULL');
 admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
 
+// Build a class lookup map for student labels.
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classMap = [];
 if ($classNameColumn !== null) {
@@ -37,6 +39,7 @@ if (admin_table_exists($connection, 'students')) {
 $feeId = (int) ($_GET['id'] ?? $_POST['fee_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the fee row to edit.
 $feeRecord = null;
 if ($feeId > 0) {
   $feeStmt = $connection->prepare('SELECT * FROM fees WHERE id = ? LIMIT 1');
@@ -63,6 +66,7 @@ $formData = [
   'remarks' => trim((string) ($feeRecord['remarks'] ?? '')),
 ];
 
+// Handle fee update submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $feeRecord) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -70,6 +74,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $feeRecord) {
 
   $status = admin_normalize_status($formData['payment_status'], 'Pending');
 
+  // Validate required fee fields and amount rules.
   if (
     $formData['student_id'] === '' ||
     $formData['fee_type'] === '' ||
@@ -82,6 +87,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $feeRecord) {
     $errorMessage = 'Amount must be greater than zero.';
   }
 
+  // Build and execute a schema-aware fee update statement.
   if ($errorMessage === '') {
     $updateFields = [];
     $updateTypes = '';
@@ -165,6 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $feeRecord) {
   }
 }
 ?>
+<!-- Render the fee edit form and server feedback alerts. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

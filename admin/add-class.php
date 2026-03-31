@@ -1,4 +1,5 @@
 <?php
+// Admin page for creating class records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -8,6 +9,7 @@ admin_ensure_column($connection, 'classes', 'capacity', 'INT NULL');
 admin_ensure_column($connection, 'classes', 'academic_year', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'classes', 'description', 'TEXT NULL');
 
+// Load teacher choices used by the class teacher dropdown.
 $teachers = [];
 if (admin_table_exists($connection, 'teachers')) {
   $teacherResult = $connection->query( 'SELECT id, name FROM teachers ORDER BY name ASC');
@@ -30,11 +32,13 @@ $formData = [
 
 $errorMessage = '';
 
+// Handle submitted form data for class creation.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
+  // Validate required fields and numeric constraints before writes.
   if (
     $formData['class_name'] === '' ||
     $formData['section'] === '' ||
@@ -48,6 +52,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorMessage = 'Capacity must be a positive number.';
   }
 
+  // Check for duplicate class and section combinations.
   if ($errorMessage === '') {
     $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
     if ($classNameColumn !== null) {
@@ -65,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
   }
 
+  // Build and execute a schema-aware insert statement.
   if ($errorMessage === '') {
     $insertColumns = [];
     $insertValues = [];
@@ -150,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render the add class form and server-side feedback messages. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing exams.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -10,6 +11,7 @@ admin_ensure_column($connection, 'exams', 'total_marks', 'INT NULL');
 admin_ensure_column($connection, 'exams', 'room_number', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'exams', 'invigilator', 'INT NULL');
 
+// Handle delete requests for existing exam rows.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $examId = (int) ($_POST['exam_id'] ?? 0);
   if ($examId > 0) {
@@ -42,6 +44,7 @@ $classNameExpression = $classNameColumn !== null ? "c.{$classNameColumn}" : "''"
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 $subjectNameExpression = $subjectNameColumn !== null ? "s.{$subjectNameColumn}" : "''";
 
+// Query exam rows with optional search filtering.
 if (admin_table_exists($connection, 'exams')) {
   $baseSql = "SELECT e.id, e.exam_name, e.exam_type, e.exam_date, e.duration, e.status, {$classNameExpression} AS class_name, {$subjectNameExpression} AS subject_name
         FROM exams e
@@ -75,6 +78,7 @@ if (admin_table_exists($connection, 'exams')) {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render exam list, search controls, and row actions. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

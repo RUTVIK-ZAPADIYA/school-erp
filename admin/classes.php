@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing classes.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -7,6 +8,7 @@ admin_ensure_column($connection, 'classes', 'room_number', "VARCHAR(30) NULL");
 admin_ensure_column($connection, 'classes', 'capacity', 'INT NULL');
 admin_ensure_column($connection, 'classes', 'academic_year', "VARCHAR(30) NULL");
 
+// Handle class deletion requests and clear dependent references safely.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $classId = (int) ($_POST['class_id'] ?? 0);
   if ($classId > 0) {
@@ -90,6 +92,7 @@ if ($hasName && $hasClassName) {
   $classNameExpression = 'c.class_name';
 }
 
+// Query class rows, optionally filtered by the search term.
 if (admin_table_exists($connection, 'classes')) {
   $baseSql = "SELECT c.id, {$classNameExpression} AS class_name, c.section, c.teacher_id, c.room_number, c.status, t.name AS teacher_name
         FROM classes c
@@ -123,6 +126,7 @@ if (admin_table_exists($connection, 'classes')) {
 $hasStudentClassId = admin_column_exists($connection, 'students', 'class_id');
 $hasStudentClass = admin_column_exists($connection, 'students', 'class');
 
+// Enrich class rows with student totals for display.
 foreach ($classes as $index => $classRow) {
   $totalStudents = 0;
 
@@ -159,6 +163,7 @@ foreach ($classes as $index => $classRow) {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render class management table, search, and action controls. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

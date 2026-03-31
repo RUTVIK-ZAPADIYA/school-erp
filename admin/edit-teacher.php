@@ -1,4 +1,5 @@
 <?php
+// Admin page for editing teacher records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -13,6 +14,7 @@ admin_ensure_column($connection, 'teachers', 'salary', 'DECIMAL(10,2) NULL');
 admin_ensure_column($connection, 'teachers', 'user_id', 'INT NULL');
 admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 
+// Load subject options for teacher assignment.
 $subjects = [];
 $subjectColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectColumn !== null) {
@@ -33,6 +35,7 @@ if (empty($subjects)) {
 $teacherId = (int) ($_GET['id'] ?? $_POST['teacher_id'] ?? 0);
 $errorMessage = '';
 
+// Fetch the teacher record and prefill form values.
 $teacherRow = null;
 if ($teacherId > 0) {
   $teacherStmt = $connection->prepare('SELECT * FROM teachers WHERE id = ? LIMIT 1');
@@ -72,6 +75,7 @@ $formData = [
 $usersTableAvailable = admin_table_exists($connection, 'users');
 $teachersHasUserId = admin_column_exists($connection, 'teachers', 'user_id');
 
+// Resolve the linked user account for login synchronization.
 $linkedUserId = 0;
 if ($usersTableAvailable && $teacherRow) {
   if ($teachersHasUserId && isset($teacherRow['user_id']) && (int) $teacherRow['user_id'] > 0) {
@@ -104,6 +108,7 @@ if ($usersTableAvailable && $teacherRow) {
 $passwordValue = '';
 $confirmPasswordValue = '';
 
+// Handle submitted teacher updates.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -114,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
 
   $formData['status'] = admin_normalize_status($formData['status'], 'Active');
 
+  // Validate required profile fields and credential rules.
   if (
     $formData['first_name'] === '' ||
     $formData['last_name'] === '' ||
@@ -136,6 +142,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
     $errorMessage = 'Username must be 3-30 characters and contain only letters, numbers, dot, underscore, or hyphen.';
   }
 
+  // Validate optional password reset fields.
   if ($errorMessage === '' && ($passwordValue !== '' || $confirmPasswordValue !== '')) {
     if (strlen($passwordValue) < 6) {
       $errorMessage = 'New password must be at least 6 characters long.';
@@ -144,6 +151,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
     }
   }
 
+  // Check duplicates in teacher-specific columns.
   if ($errorMessage === '' && admin_column_exists($connection, 'teachers', 'email')) {
     $emailCheckStmt = $connection->prepare('SELECT id FROM teachers WHERE email = ? AND id != ? LIMIT 1');
     if ($emailCheckStmt) {
@@ -172,6 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
 
   $loginIdentifier = $formData['username'];
 
+  // Check duplicates in the shared users table.
   if ($errorMessage === '' && $usersTableAvailable && ($linkedUserId > 0 || $passwordValue !== '')) {
     if ($linkedUserId > 0) {
       $userDupStmt = $connection->prepare('SELECT id FROM users WHERE (username = ? OR email = ? OR username = ? OR email = ?) AND id != ? LIMIT 1');
@@ -202,6 +211,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
     $errorMessage = 'Users table is unavailable. Cannot update login password right now.';
   }
 
+  // Update linked account and teacher profile in one transaction.
   if ($errorMessage === '') {
     $teacherName = trim($formData['first_name'] . ' ' . $formData['last_name']);
     $updatedUserId = $linkedUserId;
@@ -281,6 +291,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
       }
     }
 
+    // Build and execute teacher table update fields.
     if ($errorMessage === '') {
       $updateFields = [];
       $updateTypes = '';
@@ -397,6 +408,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
   }
 }
 ?>
+<!-- Render the teacher edit form with status feedback. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

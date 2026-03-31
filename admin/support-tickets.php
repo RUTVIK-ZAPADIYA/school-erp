@@ -1,4 +1,5 @@
 <?php
+// Admin page for handling support tickets.
 session_start();
 
 // Check if user is admin
@@ -13,6 +14,7 @@ $admin_id = $_SESSION['user_id'];
 $success_message = '';
 $error_message = '';
 
+// Handle admin replies and resolve ticket status.
 // Handle reply submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     if ($_POST['action'] === 'reply') {
@@ -35,6 +37,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
     }
 }
 
+    // Load all tickets with student metadata for admin review.
 // Get all support tickets
 $tickets = [];
 try {
@@ -64,11 +67,13 @@ try {
     error_log("Tickets query error: " . $e->getMessage());
 }
 
+// Compute ticket counts displayed in dashboard cards.
 // Get statistics
 $open_count = count(array_filter($tickets, fn($t) => $t['status'] === 'Open'));
 $resolved_count = count(array_filter($tickets, fn($t) => $t['status'] === 'Resolved'));
 $total_count = count($tickets);
 ?>
+<!-- Render support ticket cards, reply forms, and status summaries. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -1,13 +1,16 @@
 <?php
+// Admin reports page for summarized academic and fee data.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
 
+// Core entity counts for academic summary cards.
 $studentCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM students', 0);
 $teacherCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM teachers', 0);
 $classCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM classes', 0);
 $examCount = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM exams', 0);
 
+// Financial totals for collected and pending fee amounts.
 $feesCollected = (float) admin_scalar_value(
   $connection,
   "SELECT COALESCE(SUM(amount), 0) FROM fees WHERE LOWER(COALESCE(status, '')) IN ('paid', 'completed')",
@@ -19,6 +22,7 @@ $feesPending = (float) admin_scalar_value(
   0
 );
 
+// Attendance completion percentage used by the attendance report tile.
 $attendancePresent = (int) admin_scalar_value(
   $connection,
   "SELECT COUNT(*) FROM attendance WHERE LOWER(COALESCE(status, '')) IN ('present', 'p')",
@@ -27,6 +31,7 @@ $attendancePresent = (int) admin_scalar_value(
 $attendanceTotal = (int) admin_scalar_value($connection, 'SELECT COUNT(*) FROM attendance', 0);
 $attendancePct = $attendanceTotal > 0 ? (int) round(($attendancePresent / $attendanceTotal) * 100) : 0;
 ?>
+<!-- Render report cards for operational metrics and analytics. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

@@ -9,6 +9,7 @@ $student_user_id = (int) ($studentContext['user_id'] ?? 0);
 $student_name = (string) ($studentContext['student_name'] ?? 'Student');
 // Build student filter
 $studentFilter = student_auth_student_id_filter_sql('student_id');
+$leaveFilter = student_auth_link_filter_sql($conn, 'leave_applications');
 
 // Get dashboard statistics with error handling
 $stats = [
@@ -85,12 +86,17 @@ try {
         $stmt->close();
     }
 
+<<<<<<< Updated upstream
     // Count leave entries
   $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$studentFilter['sql']}";
+=======
+    // Get leave applications
+  $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$leaveFilter['sql']}";
+>>>>>>> Stashed changes
     $stmt = $conn->prepare( $sql_leave);
     if ($stmt) {
-    $filterParams = $studentFilter['params'];
-    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
+    $filterParams = $leaveFilter['params'];
+    if (student_auth_bind_dynamic_params($stmt, $leaveFilter['types'], $filterParams)) {
       $stmt->execute();
       $result = $stmt->get_result();
       $row = $result->fetch_assoc();

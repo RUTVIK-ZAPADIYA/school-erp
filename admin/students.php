@@ -1,4 +1,5 @@
 <?php
+// Admin page for listing and managing students.
 require_once __DIR__ . '/auth.php';
 include '../includes/db_connect.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -146,6 +147,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
     exit();
 }
 
+  // Build the student list query with optional search filter.
 // Fetch all students
 $sql = "SELECT * FROM students ORDER BY id DESC";
 $search = '';
@@ -164,6 +166,7 @@ if ($result && $result->num_rows > 0) {
     }
 }
 ?>
+<!-- Render student table, action modals, and form interactions. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

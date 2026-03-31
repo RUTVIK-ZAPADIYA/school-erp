@@ -1,7 +1,9 @@
 <?php
+// Admin dashboard page for overall school metrics.
 require_once __DIR__ . '/auth.php';
 include '../includes/db_connect.php';
 
+// Utility helpers keep dashboard queries resilient across schema variations.
 function tableExists($conn, $tableName)
 {
   $safeTable = $conn->real_escape_string( $tableName);
@@ -48,6 +50,7 @@ function formatCompactCurrency($amount)
   return '₹' . number_format($amount, 0);
 }
 
+// Load top-level KPIs for students, teachers, and staffing ratio.
 $totalStudents = tableExists($conn, 'students') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM students", 0) : 0;
 $totalTeachers = tableExists($conn, 'teachers') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM teachers", 0) : 0;
 
@@ -60,6 +63,7 @@ $sportsPct = 15;
 $labPct = 12;
 $infraPct = 5;
 
+// Aggregate fee totals and revenue stream distribution.
 if (tableExists($conn, 'fees')) {
   $feesPaid = (float) scalarValue(
     $conn,
@@ -68,6 +72,7 @@ if (tableExists($conn, 'fees')) {
   );
   $feesPending = (float) scalarValue(
     $conn,
+  // Calculate attendance performance from attendance records.
     "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(status,'')) IN ('pending','unpaid','due')",
     0
   );
@@ -106,6 +111,7 @@ $currentYear = date('Y');
 $monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 $monthValues = array_fill(0, 12, 0);
 
+// Build monthly enrollment trend data for the chart.
 if (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
   $monthlyResult = $conn->query(
     "SELECT MONTH(created_at) AS month_no, COUNT(*) AS total
@@ -135,6 +141,7 @@ $currentMonthValue = $monthValues[$lastMonth];
 $previousMonthValue = $monthValues[$previousMonth] > 0 ? $monthValues[$previousMonth] : 1;
 $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) / $previousMonthValue) * 100);
 ?>
+<!-- Render dashboard cards, charts, and summary panels. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>

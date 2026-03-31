@@ -230,6 +230,28 @@ if (!function_exists('ensure_school_erp_schema')) {
         ");
 
         $conn->query( "
+            CREATE TABLE IF NOT EXISTS leave_applications (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                application_id VARCHAR(50) NULL,
+                student_id INT NULL,
+                student_user_id INT NULL,
+                leave_type VARCHAR(40) NOT NULL,
+                from_date DATE NOT NULL,
+                to_date DATE NOT NULL,
+                days INT NOT NULL,
+                reason TEXT NULL,
+                status VARCHAR(20) DEFAULT 'pending',
+                admin_remark TEXT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                UNIQUE KEY uniq_leave_application_id (application_id),
+                KEY idx_leave_student_id (student_id),
+                KEY idx_leave_student_user_id (student_user_id),
+                KEY idx_leave_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
+        $conn->query( "
             CREATE TABLE IF NOT EXISTS schedule (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 teacher_id INT NULL,
@@ -293,6 +315,15 @@ if (!function_exists('ensure_school_erp_schema')) {
         ensure_school_erp_column($conn, 'assignment_submissions', 'grade', 'DECIMAL(10,2) NULL');
         ensure_school_erp_column($conn, 'grades', 'student_user_id', 'INT NULL');
         ensure_school_erp_column($conn, 'marks', 'student_user_id', 'INT NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'application_id', 'VARCHAR(50) NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'student_user_id', 'INT NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'leave_type', 'VARCHAR(40) NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'from_date', 'DATE NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'to_date', 'DATE NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'days', 'INT NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'reason', 'TEXT NULL');
+        ensure_school_erp_column($conn, 'leave_applications', 'status', "VARCHAR(20) DEFAULT 'pending'");
+        ensure_school_erp_column($conn, 'leave_applications', 'updated_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 
         $adminPass = password_hash('admin123', PASSWORD_DEFAULT);
         $teacherPass = password_hash('teacher123', PASSWORD_DEFAULT);
@@ -537,6 +568,52 @@ if (!function_exists('ensure_school_erp_schema')) {
                        AND (m.student_id IS NULL OR m.student_id = 0 OR m.student_id <> s.id)"
                 );
             }
+
+            if (
+                school_erp_table_exists($conn, 'leave_applications')
+                && school_erp_column_exists($conn, 'leave_applications', 'student_id')
+                && school_erp_column_exists($conn, 'leave_applications', 'student_user_id')
+            ) {
+                $conn->query(
+                    "UPDATE leave_applications l
+                     INNER JOIN students s ON l.student_id = s.id
+                     SET l.student_user_id = COALESCE(NULLIF(l.student_user_id, 0), s.user_id)
+                     WHERE s.user_id IS NOT NULL AND s.user_id <> 0"
+                );
+
+                $conn->query(
+                    "UPDATE leave_applications l
+                     LEFT JOIN students s_profile ON l.student_id = s_profile.id
+                     INNER JOIN students s_user ON l.student_id = s_user.user_id
+                     SET l.student_user_id = l.student_id,
+                         l.student_id = s_user.id
+                     WHERE s_profile.id IS NULL
+                       AND s_user.user_id IS NOT NULL
+                       AND s_user.user_id <> 0
+                       AND (l.student_user_id IS NULL OR l.student_user_id = 0)"
+                );
+
+                $conn->query(
+                    "UPDATE leave_applications l
+                     INNER JOIN students s ON l.student_user_id = s.user_id
+                     SET l.student_id = s.id
+                     WHERE s.user_id IS NOT NULL
+                       AND s.user_id <> 0
+                       AND (l.student_id IS NULL OR l.student_id = 0 OR l.student_id <> s.id)"
+                );
+            }
+        }
+
+        if (
+            school_erp_table_exists($conn, 'leave_applications')
+            && school_erp_column_exists($conn, 'leave_applications', 'application_id')
+            && school_erp_column_exists($conn, 'leave_applications', 'id')
+        ) {
+            $conn->query(
+                "UPDATE leave_applications
+                 SET application_id = CONCAT('LA', LPAD(id, 6, '0'))
+                 WHERE application_id IS NULL OR TRIM(application_id) = ''"
+            );
         }
 
         $studentsCountRes = $conn->query('SELECT COUNT(*) AS cnt FROM students');

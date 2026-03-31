@@ -1,4 +1,5 @@
 <?php
+// Admin page for creating fee records.
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
@@ -7,6 +8,7 @@ admin_ensure_column($connection, 'fees', 'payment_method', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'fees', 'remarks', 'TEXT NULL');
 admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
 
+// Build class lookup map so student rows can show class labels.
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classMap = [];
 if ($classNameColumn !== null) {
@@ -46,6 +48,7 @@ $formData = [
 
 $errorMessage = '';
 
+// Handle fee form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
@@ -53,6 +56,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   $status = admin_normalize_status($formData['payment_status'], 'Pending');
 
+  // Validate required fields and amount constraints before save.
   if (
     $formData['student_id'] === '' ||
     $formData['fee_type'] === '' ||
@@ -65,6 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $errorMessage = 'Amount must be greater than zero.';
   }
 
+  // Build and run a schema-aware insert for the new fee record.
   if ($errorMessage === '') {
     $insertColumns = [];
     $insertValues = [];
@@ -148,6 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $flash = admin_pull_flash();
 ?>
+<!-- Render the add fee page with persisted form state and alerts. -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
