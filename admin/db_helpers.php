@@ -6,10 +6,10 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 if (!function_exists('admin_table_exists')) {
     function admin_table_exists($connection, $tableName)
     {
-        $safeTable = mysqli_real_escape_string($connection, $tableName);
-        $result = mysqli_query($connection, "SHOW TABLES LIKE '{$safeTable}'");
+        $safeTable = $connection->real_escape_string( $tableName);
+        $result = $connection->query( "SHOW TABLES LIKE '{$safeTable}'");
 
-        return $result && mysqli_num_rows($result) > 0;
+        return $result && $result->num_rows > 0;
     }
 }
 
@@ -20,11 +20,11 @@ if (!function_exists('admin_column_exists')) {
             return false;
         }
 
-        $safeTable = mysqli_real_escape_string($connection, $tableName);
-        $safeColumn = mysqli_real_escape_string($connection, $columnName);
-        $result = mysqli_query($connection, "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+        $safeTable = $connection->real_escape_string( $tableName);
+        $safeColumn = $connection->real_escape_string( $columnName);
+        $result = $connection->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
 
-        return $result && mysqli_num_rows($result) > 0;
+        return $result && $result->num_rows > 0;
     }
 }
 
@@ -35,24 +35,24 @@ if (!function_exists('admin_bind_dynamic_params')) {
             return true;
         }
 
-        $bindArgs = [$stmt, $types];
+        $bindArgs = [$types];
         foreach ($params as $index => &$value) {
             $bindArgs[] = &$value;
         }
 
-        return call_user_func_array('mysqli_stmt_bind_param', $bindArgs);
+        return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
     }
 }
 
 if (!function_exists('admin_scalar_value')) {
     function admin_scalar_value($connection, $sql, $defaultValue = 0)
     {
-        $result = mysqli_query($connection, $sql);
+        $result = $connection->query( $sql);
         if (!$result) {
             return $defaultValue;
         }
 
-        $row = mysqli_fetch_row($result);
+        $row = $result->fetch_row();
         if (!$row || !isset($row[0])) {
             return $defaultValue;
         }
@@ -96,8 +96,106 @@ if (!function_exists('admin_ensure_column')) {
         }
 
         if (!admin_column_exists($connection, $tableName, $columnName)) {
-            mysqli_query($connection, "ALTER TABLE `{$tableName}` ADD COLUMN `{$columnName}` {$definition}");
+            $connection->query( "ALTER TABLE `{$tableName}` ADD COLUMN `{$columnName}` {$definition}");
         }
+    }
+}
+
+if (!function_exists('admin_make_column_nullable')) {
+    function admin_make_column_nullable($connection, $tableName, $columnName)
+    {
+        if (!admin_column_exists($connection, $tableName, $columnName)) {
+            return false;
+        }
+
+        $safeTable = $connection->real_escape_string( $tableName);
+        $safeColumn = $connection->real_escape_string( $columnName);
+        $metaResult = $connection->query( "SHOW COLUMNS FROM `{$safeTable}` LIKE '{$safeColumn}'");
+        if (!$metaResult || $metaResult->num_rows === 0) {
+            return false;
+        }
+
+        $meta = $metaResult->fetch_assoc();
+        if (!$meta) {
+            return false;
+        }
+
+        if (strtoupper((string) ($meta['Null'] ?? '')) === 'YES') {
+            return true;
+        }
+
+        $type = (string) ($meta['Type'] ?? '');
+        if ($type === '') {
+            return false;
+        }
+
+        $extra = trim((string) ($meta['Extra'] ?? ''));
+        $alterSql = "ALTER TABLE `{$safeTable}` MODIFY COLUMN `{$safeColumn}` {$type} NULL";
+        if ($extra !== '' && stripos($extra, 'auto_increment') === false) {
+            $alterSql .= ' ' . $extra;
+        }
+
+        return (bool) $connection->query( $alterSql);
+    }
+}
+
+if (!function_exists('admin_clear_reference')) {
+    function admin_clear_reference($connection, $tableName, $columnName, $idValue, $allowDeleteFallback = false, &$errorDetails = '')
+    {
+        $errorDetails = '';
+
+        if (!admin_table_exists($connection, $tableName) || !admin_column_exists($connection, $tableName, $columnName)) {
+            return true;
+        }
+
+        // Best-effort upgrade for legacy schemas where FK columns were created NOT NULL.
+        admin_make_column_nullable($connection, $tableName, $columnName);
+
+        $clearStmt = $connection->prepare( "UPDATE `{$tableName}` SET `{$columnName}` = NULL WHERE `{$columnName}` = ?");
+        if ($clearStmt) {
+            $referenceId = (int) $idValue;
+            $clearStmt->bind_param( 'i', $referenceId);
+            $clearExecuted = $clearStmt->execute();
+            $clearError = trim((string) $clearStmt->error);
+            $clearStmt->close();
+
+            if ($clearExecuted) {
+                return true;
+            }
+
+            $errorDetails = $clearError !== '' ? $clearError : (string) $connection->error;
+        } else {
+            $errorDetails = (string) $connection->error;
+        }
+
+        if (!$allowDeleteFallback) {
+            return false;
+        }
+
+        // Legacy schemas can enforce restrictive FKs; fallback to deleting dependents.
+        $deleteStmt = $connection->prepare( "DELETE FROM `{$tableName}` WHERE `{$columnName}` = ?");
+        if (!$deleteStmt) {
+            $fallbackError = trim((string) $connection->error);
+            if ($fallbackError !== '') {
+                $errorDetails .= ($errorDetails !== '' ? ' | ' : '') . $fallbackError;
+            }
+            return false;
+        }
+
+        $referenceId = (int) $idValue;
+        $deleteStmt->bind_param( 'i', $referenceId);
+        $deleteExecuted = $deleteStmt->execute();
+        $deleteError = trim((string) $deleteStmt->error);
+        $deleteStmt->close();
+
+        if (!$deleteExecuted) {
+            if ($deleteError !== '') {
+                $errorDetails .= ($errorDetails !== '' ? ' | ' : '') . $deleteError;
+            }
+            return false;
+        }
+
+        return true;
     }
 }
 
