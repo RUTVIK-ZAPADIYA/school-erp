@@ -1,19 +1,19 @@
 <?php
 require_once __DIR__ . '/auth.php';
-include '../dbconfig.php';
+include '../includes/db_connect.php';
 
 // Handle Create Action
 if (isset($_POST['action']) && $_POST['action'] === 'create') {
-    $roll_no = $connection->real_escape_string($_POST['roll_no']);
-    $name = $connection->real_escape_string($_POST['name']);
-    $class = $connection->real_escape_string($_POST['class']);
-    $email = $connection->real_escape_string($_POST['email']);
-    $phone = $connection->real_escape_string($_POST['phone']);
+    $roll_no = $conn->real_escape_string($_POST['roll_no']);
+    $name = $conn->real_escape_string($_POST['name']);
+    $class = $conn->real_escape_string($_POST['class']);
+    $email = $conn->real_escape_string($_POST['email']);
+    $phone = $conn->real_escape_string($_POST['phone']);
     $status = ($_POST['status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
 
     // Check if roll_no already exists
     $check_sql = "SELECT id FROM students WHERE roll_no = ?";
-    $check_stmt = $connection->prepare($check_sql);
+    $check_stmt = $conn->prepare($check_sql);
     $check_stmt->bind_param("s", $roll_no);
     $check_stmt->execute();
     $check_result = $check_stmt->get_result();
@@ -22,7 +22,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'create') {
         setcookie('error', 'Roll number already exists!', time() + 5);
     } else {
         $insert_sql = "INSERT INTO students (roll_no, name, class, email, phone, status) VALUES (?, ?, ?, ?, ?, ?)";
-        $insert_stmt = $connection->prepare($insert_sql);
+        $insert_stmt = $conn->prepare($insert_sql);
         $insert_stmt->bind_param("ssssss", $roll_no, $name, $class, $email, $phone, $status);
 
         if ($insert_stmt->execute()) {
@@ -40,16 +40,16 @@ if (isset($_POST['action']) && $_POST['action'] === 'create') {
 // Handle Update Action
 if (isset($_POST['action']) && $_POST['action'] === 'update') {
     $student_id = intval($_POST['student_id']);
-    $roll_no = $connection->real_escape_string($_POST['roll_no']);
-    $name = $connection->real_escape_string($_POST['name']);
-    $class = $connection->real_escape_string($_POST['class']);
-    $email = $connection->real_escape_string($_POST['email']);
-    $phone = $connection->real_escape_string($_POST['phone']);
+    $roll_no = $conn->real_escape_string($_POST['roll_no']);
+    $name = $conn->real_escape_string($_POST['name']);
+    $class = $conn->real_escape_string($_POST['class']);
+    $email = $conn->real_escape_string($_POST['email']);
+    $phone = $conn->real_escape_string($_POST['phone']);
     $status = ($_POST['status'] ?? 'Active') === 'Inactive' ? 'Inactive' : 'Active';
 
     // Check if roll_no already exists (excluding current student)
     $check_sql = "SELECT id FROM students WHERE roll_no = ? AND id != ?";
-    $check_stmt = $connection->prepare($check_sql);
+    $check_stmt = $conn->prepare($check_sql);
     $check_stmt->bind_param("si", $roll_no, $student_id);
     $check_stmt->execute();
     $check_result = $check_stmt->get_result();
@@ -58,7 +58,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
         setcookie('error', 'Roll number already exists!', time() + 5);
     } else {
         $update_sql = "UPDATE students SET roll_no = ?, name = ?, class = ?, email = ?, phone = ?, status = ? WHERE id = ?";
-        $update_stmt = $connection->prepare($update_sql);
+        $update_stmt = $conn->prepare($update_sql);
         $update_stmt->bind_param("ssssssi", $roll_no, $name, $class, $email, $phone, $status, $student_id);
 
         if ($update_stmt->execute()) {
@@ -76,9 +76,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'update') {
 // Handle Delete Action
 if (isset($_POST['action']) && $_POST['action'] === 'delete') {
     $student_id = intval($_POST['student_id']);
-    
+
     $delete_sql = "DELETE FROM students WHERE id = ?";
-    $delete_stmt = $connection->prepare($delete_sql);
+    $delete_stmt = $conn->prepare($delete_sql);
     $delete_stmt->bind_param("i", $student_id);
 
     if ($delete_stmt->execute()) {
@@ -96,11 +96,11 @@ $sql = "SELECT * FROM students ORDER BY id DESC";
 $search = '';
 
 if (isset($_GET['search']) && !empty($_GET['search'])) {
-    $search = $connection->real_escape_string($_GET['search']);
+    $search = $conn->real_escape_string($_GET['search']);
     $sql = "SELECT * FROM students WHERE roll_no LIKE '%$search%' OR name LIKE '%$search%' OR class LIKE '%$search%' ORDER BY id DESC";
 }
 
-$result = $connection->query($sql);
+$result = $conn->query($sql);
 $students = [];
 
 if ($result && $result->num_rows > 0) {

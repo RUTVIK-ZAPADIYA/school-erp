@@ -8,60 +8,77 @@ if (!isset($_SESSION['student_id'])) {
     header("Location: ../login.php");
     exit();
 }
+
+// Get current page filename
+$current_page = basename($_SERVER['PHP_SELF']);
 ?>
-<div class="sidebar" id="sidebar">
-  <div class="logo-section">
-    <div class="logo-icon"><i class="fas fa-graduation-cap"></i></div>
-    <h4>Student Portal</h4>
-  </div>
-  <div class="user-info">
-    <i class="fas fa-user-circle"></i>
-    <div>
-      <p class="user-name"><?php echo $_SESSION['student_name'] ?? 'Student'; ?></p>
-      <p class="user-role">Student</p>
-    </div>
-  </div>
-  <nav class="nav-menu">
-    <a href="dashboard.php" class="nav-item"><i class="fas fa-home"></i> Dashboard</a>
-    <a href="attendance.php" class="nav-item"><i class="fas fa-calendar-check"></i> View Attendance</a>
-    <a href="marks.php" class="nav-item"><i class="fas fa-chart-bar"></i> View Marks</a>
-    <a href="fees.php" class="nav-item"><i class="fas fa-rupee-sign"></i> Fees</a>
-    <a href="leave.php" class="nav-item"><i class="fas fa-file-alt"></i> Leave Application</a>
-    <a href="profile.php" class="nav-item"><i class="fas fa-user"></i> Profile</a>
-    
-  </nav>
+<!-- SideNavBar Shell -->
+<aside class="h-screen w-64 fixed left-0 top-0 bg-white border-r border-outline-variant/20 flex flex-col py-6 px-4 z-50">
+<div class="mb-10 px-2 flex items-center gap-3">
+<div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-bold">S</div>
+<div>
+<h1 class="text-sm font-bold tracking-tight text-stone-900 leading-tight">Student Portal</h1>
+<p class="text-[10px] text-on-surface-variant font-medium tracking-wide uppercase opacity-70">Academic Performance</p>
 </div>
-<div class="mobile-toggle" onclick="toggleSidebar()"><i class="fas fa-bars"></i></div>
-<div class="sidebar-overlay" id="sidebarOverlay" onclick="toggleSidebar()"></div>
+</div>
+<nav class="flex-1 space-y-0.5">
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'dashboard.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="dashboard.php">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">grid_view</span>
+<span class="text-[14px]">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'attendance.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="attendance.php">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+<span class="text-[14px]">Attendance</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'marks.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="marks.php">
+<span class="material-symbols-outlined">analytics</span>
+<span class="text-[14px]">Marks</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'fees.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="fees.php">
+<span class="material-symbols-outlined">account_balance_wallet</span>
+<span class="text-[14px]">Fees</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'leave.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="leave.php">
+<span class="material-symbols-outlined">assignment_ind</span>
+<span class="text-[14px]">Leave Application</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'profile.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="profile.php">
+<span class="material-symbols-outlined">person_outline</span>
+<span class="text-[14px]">Profile</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'contact-admin.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="contact-admin.php">
+<span class="material-symbols-outlined">support_agent</span>
+<span class="text-[14px]">Contact Admin</span>
+</a>
+</nav>
+<!-- Student Info Widget -->
+<div class="mt-auto mb-6 p-4 bg-gradient-to-br from-stone-50 to-white border border-outline-variant/30 rounded-xl pro-shadow">
+<div class="flex items-center gap-2 mb-2">
+<span class="material-symbols-outlined text-blue-500 text-sm" style="font-variation-settings: 'FILL' 1;">school</span>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Student Info</span>
+</div>
+<div class="flex items-center gap-3">
+<div class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center text-white bg-blue-500 font-bold text-xs">
+<?php echo strtoupper(substr($_SESSION['student_name'], 0, 1)); ?>
+</div>
+<div>
+<p class="text-[11px] font-bold text-on-surface"><?php echo $_SESSION['student_name'] ?? 'Student'; ?></p>
+<p class="text-[10px] text-on-surface-variant">Roll No: -</p>
+</div>
+</div>
+</div>
+<div class="space-y-1 pt-4 border-t border-stone-100">
+<a class="flex items-center gap-3 px-3 py-2 text-stone-400 hover:text-stone-900" href="logout.php" onclick="return confirm('Are you sure you want to logout?');">
+<span class="material-symbols-outlined text-sm">logout</span>
+<span class="text-[13px]">Logout</span>
+</a>
+</div>
+</aside>
 <style>
-  .sidebar { width: 280px; background: #192a56; height: 100vh; position: fixed; left: 0; top: 0; color: white; overflow-y: auto; z-index: 1000; transition: transform 0.3s; }
-  .logo-section { text-align: center; padding: 30px 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  .logo-icon { width: 60px; height: 60px; background: #f7d794; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
-  .logo-icon i { font-size: 1.8rem; color: #192a56; }
-  .logo-section h4 { margin: 0; font-size: 1.3rem; font-weight: 600; }
-  .user-info { display: flex; align-items: center; padding: 20px; background: rgba(0,0,0,0.2); margin: 20px; border-radius: 10px; }
-  .user-info i { font-size: 2.5rem; color: #f7d794; margin-right: 15px; }
-  .user-name { margin: 0; font-weight: 600; font-size: 1rem; }
-  .user-role { margin: 0; font-size: 0.85rem; color: #bdc3c7; }
-  .nav-menu { padding: 10px 0; }
-  .nav-item { display: flex; align-items: center; padding: 15px 25px; color: #ecf0f1; text-decoration: none; transition: all 0.3s; border-left: 3px solid transparent; }
-  .nav-item i { margin-right: 12px; width: 20px; }
-  .nav-item:hover, .nav-item.active { background: rgba(247,215,148,0.15); border-left-color: #f7d794; color: #f7d794; }
-  .nav-item.logout { color: #e74c3c; margin-top: 20px; }
-  .nav-item.logout:hover { background: rgba(231,76,60,0.1); border-left-color: #e74c3c; }
-  .mobile-toggle { display: none; position: fixed; top: 15px; left: 15px; z-index: 1001; background: #f7d794; color: #192a56; width: 45px; height: 45px; border-radius: 8px; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-  .mobile-toggle i { font-size: 1.2rem; }
-  .sidebar-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 999; }
-  @media (max-width: 768px) {
-    .sidebar { transform: translateX(-100%); }
-    .sidebar.active { transform: translateX(0); }
-    .mobile-toggle { display: flex; }
-    .sidebar-overlay.active { display: block; }
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+  .pro-shadow {
+    box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
   }
 </style>
-<script>
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('active');
-  document.getElementById('sidebarOverlay').classList.toggle('active');
-}
-</script>

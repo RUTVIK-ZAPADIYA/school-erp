@@ -8,139 +8,169 @@ if (!isset($_SESSION['student_id'])) {
   header("Location: ../login.php");
   exit();
 }
+
+// Include database connection
+include '../includes/db_connect.php';
+
+$student_id = $_SESSION['student_id'];
+
+// Get leave records
+$leave_records = [];
+
+try {
+    $sql = "SELECT application_id, leave_type, from_date, to_date, days, status FROM leave_applications WHERE student_id = ? ORDER BY from_date DESC LIMIT 10";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $student_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        while ($row = mysqli_fetch_assoc($result)) {
+            $leave_records[] = $row;
+        }
+        mysqli_stmt_close($stmt);
+    }
+} catch (Exception $e) {
+    error_log("Leave query error: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Leave Application</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/responsive.css">
-  <link rel="stylesheet" href="../assets/css/theme.css">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
-    .main-content { margin-left: 280px; padding: 30px; }
-    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .header h2 { color: #2c3e50; margin: 0; font-weight: 700; }
-    .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .form-label { color: #2d3748; font-weight: 500; margin-bottom: 8px; }
-    .form-control, .form-select { padding: 12px 16px; border: 2px solid #e2e8f0; border-radius: 8px; }
-    .form-control:focus, .form-select:focus { border-color: #3498db; box-shadow: 0 0 0 3px rgba(52,152,219,0.1); }
-    .btn-submit { background: #3498db; color: white; padding: 12px 30px; border: none; border-radius: 8px; font-weight: 600; }
-    .btn-submit:hover { background: #2980b9; }
-    .table th { background: #f8f9fa; color: #2c3e50; font-weight: 600; }
-    .badge { padding: 6px 12px; border-radius: 20px; font-weight: 500; }
-  </style>
+  <title>Leave Application - Student Portal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
-<body>
+<body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
-  
-  <div class="main-content">
-    <div class="header">
-      <h2><i class="fas fa-file-alt"></i> Leave Application</h2>
+
+  <main class="ml-64 min-h-screen p-8">
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-8">
+      <span class="material-symbols-outlined text-3xl text-orange-500" style="font-variation-settings: 'FILL' 1;">event_note</span>
+      <div>
+        <h1 class="text-3xl font-bold text-stone-900">Leave Application</h1>
+        <p class="text-sm text-stone-500">Apply for leave and view history</p>
+      </div>
     </div>
-    
-    <div class="content-card">
-      <h5 class="mb-4">Apply for Leave</h5>
-      <form method="POST" action="">
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Leave Type</label>
-            <select class="form-select" name="leave_type" data-validation="required select">
-              <option value="">Select Type</option>
-              <option value="sick">Sick Leave</option>
-              <option value="casual">Casual Leave</option>
-              <option value="emergency">Emergency Leave</option>
-              <option value="other">Other</option>
-            </select>
-            <div id="leave_type_error" class="small text-danger mt-2" style="display:none;"></div>
+
+    <!-- Leave Application Form -->
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200 mb-8">
+      <div class="p-6 border-b border-stone-200">
+        <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+          <span class="material-symbols-outlined">edit_calendar</span>
+          Apply for Leave
+        </h2>
+      </div>
+      <div class="p-6">
+        <form method="POST" action="" class="space-y-6">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-stone-900 mb-2">Leave Type</label>
+              <select name="leave_type" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" required>
+                <option value="">Select Type</option>
+                <option value="sick">Sick Leave</option>
+                <option value="casual">Casual Leave</option>
+                <option value="emergency">Emergency Leave</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-stone-900 mb-2">Number of Days</label>
+              <input type="number" name="days" min="1" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" required>
+            </div>
           </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">Number of Days</label>
-            <input type="number" class="form-control" name="days" min="1" data-validation="required number" data-min="1">
-            <div id="days_error" class="small text-danger mt-2" style="display:none;"></div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="block text-sm font-medium text-stone-900 mb-2">From Date</label>
+              <input type="date" name="from_date" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" required>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-stone-900 mb-2">To Date</label>
+              <input type="date" name="to_date" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" required>
+            </div>
           </div>
-        </div>
-        <div class="row">
-          <div class="col-md-6 mb-3">
-            <label class="form-label">From Date</label>
-            <input type="date" class="form-control" name="from_date" data-validation="required">
-            <div id="from_date_error" class="small text-danger mt-2" style="display:none;"></div>
+
+          <div>
+            <label class="block text-sm font-medium text-stone-900 mb-2">Reason</label>
+            <textarea name="reason" rows="4" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" required></textarea>
           </div>
-          <div class="col-md-6 mb-3">
-            <label class="form-label">To Date</label>
-            <input type="date" class="form-control" name="to_date" data-validation="required">
-            <div id="to_date_error" class="small text-danger mt-2" style="display:none;"></div>
-          </div>
-        </div>
-        <div class="mb-3">
-          <label class="form-label">Reason</label>
-          <textarea class="form-control" name="reason" rows="4" data-validation="required min" data-min="10"></textarea>
-          <div id="reason_error" class="small text-danger mt-2" style="display:none;"></div>
-        </div>
-        <button type="submit" class="btn-submit"><i class="fas fa-paper-plane"></i> Submit Application</button>
-      </form>
+
+          <button type="submit" class="inline-flex items-center gap-2 px-6 py-2 bg-orange-600 text-white font-medium rounded-lg hover:bg-orange-700 transition">
+            <span class="material-symbols-outlined">send</span>
+            Submit Application
+          </button>
+        </form>
+      </div>
     </div>
-    
-    <div class="content-card">
-      <h5 class="mb-4">Leave Application History</h5>
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead>
+
+    <!-- Leave Application History -->
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200">
+      <div class="p-6 border-b border-stone-200">
+        <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+          <span class="material-symbols-outlined">history</span>
+          Leave Application History
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-stone-50 border-b border-stone-200">
             <tr>
-              <th>Application ID</th>
-              <th>Leave Type</th>
-              <th>From Date</th>
-              <th>To Date</th>
-              <th>Days</th>
-              <th>Status</th>
-              <th>Action</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Application ID</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Leave Type</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">From Date</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">To Date</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Days</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Status</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Action</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>#LA001</td>
-              <td>Sick Leave</td>
-              <td>Dec 09, 2024</td>
-              <td>Dec 10, 2024</td>
-              <td>2</td>
-              <td><span class="badge bg-success">Approved</span></td>
-              <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</button></td>
-            </tr>
-            <tr>
-              <td>#LA002</td>
-              <td>Casual Leave</td>
-              <td>Nov 20, 2024</td>
-              <td>Nov 22, 2024</td>
-              <td>3</td>
-              <td><span class="badge bg-success">Approved</span></td>
-              <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</button></td>
-            </tr>
-            <tr>
-              <td>#LA003</td>
-              <td>Emergency Leave</td>
-              <td>Dec 15, 2024</td>
-              <td>Dec 16, 2024</td>
-              <td>2</td>
-              <td><span class="badge bg-warning">Pending</span></td>
-              <td><button class="btn btn-sm btn-outline-primary"><i class="fas fa-eye"></i> View</button></td>
-            </tr>
+          <tbody class="divide-y divide-stone-200">
+            <?php if (count($leave_records) > 0): ?>
+              <?php foreach ($leave_records as $record): ?>
+                <tr class="hover:bg-stone-50 transition">
+                  <td class="px-6 py-4 text-sm font-medium text-stone-900"><?php echo htmlspecialchars($record['application_id']); ?></td>
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo ucfirst(htmlspecialchars($record['leave_type'])); ?> Leave</td>
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo date('d M Y', strtotime($record['from_date'])); ?></td>
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo date('d M Y', strtotime($record['to_date'])); ?></td>
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo $record['days']; ?></td>
+                  <td class="px-6 py-4">
+                    <?php if ($record['status'] === 'approved'): ?>
+                      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
+                        <span class="material-symbols-outlined text-sm">done</span>
+                        Approved
+                      </span>
+                    <?php elseif ($record['status'] === 'rejected'): ?>
+                      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                        Rejected
+                      </span>
+                    <?php else: ?>
+                      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-100 text-amber-700 text-sm font-medium">
+                        <span class="material-symbols-outlined text-sm">schedule</span>
+                        Pending
+                      </span>
+                    <?php endif; ?>
+                  </td>
+                  <td class="px-6 py-4">
+                    <button class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded transition">
+                      <span class="material-symbols-outlined text-sm">visibility</span>
+                      View
+                    </button>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="7" class="px-6 py-8 text-center text-stone-500">No leave applications found</td>
+              </tr>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
-  
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="../js/jquery.js"></script>
-  <script src="../js/validate.js"></script>
-  <script>
-    document.querySelectorAll('.nav-item').forEach(item => {
-      if (item.href === window.location.href) item.classList.add('active');
-    });
-  </script>
+  </main>
 </body>
 </html>

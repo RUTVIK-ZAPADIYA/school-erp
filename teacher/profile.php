@@ -608,20 +608,23 @@ if ($result_trend) {
         </button>
       </div>
 
-      <form method="POST" class="space-y-6">
+      <form method="POST" class="space-y-6" novalidate>
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Full Name</label>
-          <input type="text" name="name" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" value="<?php echo htmlspecialchars($user['name']); ?>" placeholder="Enter your full name">
+          <input type="text" name="name" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" value="<?php echo htmlspecialchars($user['name']); ?>" placeholder="Enter your full name" data-validation="required,alphabetic,min,max" data-min="3" data-max="80">
+          <p id="name_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Email Address</label>
-          <input type="email" name="email" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" value="<?php echo htmlspecialchars($user['email']); ?>" placeholder="Enter your email">
+          <input type="email" name="email" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" value="<?php echo htmlspecialchars($user['email']); ?>" placeholder="Enter your email" data-validation="required,email">
+          <p id="email_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Phone Number</label>
-          <input type="text" name="phone" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="Enter your phone number">
+          <input type="text" name="phone" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary" value="<?php echo htmlspecialchars($user['phone'] ?? ''); ?>" placeholder="Enter your phone number" data-validation="required,number,min,max" data-min="7" data-max="15">
+          <p id="phone_error" class="text-sm text-red-600 hidden"></p>
         </div>
 
         <div class="flex justify-end gap-3 pt-4">
@@ -636,6 +639,8 @@ if ($result_trend) {
     </div>
   </div>
 
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     // Performance Chart
     const ctx = document.getElementById('performanceChart').getContext('2d');

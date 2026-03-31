@@ -8,121 +8,124 @@ if (!isset($_SESSION['student_id'])) {
   header("Location: ../login.php");
   exit();
 }
+
+// Include database connection
+include '../includes/db_connect.php';
+
+$student_id = $_SESSION['student_id'];
+
+// Get attendance records
+$attendance_records = [];
+try {
+    $sql = "SELECT date, status FROM attendance WHERE student_id = ? ORDER BY date DESC LIMIT 30";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $student_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        while ($row = mysqli_fetch_assoc($result)) {
+            $attendance_records[] = $row;
+        }
+        mysqli_stmt_close($stmt);
+    }
+} catch (Exception $e) {
+    error_log("Attendance query error: " . $e->getMessage());
+}
+
+// Calculate attendance percentage
+$total = count($attendance_records);
+$present = 0;
+foreach ($attendance_records as $record) {
+    if ($record['status'] === 'present') $present++;
+}
+$percentage = $total > 0 ? round(($present / $total) * 100) : 0;
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>View Attendance</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/responsive.css">
-  <link rel="stylesheet" href="../assets/css/theme.css">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f8f9fa; }
-    .main-content { margin-left: 280px; padding: 30px; }
-    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-    .header h2 { color: #2c3e50; margin: 0; font-weight: 700; }
-    .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; }
-    .attendance-summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-    .summary-item { text-align: center; padding: 20px; background: #f8f9fa; border-radius: 10px; }
-    .summary-value { font-size: 2rem; font-weight: 700; color: #3498db; }
-    .summary-label { color: #7f8c8d; margin-top: 5px; }
-    .table th { background: #f8f9fa; color: #2c3e50; font-weight: 600; }
-    .badge { padding: 6px 12px; border-radius: 20px; font-weight: 500; }
-  </style>
+  <title>Attendance - Student Portal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
-<body>
+<body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
-  
-  <div class="main-content">
-    <div class="header">
-      <h2><i class="fas fa-calendar-check"></i> View Attendance</h2>
-    </div>
-    
-    <div class="attendance-summary">
-      <div class="summary-item">
-        <div class="summary-value">85%</div>
-        <div class="summary-label">Overall Attendance</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-value">42</div>
-        <div class="summary-label">Present Days</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-value">8</div>
-        <div class="summary-label">Absent Days</div>
-      </div>
-      <div class="summary-item">
-        <div class="summary-value">50</div>
-        <div class="summary-label">Total Days</div>
+
+  <main class="ml-64 min-h-screen p-8">
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-8">
+      <span class="material-symbols-outlined text-3xl text-blue-500" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+      <div>
+        <h1 class="text-3xl font-bold text-stone-900">Attendance</h1>
+        <p class="text-sm text-stone-500">View your attendance records</p>
       </div>
     </div>
-    
-    <div class="content-card">
-      <h5 class="mb-4">Monthly Attendance Record</h5>
-      <div class="table-responsive">
-        <table class="table table-hover">
-          <thead>
+
+    <!-- Summary Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div class="bg-white rounded-lg p-6 shadow-sm border border-stone-200">
+        <p class="text-sm text-stone-500 mb-2">Overall Attendance</p>
+        <p class="text-3xl font-bold text-blue-600"><?php echo $percentage; ?>%</p>
+        <p class="text-xs text-stone-400 mt-2"><?php echo $present; ?> present out of <?php echo $total; ?></p>
+      </div>
+      <div class="bg-white rounded-lg p-6 shadow-sm border border-stone-200">
+        <p class="text-sm text-stone-500 mb-2">Days Present</p>
+        <p class="text-3xl font-bold text-emerald-600"><?php echo $present; ?></p>
+        <p class="text-xs text-stone-400 mt-2">Attended sessions</p>
+      </div>
+      <div class="bg-white rounded-lg p-6 shadow-sm border border-stone-200">
+        <p class="text-sm text-stone-500 mb-2">Days Absent</p>
+        <p class="text-3xl font-bold text-red-600"><?php echo $total - $present; ?></p>
+        <p class="text-xs text-stone-400 mt-2">Missed sessions</p>
+      </div>
+    </div>
+
+    <!-- Attendance Table -->
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200">
+      <div class="p-6 border-b border-stone-200">
+        <h2 class="text-lg font-bold text-stone-900 flex items-center gap-2">
+          <span class="material-symbols-outlined">table_chart</span>
+          Recent Attendance
+        </h2>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full">
+          <thead class="bg-stone-50 border-b border-stone-200">
             <tr>
-              <th>Date</th>
-              <th>Subject</th>
-              <th>Status</th>
-              <th>Time</th>
-              <th>Remarks</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Date</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Status</th>
             </tr>
           </thead>
-          <tbody>
-            <tr>
-              <td>Dec 10, 2024</td>
-              <td>Mathematics</td>
-              <td><span class="badge bg-success">Present</span></td>
-              <td>09:00 AM</td>
-              <td>On time</td>
-            </tr>
-            <tr>
-              <td>Dec 10, 2024</td>
-              <td>Physics</td>
-              <td><span class="badge bg-success">Present</span></td>
-              <td>11:00 AM</td>
-              <td>On time</td>
-            </tr>
-            <tr>
-              <td>Dec 09, 2024</td>
-              <td>Chemistry</td>
-              <td><span class="badge bg-danger">Absent</span></td>
-              <td>-</td>
-              <td>Medical leave</td>
-            </tr>
-            <tr>
-              <td>Dec 09, 2024</td>
-              <td>English</td>
-              <td><span class="badge bg-success">Present</span></td>
-              <td>02:00 PM</td>
-              <td>On time</td>
-            </tr>
-            <tr>
-              <td>Dec 08, 2024</td>
-              <td>Mathematics</td>
-              <td><span class="badge bg-success">Present</span></td>
-              <td>09:00 AM</td>
-              <td>On time</td>
-            </tr>
-            <tr>
-              <td>Dec 08, 2024</td>
-              <td>Computer Science</td>
-              <td><span class="badge bg-warning">Late</span></td>
-              <td>10:15 AM</td>
-              <td>15 min late</td>
-            </tr>
+          <tbody class="divide-y divide-stone-200">
+            <?php if (count($attendance_records) > 0): ?>
+              <?php foreach ($attendance_records as $record): ?>
+                <tr class="hover:bg-stone-50 transition">
+                  <td class="px-6 py-4 text-sm text-stone-700"><?php echo date('d M Y', strtotime($record['date'])); ?></td>
+                  <td class="px-6 py-4">
+                    <?php if ($record['status'] === 'present'): ?>
+                      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-sm font-medium">
+                        <span class="material-symbols-outlined text-sm">done</span>
+                        Present
+                      </span>
+                    <?php else: ?>
+                      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-100 text-red-700 text-sm font-medium">
+                        <span class="material-symbols-outlined text-sm">close</span>
+                        Absent
+                      </span>
+                    <?php endif; ?>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="2" class="px-6 py-8 text-center text-stone-500">No attendance records found</td>
+              </tr>
+            <?php endif; ?>
           </tbody>
         </table>
       </div>
     </div>
-  </div>
-  
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  </main>
 </body>
 </html>

@@ -104,8 +104,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - School ERP System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- jQuery Validation Plugin -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
     <link rel="stylesheet" href="assets/css/auth-pages.css">
+    <style>
+      .error {
+        color: #dc3545 !important;
+        font-size: 0.875rem !important;
+        margin-top: 0.5rem !important;
+        display: block !important;
+      }
+      input.error {
+        border-color: #dc3545 !important;
+        background-color: #fff5f5 !important;
+      }
+      .form-control:focus {
+        border-color: #2a7f62;
+        box-shadow: 0 0 0 0.2rem rgba(42, 127, 98, 0.25);
+      }
+    </style>
   </head>
   <body class="auth-layout">
       <div class="auth-card auth-sm">
@@ -116,27 +137,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <h1>School ERP System</h1>
           <p class="subtitle">Sign in to access your account</p>
         </div>
-        
+
         <?php if (isset($error)): ?>
         <div class="alert alert-danger" role="alert">
-          <?php echo $error; ?>
+          <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
         </div>
         <?php endif; ?>
-        
-        <form method="POST" action="">
+
+        <form id="loginForm" method="POST" action="" novalidate>
           <div class="input-group-custom">
-            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" data-validation="required,min" data-min="3">
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required>
             <i class="fas fa-user input-icon"></i>
-            <div id="username_error" class="invalid-feedback"></div>
           </div>
-          
+
           <div class="input-group-custom">
-            <input type="password" class="form-control" id="password" name="password" placeholder="Password" data-validation="required,min" data-min="6">
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
             <i class="fas fa-lock input-icon"></i>
             <i class="fas fa-eye password-toggle" id="togglePassword"></i>
-            <div id="password_error" class="invalid-feedback"></div>
           </div>
-          
+
           <div class="form-options">
             <label class="remember-me">
               <input type="checkbox" name="remember" id="remember">
@@ -144,33 +163,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             </label>
             <a href="#" class="forgot-password">Forgot Password?</a>
           </div>
-          
+
           <button type="submit" class="btn-login">
             <i class="fas fa-sign-in-alt"></i> Sign In
           </button>
         </form>
-        
+
         <div class="divider">
           <span>OR</span>
         </div>
-        
+
         <div class="signup-link">
           Don't have an account? <a href="register.php">Sign Up</a>
         </div>
       </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script src="js/validate.js"></script>
     <script>
-      // Password toggle functionality
-      const togglePassword = document.getElementById('togglePassword');
-      const passwordInput = document.getElementById('password');
-      
-      togglePassword.addEventListener('click', function() {
-        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-        passwordInput.setAttribute('type', type);
-        this.classList.toggle('fa-eye');
-        this.classList.toggle('fa-eye-slash');
+      $(document).ready(function() {
+        // Initialize jQuery Validation
+        $('#loginForm').validate({
+          rules: {
+            username: {
+              required: true,
+              minlength: 3
+            },
+            password: {
+              required: true,
+              minlength: 6
+            }
+          },
+          messages: {
+            username: {
+              required: "Please enter your username or email",
+              minlength: "Username must be at least 3 characters"
+            },
+            password: {
+              required: "Please enter your password",
+              minlength: "Password must be at least 6 characters"
+            }
+          },
+          errorElement: 'div',
+          errorClass: 'error',
+          highlight: function(element, errorClass, validClass) {
+            $(element).addClass('is-invalid');
+          },
+          unhighlight: function(element, errorClass, validClass) {
+            $(element).removeClass('is-invalid');
+          },
+          submitHandler: function(form) {
+            form.submit();
+          }
+        });
+
+        // Password toggle functionality
+        const togglePassword = document.getElementById('togglePassword');
+        const passwordInput = document.getElementById('password');
+
+        togglePassword.addEventListener('click', function() {
+          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+          passwordInput.setAttribute('type', type);
+          this.classList.toggle('fa-eye');
+          this.classList.toggle('fa-eye-slash');
+        });
       });
     </script>
   </body>

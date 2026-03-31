@@ -8,110 +8,170 @@ if (!isset($_SESSION['student_id'])) {
   header("Location: ../login.php");
   exit();
 }
+
+// Include database connection
+include '../includes/db_connect.php';
+
+$student_id = $_SESSION['student_id'];
+
+// Get student profile information
+$profile = [
+    'name' => $_SESSION['student_name'],
+    'student_id' => $student_id,
+    'email' => '',
+    'phone' => '',
+    'dob' => '',
+    'gender' => '',
+    'address' => '',
+    'class' => '',
+    'section' => '',
+    'roll_number' => '',
+    'admission_date' => '',
+    'academic_year' => ''
+];
+
+try {
+    $sql = "SELECT name, email, phone, date_of_birth, gender, address, class, section, roll_number, admission_date, academic_year FROM students WHERE student_id = ?";
+    $stmt = mysqli_prepare($conn, $sql);
+    if ($stmt) {
+        mysqli_stmt_bind_param($stmt, "i", $student_id);
+        mysqli_stmt_execute($stmt);
+        $result = mysqli_stmt_get_result($stmt);
+        if ($row = mysqli_fetch_assoc($result)) {
+            $profile = [
+                'name' => $row['name'] ?? $_SESSION['student_name'],
+                'student_id' => $student_id,
+                'email' => $row['email'] ?? '',
+                'phone' => $row['phone'] ?? '',
+                'dob' => $row['date_of_birth'] ?? '',
+                'gender' => $row['gender'] ?? '',
+                'address' => $row['address'] ?? '',
+                'class' => $row['class'] ?? '',
+                'section' => $row['section'] ?? '',
+                'roll_number' => $row['roll_number'] ?? '',
+                'admission_date' => $row['admission_date'] ?? '',
+                'academic_year' => $row['academic_year'] ?? ''
+            ];
+        }
+        mysqli_stmt_close($stmt);
+    }
+} catch (Exception $e) {
+    error_log("Profile query error: " . $e->getMessage());
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Profile</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-  <link rel="stylesheet" href="../assets/css/responsive.css">
-  <link rel="stylesheet" href="../assets/css/theme.css">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #fcfbfb; }
-    .main-content { margin-left: 280px; padding: 30px; }
-    .header { background: white; padding: 20px 30px; border-radius: 10px; margin-bottom: 30px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-bottom: 3px solid #f7d794; }
-    .header h2 { color: #192a56; margin: 0; font-weight: 700; }
-    .content-card { background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); margin-bottom: 20px; border-top: 3px solid #f7d794; }
-    .profile-header { text-align: center; padding: 30px; background: #f8f9fa; border-radius: 10px; margin-bottom: 30px; }
-    .profile-avatar { width: 120px; height: 120px; background: #f7d794; border-radius: 50%; display: inline-flex; align-items: center; justify-content: center; margin-bottom: 15px; }
-    .profile-avatar i { font-size: 4rem; color: #192a56; }
-    .profile-name { font-size: 1.8rem; font-weight: 700; color: #192a56; margin-bottom: 5px; }
-    .profile-id { color: #7f8c8d; }
-    .info-row { display: flex; padding: 15px 0; border-bottom: 1px solid #f0f0f0; }
-    .info-label { font-weight: 600; color: #192a56; width: 200px; }
-    .info-value { color: #7f8c8d; }
-    .btn-edit { background: #f7d794; color: #192a56; padding: 10px 25px; border: none; border-radius: 8px; font-weight: 600; }
-    .btn-edit:hover { background: #e5c682; }
-  </style>
+  <title>Profile - Student Portal</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
 </head>
-<body>
+<body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
-  
-  <div class="main-content">
-    <div class="header">
-      <h2><i class="fas fa-user"></i> My Profile</h2>
-    </div>
-    
-    <div class="content-card">
-      <div class="profile-header">
-        <div class="profile-avatar"><i class="fas fa-user"></i></div>
-        <div class="profile-name">Rahul Sharma</div>
-        <div class="profile-id">Student ID: STU2024001</div>
-      </div>
-      
-      <h5 class="mb-3">Personal Information</h5>
-      <div class="info-row">
-        <div class="info-label">Full Name</div>
-        <div class="info-value">Rahul Sharma</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Email</div>
-        <div class="info-value">rahulsharma@school.com</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Phone Number</div>
-        <div class="info-value">+91 9999999999</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Date of Birth</div>
-        <div class="info-value">January 15, 2005</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Gender</div>
-        <div class="info-value">Male</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Address</div>
-        <div class="info-value">Rajkot</div>
-      </div>
-      
-      <h5 class="mt-4 mb-3">Academic Information</h5>
-      <div class="info-row">
-        <div class="info-label">Class</div>
-        <div class="info-value">Grade 12</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Section</div>
-        <div class="info-value">A</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Roll Number</div>
-        <div class="info-value">12</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Admission Date</div>
-        <div class="info-value">August 1, 2020</div>
-      </div>
-      <div class="info-row">
-        <div class="info-label">Academic Year</div>
-        <div class="info-value">2024-2025</div>
-      </div>
-      
-      <div class="mt-4">
-        <button class="btn-edit"><i class="fas fa-edit"></i> Edit Profile</button>
+
+  <main class="ml-64 min-h-screen p-8">
+    <!-- Header -->
+    <div class="flex items-center gap-3 mb-8">
+      <span class="material-symbols-outlined text-3xl text-amber-500" style="font-variation-settings: 'FILL' 1;">account_circle</span>
+      <div>
+        <h1 class="text-3xl font-bold text-stone-900">My Profile</h1>
+        <p class="text-sm text-stone-500">View and manage your profile information</p>
       </div>
     </div>
-  </div>
-  
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    document.querySelectorAll('.nav-item').forEach(item => {
-      if (item.href === window.location.href) item.classList.add('active');
-    });
-  </script>
+
+    <!-- Profile Card -->
+    <div class="bg-white rounded-lg shadow-sm border border-stone-200 mb-8">
+      <!-- Profile Header -->
+      <div class="bg-gradient-to-r from-amber-50 to-orange-50 p-8 border-b border-stone-200">
+        <div class="flex flex-col items-center">
+          <div class="w-24 h-24 bg-amber-200 rounded-full flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-5xl text-amber-700">person</span>
+          </div>
+          <h2 class="text-2xl font-bold text-stone-900"><?php echo htmlspecialchars($profile['name']); ?></h2>
+          <p class="text-stone-500 mt-1">Student ID: <?php echo htmlspecialchars($profile['student_id']); ?></p>
+        </div>
+      </div>
+
+      <!-- Profile Content -->
+      <div class="p-8">
+        <!-- Personal Information Section -->
+        <div class="mb-8">
+          <h3 class="text-lg font-bold text-stone-900 mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined">person_outline</span>
+            Personal Information
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Full Name</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['name']); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Email</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['email'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Phone Number</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['phone'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Date of Birth</p>
+              <p class="text-base font-medium text-stone-900"><?php echo $profile['dob'] ? date('d M Y', strtotime($profile['dob'])) : 'Not provided'; ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Gender</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['gender'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Address</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['address'] ?: 'Not provided'); ?></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Academic Information Section -->
+        <div class="mb-8">
+          <h3 class="text-lg font-bold text-stone-900 mb-6 flex items-center gap-2">
+            <span class="material-symbols-outlined">school</span>
+            Academic Information
+          </h3>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Class</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['class'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Section</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['section'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Roll Number</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['roll_number'] ?: 'Not provided'); ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Admission Date</p>
+              <p class="text-base font-medium text-stone-900"><?php echo $profile['admission_date'] ? date('d M Y', strtotime($profile['admission_date'])) : 'Not provided'; ?></p>
+            </div>
+            <div class="border-b border-stone-200 pb-4">
+              <p class="text-sm text-stone-500 mb-1">Academic Year</p>
+              <p class="text-base font-medium text-stone-900"><?php echo htmlspecialchars($profile['academic_year'] ?: 'Not provided'); ?></p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="pt-6 border-t border-stone-200">
+          <div class="p-4 bg-blue-50 rounded-lg border border-blue-200 flex items-start gap-3">
+            <span class="material-symbols-outlined text-blue-600 flex-shrink-0 mt-0.5">info</span>
+            <div>
+              <p class="font-semibold text-blue-900">Profile Information</p>
+              <p class="text-sm text-blue-700 mt-1">Your profile information is managed by the school administration. To request any changes to your profile, please <a href="contact-admin.php" class="underline font-semibold hover:text-blue-900">contact the admin</a>.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
 </body>
 </html>

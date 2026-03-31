@@ -396,16 +396,18 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
           </button>
         </div>
 
-        <form method="POST" class="space-y-6">
+        <form method="POST" class="space-y-6" novalidate>
           <input type="hidden" name="assignment_id" id="edit_assignment_id">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Assignment Title</label>
-              <input type="text" name="edit_title" id="edit_title" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+              <input type="text" name="edit_title" id="edit_title" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,min,max" data-min="3" data-max="120">
+              <p id="edit_title_error" class="text-sm text-red-600 hidden"></p>
             </div>
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Total Points</label>
-              <input type="number" name="edit_points" id="edit_points" min="1" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+              <input type="number" name="edit_points" id="edit_points" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,number">
+              <p id="edit_points_error" class="text-sm text-red-600 hidden"></p>
             </div>
           </div>
 
@@ -417,25 +419,28 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
           <div class="grid grid-cols-3 gap-4">
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Class</label>
-              <select name="edit_class_id" id="edit_class_id" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+              <select name="edit_class_id" id="edit_class_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,select">
                 <option value="">Select Class</option>
                 <?php foreach ($classes as $class): ?>
                 <option value="<?php echo $class['id']; ?>"><?php echo htmlspecialchars($class['name']); ?></option>
                 <?php endforeach; ?>
               </select>
+              <p id="edit_class_id_error" class="text-sm text-red-600 hidden"></p>
             </div>
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Subject</label>
-              <select name="edit_subject_id" id="edit_subject_id" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+              <select name="edit_subject_id" id="edit_subject_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required,select">
                 <option value="">Select Subject</option>
                 <?php foreach ($subjects as $subject): ?>
                 <option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
                 <?php endforeach; ?>
               </select>
+              <p id="edit_subject_id_error" class="text-sm text-red-600 hidden"></p>
             </div>
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Due Date</label>
-              <input type="date" name="edit_due_date" id="edit_due_date" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary">
+              <input type="date" name="edit_due_date" id="edit_due_date" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary" data-validation="required">
+              <p id="edit_due_date_error" class="text-sm text-red-600 hidden"></p>
             </div>
           </div>
 
@@ -459,7 +464,7 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
           <h2 class="text-xl font-bold text-on-surface mb-2">Delete Assignment</h2>
           <p class="text-on-surface-variant mb-6" id="deleteMessage">Are you sure you want to delete this assignment? This action cannot be undone.</p>
 
-          <form method="POST" class="flex justify-center gap-3">
+          <form method="POST" class="flex justify-center gap-3" novalidate>
             <input type="hidden" name="assignment_id" id="delete_assignment_id">
             <button type="button" onclick="closeDeleteModal()" class="px-6 py-3 text-on-surface-variant font-semibold rounded-xl hover:bg-surface-variant">Cancel</button>
             <button type="submit" name="delete_assignment" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700">Delete Assignment</button>
@@ -469,6 +474,8 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
     </div>
   </div>
 
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
   <script>
     // Modal functions
     function openCreateModal() {
@@ -562,11 +569,12 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
         </button>
       </div>
 
-      <form method="POST" class="space-y-6">
+      <form method="POST" class="space-y-6" novalidate>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="md:col-span-2">
             <label class="block text-sm font-semibold text-on-surface mb-2">Assignment Title</label>
-            <input type="text" name="title" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" placeholder="Enter assignment title">
+            <input type="text" name="title" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" placeholder="Enter assignment title" data-validation="required,min,max" data-min="3" data-max="120">
+            <p id="title_error" class="text-sm text-red-600 hidden"></p>
           </div>
 
           <div class="md:col-span-2">
@@ -576,30 +584,34 @@ while ($row = mysqli_fetch_assoc($result_subjects)) {
 
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Class</label>
-            <select name="class_id" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm">
+            <select name="class_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" data-validation="required,select">
               <?php foreach ($classes as $class): ?>
               <option value="<?php echo $class['id']; ?>"><?php echo htmlspecialchars($class['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="class_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
 
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Subject</label>
-            <select name="subject_id" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm">
+            <select name="subject_id" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm" data-validation="required,select">
               <?php foreach ($subjects as $subject): ?>
               <option value="<?php echo $subject['id']; ?>"><?php echo htmlspecialchars($subject['name']); ?></option>
               <?php endforeach; ?>
             </select>
+            <p id="subject_id_error" class="text-sm text-red-600 hidden"></p>
           </div>
 
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Due Date</label>
-            <input type="date" name="due_date" required class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm">
+            <input type="date" name="due_date" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary text-sm" data-validation="required">
+            <p id="due_date_error" class="text-sm text-red-600 hidden"></p>
           </div>
 
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Total Points</label>
-            <input type="number" name="points" value="100" min="1" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary text-sm">
+            <input type="number" name="points" value="100" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary text-sm" data-validation="required,number">
+            <p id="points_error" class="text-sm text-red-600 hidden"></p>
           </div>
         </div>
 
