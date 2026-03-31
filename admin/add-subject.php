@@ -12,9 +12,9 @@ admin_ensure_column($connection, 'subjects', 'description', 'TEXT NULL');
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
-  $classResult = mysqli_query($connection, "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
   if ($classResult) {
-    while ($classRow = mysqli_fetch_assoc($classResult)) {
+    while ($classRow = $classResult->fetch_assoc()) {
       $classOptions[] = $classRow;
     }
   }
@@ -22,9 +22,9 @@ if ($classNameColumn !== null) {
 
 $teacherOptions = [];
 if (admin_table_exists($connection, 'teachers')) {
-  $teacherResult = mysqli_query($connection, 'SELECT id, name FROM teachers ORDER BY name ASC');
+  $teacherResult = $connection->query( 'SELECT id, name FROM teachers ORDER BY name ASC');
   if ($teacherResult) {
-    while ($teacherRow = mysqli_fetch_assoc($teacherResult)) {
+    while ($teacherRow = $teacherResult->fetch_assoc()) {
       $teacherOptions[] = $teacherRow;
     }
   }
@@ -61,15 +61,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   if ($errorMessage === '' && admin_column_exists($connection, 'subjects', 'code')) {
-    $codeCheckStmt = mysqli_prepare($connection, 'SELECT id FROM subjects WHERE code = ? LIMIT 1');
+    $codeCheckStmt = $connection->prepare( 'SELECT id FROM subjects WHERE code = ? LIMIT 1');
     if ($codeCheckStmt) {
-      mysqli_stmt_bind_param($codeCheckStmt, 's', $formData['subject_code']);
-      mysqli_stmt_execute($codeCheckStmt);
-      $codeCheckResult = mysqli_stmt_get_result($codeCheckStmt);
-      if ($codeCheckResult && mysqli_num_rows($codeCheckResult) > 0) {
+      $codeCheckStmt->bind_param( 's', $formData['subject_code']);
+      $codeCheckStmt->execute();
+      $codeCheckResult = $codeCheckStmt->get_result();
+      if ($codeCheckResult && $codeCheckResult->num_rows > 0) {
         $errorMessage = 'Subject code already exists.';
       }
-      mysqli_stmt_close($codeCheckStmt);
+      $codeCheckStmt->close();
     }
   }
 
@@ -135,17 +135,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $insertSql = 'INSERT INTO subjects (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-    $insertStmt = mysqli_prepare($connection, $insertSql);
+    $insertStmt = $connection->prepare( $insertSql);
 
     if (!$insertStmt) {
       $errorMessage = 'Unable to save subject right now.';
     } else {
       if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
         $errorMessage = 'Unable to bind subject parameters.';
-      } elseif (!mysqli_stmt_execute($insertStmt)) {
+      } elseif (!$insertStmt->execute()) {
         $errorMessage = 'Failed to add subject. Please try again.';
       }
-      mysqli_stmt_close($insertStmt);
+      $insertStmt->close();
     }
   }
 
