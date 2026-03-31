@@ -10,9 +10,9 @@ admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classMap = [];
 if ($classNameColumn !== null) {
-  $classResult = mysqli_query($connection, "SELECT id, {$classNameColumn} AS class_name FROM classes");
+  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes");
   if ($classResult) {
-    while ($classRow = mysqli_fetch_assoc($classResult)) {
+    while ($classRow = $classResult->fetch_assoc()) {
       $classMap[(int) $classRow['id']] = (string) $classRow['class_name'];
     }
   }
@@ -20,9 +20,9 @@ if ($classNameColumn !== null) {
 
 $students = [];
 if (admin_table_exists($connection, 'students')) {
-  $studentResult = mysqli_query($connection, 'SELECT id, name, class, class_id FROM students ORDER BY name ASC');
+  $studentResult = $connection->query( 'SELECT id, name, class, class_id FROM students ORDER BY name ASC');
   if ($studentResult) {
-    while ($studentRow = mysqli_fetch_assoc($studentResult)) {
+    while ($studentRow = $studentResult->fetch_assoc()) {
       $studentClass = trim((string) ($studentRow['class'] ?? ''));
       if ($studentClass === '' && isset($studentRow['class_id'])) {
         $studentClassId = (int) $studentRow['class_id'];
@@ -125,17 +125,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     $insertSql = 'INSERT INTO fees (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
-    $insertStmt = mysqli_prepare($connection, $insertSql);
+    $insertStmt = $connection->prepare( $insertSql);
 
     if (!$insertStmt) {
       $errorMessage = 'Unable to save fee record right now.';
     } else {
       if (!admin_bind_dynamic_params($insertStmt, $insertTypes, $insertParams)) {
         $errorMessage = 'Unable to bind fee parameters.';
-      } elseif (!mysqli_stmt_execute($insertStmt)) {
+      } elseif (!$insertStmt->execute()) {
         $errorMessage = 'Failed to add fee record. Please try again.';
       }
-      mysqli_stmt_close($insertStmt);
+      $insertStmt->close();
     }
   }
 
