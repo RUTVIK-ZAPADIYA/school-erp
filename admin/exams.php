@@ -13,15 +13,19 @@ admin_ensure_column($connection, 'exams', 'invigilator', 'INT NULL');
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
   $examId = (int) ($_POST['exam_id'] ?? 0);
   if ($examId > 0) {
-    $deleteStmt = mysqli_prepare($connection, 'DELETE FROM exams WHERE id = ?');
-    if ($deleteStmt) {
-      mysqli_stmt_bind_param($deleteStmt, 'i', $examId);
-      if (mysqli_stmt_execute($deleteStmt)) {
-        admin_set_flash('success', 'Exam deleted successfully.');
-      } else {
+    $deleteStmt = $connection->prepare( 'DELETE FROM exams WHERE id = ?');
+    if (!$deleteStmt) {
+      admin_set_flash('danger', 'Unable to process exam delete request.');
+    } else {
+      $deleteStmt->bind_param( 'i', $examId);
+      if (!$deleteStmt->execute()) {
         admin_set_flash('danger', 'Unable to delete exam right now.');
+      } elseif ($deleteStmt->affected_rows < 1) {
+        admin_set_flash('warning', 'Exam record was already removed or not found.');
+      } else {
+        admin_set_flash('success', 'Exam deleted successfully.');
       }
-      mysqli_stmt_close($deleteStmt);
+      $deleteStmt->close();
     }
   }
 
@@ -46,23 +50,23 @@ if (admin_table_exists($connection, 'exams')) {
 
   if ($search !== '') {
     $searchSql = $baseSql . " WHERE e.exam_name LIKE ? OR e.exam_type LIKE ? OR {$classNameExpression} LIKE ? OR {$subjectNameExpression} LIKE ? ORDER BY e.exam_date DESC";
-    $searchStmt = mysqli_prepare($connection, $searchSql);
+    $searchStmt = $connection->prepare( $searchSql);
     if ($searchStmt) {
       $searchTerm = '%' . $search . '%';
-      mysqli_stmt_bind_param($searchStmt, 'ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
-      mysqli_stmt_execute($searchStmt);
-      $result = mysqli_stmt_get_result($searchStmt);
+      $searchStmt->bind_param( 'ssss', $searchTerm, $searchTerm, $searchTerm, $searchTerm);
+      $searchStmt->execute();
+      $result = $searchStmt->get_result();
       if ($result) {
-        while ($row = mysqli_fetch_assoc($result)) {
+        while ($row = $result->fetch_assoc()) {
           $exams[] = $row;
         }
       }
-      mysqli_stmt_close($searchStmt);
+      $searchStmt->close();
     }
   } else {
-    $result = mysqli_query($connection, $baseSql . ' ORDER BY e.exam_date DESC');
+    $result = $connection->query( $baseSql . ' ORDER BY e.exam_date DESC');
     if ($result) {
-      while ($row = mysqli_fetch_assoc($result)) {
+      while ($row = $result->fetch_assoc()) {
         $exams[] = $row;
       }
     }
@@ -155,7 +159,9 @@ $flash = admin_pull_flash();
                   <td><?php echo htmlspecialchars($durationText); ?></td>
                   <td><span class="badge <?php echo $statusClass; ?>"><?php echo htmlspecialchars($status); ?></span></td>
                   <td>
-                    <a class="btn btn-sm btn-outline-primary" href="add-exam.php"><i class="fas fa-plus"></i></a>
+                    <a class="btn btn-sm btn-outline-primary" href="edit-exam.php?id=<?php echo (int) $exam['id']; ?>" title="Edit Exam">
+                      <i class="fas fa-edit"></i>
+                    </a>
                     <form method="POST" action="" style="display:inline-block;">
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="exam_id" value="<?php echo (int) $exam['id']; ?>">
