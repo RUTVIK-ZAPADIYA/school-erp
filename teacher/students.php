@@ -45,6 +45,8 @@ function teacher_first_existing_column($conn, $tableName, array $candidates)
 
 $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
 $studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
+$studentsHasUserId = teacher_column_exists($conn, 'students', 'user_id');
+$gradesHasStudentUserId = teacher_column_exists($conn, 'grades', 'student_user_id');
 
 // Get students in teacher's classes with enhanced statistics
 $students = [];
@@ -62,6 +64,7 @@ if (
 ) {
   $classNameExpr = "COALESCE(NULLIF(c.name, ''), c.class_name, CONCAT('Class ', c.id))";
   $rollSelect = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : "''";
+  $studentUserSelect = $studentsHasUserId ? ', COALESCE(NULLIF(s.user_id, 0), s.id) AS linked_user_id' : ', s.id AS linked_user_id';
   $orderBy = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
 
   $studentClassJoinParts = [];
@@ -76,7 +79,7 @@ if (
 
   $studentClassJoinSql = implode(' OR ', $studentClassJoinParts);
 
-  $sql = "SELECT DISTINCT s.id, {$rollSelect} AS roll_no, s.name, s.email, {$classNameExpr} AS class_name, c.id AS class_id
+  $sql = "SELECT DISTINCT s.id, {$rollSelect} AS roll_no, s.name, s.email, {$classNameExpr} AS class_name, c.id AS class_id{$studentUserSelect}
       FROM students s
       INNER JOIN classes c ON ({$studentClassJoinSql})
       WHERE c.teacher_id IN ({$teacher_ids_sql})
@@ -91,12 +94,26 @@ if (
       }
 
       $total_students++;
+      $linked_user_id = (int) ($row['linked_user_id'] ?? $student_id);
+      if ($linked_user_id <= 0) {
+        $linked_user_id = $student_id;
+      }
 
       $row['avg_grade'] = 0;
       if (teacher_table_exists($conn, 'grades') && teacher_column_exists($conn, 'grades', 'student_id')) {
-        $gradeStmt = $conn->prepare( 'SELECT COALESCE(AVG(obtained_marks), 0) AS avg_grade FROM grades WHERE student_id = ?');
+        if ($gradesHasStudentUserId) {
+          $gradeStmt = $conn->prepare( 'SELECT COALESCE(AVG(obtained_marks), 0) AS avg_grade FROM grades WHERE student_id = ? OR student_user_id = ?');
+        } else {
+          $gradeStmt = $conn->prepare( 'SELECT COALESCE(AVG(obtained_marks), 0) AS avg_grade FROM grades WHERE student_id = ?');
+        }
+
         if ($gradeStmt) {
-          $gradeStmt->bind_param( 'i', $student_id);
+          if ($gradesHasStudentUserId) {
+            $gradeStmt->bind_param( 'ii', $student_id, $linked_user_id);
+          } else {
+            $gradeStmt->bind_param( 'i', $student_id);
+          }
+
           $gradeStmt->execute();
           $gradeResult = $gradeStmt->get_result();
           $gradeData = $gradeResult ? $gradeResult->fetch_assoc() : null;

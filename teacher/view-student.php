@@ -46,6 +46,8 @@ $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'cla
 $subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
 $assignmentPointsColumn = teacher_first_existing_column($conn, 'assignments', ['total_points', 'total_marks']);
 $assignmentPointsExpr = $assignmentPointsColumn !== null ? "a.`{$assignmentPointsColumn}`" : '0';
+$studentsHasUserId = teacher_column_exists($conn, 'students', 'user_id');
+$gradesHasStudentUserId = teacher_column_exists($conn, 'grades', 'student_user_id');
 
 // Get student details
 $student_id = isset($_GET['id']) ? intval($_GET['id']) : 0;
@@ -88,15 +90,24 @@ if (!$student) {
     exit();
 }
 
+$student_user_id = $studentsHasUserId ? (int) ($student['user_id'] ?? 0) : 0;
+if ($student_user_id <= 0) {
+    $student_user_id = $student_id;
+}
+
 // Get student's grades
 $subjectNameExpr = $subjectNameColumn !== null ? "sub.`{$subjectNameColumn}`" : "CONCAT('Subject ', sub.id)";
 $query = "SELECT g.exam_type, g.total_marks, g.obtained_marks, g.grade, g.remarks, {$subjectNameExpr} AS subject_name
           FROM grades g
           JOIN subjects sub ON g.subject_id = sub.id
-          WHERE g.student_id = ?
+          WHERE " . ($gradesHasStudentUserId ? '(g.student_id = ? OR g.student_user_id = ?)' : 'g.student_id = ?') . "
           ORDER BY g.exam_type, subject_name";
 $stmt = $conn->prepare( $query);
-$stmt->bind_param( "i", $student_id);
+if ($gradesHasStudentUserId) {
+    $stmt->bind_param( "ii", $student_id, $student_user_id);
+} else {
+    $stmt->bind_param( "i", $student_id);
+}
 $stmt->execute();
 $result = $stmt->get_result();
 $grades = [];
@@ -109,9 +120,9 @@ $stmt->close();
 $query = "SELECT COUNT(*) as total_days,
           SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) as present_days
           FROM attendance
-          WHERE student_id = ?";
+          WHERE student_id IN (?, ?)";
 $stmt = $conn->prepare( $query);
-$stmt->bind_param( "i", $student_id);
+$stmt->bind_param( "ii", $student_id, $student_user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $attendance = $result->fetch_assoc();
@@ -143,10 +154,10 @@ if ($total_subjects > 0) {
 $query = "SELECT a.title, asub.marks_obtained, asub.status, {$assignmentPointsExpr} AS max_marks, a.due_date
           FROM assignment_submissions asub
           JOIN assignments a ON asub.assignment_id = a.id
-          WHERE asub.student_id = ? AND a.teacher_id IN ({$teacher_ids_sql})
+          WHERE asub.student_id IN (?, ?) AND a.teacher_id IN ({$teacher_ids_sql})
           ORDER BY a.due_date DESC LIMIT 5";
 $stmt = $conn->prepare( $query);
-$stmt->bind_param( "i", $student_id);
+$stmt->bind_param( "ii", $student_id, $student_user_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $recent_assignments = [];

@@ -313,3 +313,36 @@ if (!function_exists('student_auth_bind_dynamic_params')) {
         return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
     }
 }
+
+if (!function_exists('student_auth_link_filter_sql')) {
+    function student_auth_link_filter_sql($conn, $tableName, $studentIdColumn = 'student_id', $studentUserIdColumn = 'student_user_id', $tableAlias = '')
+    {
+        $ids = student_auth_student_ids();
+        $placeholderCount = count($ids);
+        $placeholders = implode(', ', array_fill(0, $placeholderCount, '?'));
+
+        $aliasPrefix = trim((string) $tableAlias);
+        if ($aliasPrefix !== '') {
+            $aliasPrefix = rtrim($aliasPrefix, '.') . '.';
+        }
+
+        $baseSql = $aliasPrefix . $studentIdColumn . ' IN (' . $placeholders . ')';
+        $types = str_repeat('i', $placeholderCount);
+        $params = array_map('intval', $ids);
+
+        if (
+            $studentUserIdColumn !== ''
+            && student_auth_column_exists($conn, $tableName, $studentUserIdColumn)
+        ) {
+            $baseSql = '(' . $baseSql . ' OR ' . $aliasPrefix . $studentUserIdColumn . ' IN (' . $placeholders . '))';
+            $types .= str_repeat('i', $placeholderCount);
+            $params = array_merge($params, array_map('intval', $ids));
+        }
+
+        return [
+            'sql' => $baseSql,
+            'types' => $types,
+            'params' => $params,
+        ];
+    }
+}

@@ -191,6 +191,7 @@ if (!function_exists('ensure_school_erp_schema')) {
             CREATE TABLE IF NOT EXISTS grades (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 student_id INT NULL,
+                student_user_id INT NULL,
                 subject_id INT NULL,
                 exam_type VARCHAR(60) NULL,
                 total_marks INT DEFAULT 100,
@@ -206,6 +207,7 @@ if (!function_exists('ensure_school_erp_schema')) {
             CREATE TABLE IF NOT EXISTS marks (
                 id INT AUTO_INCREMENT PRIMARY KEY,
                 student_id INT NULL,
+                student_user_id INT NULL,
                 subject_id INT NULL,
                 teacher_id INT NULL,
                 marks INT NULL,
@@ -289,6 +291,8 @@ if (!function_exists('ensure_school_erp_schema')) {
         ensure_school_erp_column($conn, 'attendance', 'teacher_id', 'INT NULL');
         ensure_school_erp_column($conn, 'attendance', 'status', "VARCHAR(20) NULL");
         ensure_school_erp_column($conn, 'assignment_submissions', 'grade', 'DECIMAL(10,2) NULL');
+        ensure_school_erp_column($conn, 'grades', 'student_user_id', 'INT NULL');
+        ensure_school_erp_column($conn, 'marks', 'student_user_id', 'INT NULL');
 
         $adminPass = password_hash('admin123', PASSWORD_DEFAULT);
         $teacherPass = password_hash('teacher123', PASSWORD_DEFAULT);
@@ -461,6 +465,76 @@ if (!function_exists('ensure_school_erp_schema')) {
                      INNER JOIN users u ON s.user_id = u.id
                      SET s.username = u.username
                      WHERE u.role = 'student'"
+                );
+            }
+        }
+
+        if (
+            school_erp_table_exists($conn, 'students')
+            && school_erp_column_exists($conn, 'students', 'id')
+            && school_erp_column_exists($conn, 'students', 'user_id')
+        ) {
+            if (
+                school_erp_table_exists($conn, 'grades')
+                && school_erp_column_exists($conn, 'grades', 'student_id')
+                && school_erp_column_exists($conn, 'grades', 'student_user_id')
+            ) {
+                $conn->query(
+                    "UPDATE grades g
+                     INNER JOIN students s ON g.student_id = s.id
+                     SET g.student_user_id = COALESCE(NULLIF(g.student_user_id, 0), s.user_id)
+                     WHERE s.user_id IS NOT NULL AND s.user_id <> 0"
+                );
+
+                if (school_erp_table_exists($conn, 'users') && school_erp_column_exists($conn, 'users', 'role')) {
+                    $conn->query(
+                        "UPDATE grades g
+                         LEFT JOIN students s ON g.student_id = s.id
+                         INNER JOIN users u ON g.student_id = u.id AND u.role = 'student'
+                         SET g.student_user_id = g.student_id
+                         WHERE s.id IS NULL AND (g.student_user_id IS NULL OR g.student_user_id = 0)"
+                    );
+                }
+
+                $conn->query(
+                    "UPDATE grades g
+                     INNER JOIN students s ON g.student_user_id = s.user_id
+                                         SET g.student_id = s.id
+                                         WHERE s.user_id IS NOT NULL
+                                             AND s.user_id <> 0
+                                             AND (g.student_id IS NULL OR g.student_id = 0 OR g.student_id <> s.id)"
+                );
+            }
+
+            if (
+                school_erp_table_exists($conn, 'marks')
+                && school_erp_column_exists($conn, 'marks', 'student_id')
+                && school_erp_column_exists($conn, 'marks', 'student_user_id')
+            ) {
+                $conn->query(
+                    "UPDATE marks m
+                     INNER JOIN students s ON m.student_id = s.id
+                     SET m.student_user_id = COALESCE(NULLIF(m.student_user_id, 0), s.user_id)
+                     WHERE s.user_id IS NOT NULL AND s.user_id <> 0"
+                );
+
+                if (school_erp_table_exists($conn, 'users') && school_erp_column_exists($conn, 'users', 'role')) {
+                    $conn->query(
+                        "UPDATE marks m
+                         LEFT JOIN students s ON m.student_id = s.id
+                         INNER JOIN users u ON m.student_id = u.id AND u.role = 'student'
+                         SET m.student_user_id = m.student_id
+                         WHERE s.id IS NULL AND (m.student_user_id IS NULL OR m.student_user_id = 0)"
+                    );
+                }
+
+                $conn->query(
+                    "UPDATE marks m
+                     INNER JOIN students s ON m.student_user_id = s.user_id
+                     SET m.student_id = s.id
+                     WHERE s.user_id IS NOT NULL
+                       AND s.user_id <> 0
+                       AND (m.student_id IS NULL OR m.student_id = 0 OR m.student_id <> s.id)"
                 );
             }
         }

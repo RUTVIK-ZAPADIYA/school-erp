@@ -3,7 +3,6 @@ require_once __DIR__ . '/auth.php';
 
 $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['student_id'] ?? 0);
-$studentFilter = student_auth_student_id_filter_sql('student_id');
 
 // Get marks records
 $marks_records = [];
@@ -14,35 +13,123 @@ $highest = 0;
 $lowest = 100;
 
 try {
-  $sql = "SELECT subject, total_marks, obtained_marks FROM marks WHERE {$studentFilter['sql']} ORDER BY subject ASC";
+  $recordsLoaded = false;
+
+  // Primary source: grades table.
+  if (
+    student_auth_table_exists($conn, 'grades')
+    && student_auth_column_exists($conn, 'grades', 'obtained_marks')
+  ) {
+    $gradesFilter = student_auth_link_filter_sql($conn, 'grades', 'student_id', 'student_user_id', 'g');
+    $subjectNameExpr = "CONCAT('Subject ', g.subject_id)";
+    $subjectJoinSql = '';
+
+    if (student_auth_table_exists($conn, 'subjects')) {
+      $subjectJoinSql = ' LEFT JOIN subjects s ON g.subject_id = s.id';
+      if (student_auth_column_exists($conn, 'subjects', 'name') && student_auth_column_exists($conn, 'subjects', 'subject_name')) {
+        $subjectNameExpr = "COALESCE(NULLIF(s.name, ''), s.subject_name, CONCAT('Subject ', g.subject_id))";
+      } elseif (student_auth_column_exists($conn, 'subjects', 'name')) {
+        $subjectNameExpr = "COALESCE(NULLIF(s.name, ''), CONCAT('Subject ', g.subject_id))";
+      } elseif (student_auth_column_exists($conn, 'subjects', 'subject_name')) {
+        $subjectNameExpr = "COALESCE(NULLIF(s.subject_name, ''), CONCAT('Subject ', g.subject_id))";
+      }
+    }
+
+    $totalMarksExpr = student_auth_column_exists($conn, 'grades', 'total_marks')
+      ? 'COALESCE(g.total_marks, 100)'
+      : '100';
+
+    $sql = "SELECT {$subjectNameExpr} AS subject, {$totalMarksExpr} AS total_marks, COALESCE(g.obtained_marks, 0) AS obtained_marks
+        FROM grades g{$subjectJoinSql}
+        WHERE {$gradesFilter['sql']}
+        ORDER BY subject ASC";
+
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
-    $filterParams = $studentFilter['params'];
-    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
-      $stmt->execute();
-      $result = $stmt->get_result();
-      while ($row = $result->fetch_assoc()) {
-        $marks_records[] = $row;
-        $total_marks += $row['total_marks'];
-        $obtained_marks += $row['obtained_marks'];
-
-        $recordTotalMarks = (float) ($row['total_marks'] ?? 0);
-        $recordObtainedMarks = (float) ($row['obtained_marks'] ?? 0);
-        $percentage = $recordTotalMarks > 0 ? ($recordObtainedMarks / $recordTotalMarks) * 100 : 0;
-        if ($percentage > $highest) $highest = $percentage;
-        if ($percentage < $lowest) $lowest = $percentage;
+      $filterParams = $gradesFilter['params'];
+      if (student_auth_bind_dynamic_params($stmt, $gradesFilter['types'], $filterParams)) {
+        $stmt->execute();
+        $result = $stmt->get_result();
+        while ($result && ($row = $result->fetch_assoc())) {
+          $marks_records[] = $row;
+          $recordsLoaded = true;
+        }
       }
+      $stmt->close();
+    }
+  }
+
+  // Fallback source: marks table (legacy/new variants).
+  if (!$recordsLoaded && student_auth_table_exists($conn, 'marks')) {
+    $marksValueColumn = null;
+    if (student_auth_column_exists($conn, 'marks', 'marks')) {
+      $marksValueColumn = 'marks';
+    } elseif (student_auth_column_exists($conn, 'marks', 'obtained_marks')) {
+      $marksValueColumn = 'obtained_marks';
+    }
+
+    if ($marksValueColumn !== null) {
+      $marksFilter = student_auth_link_filter_sql($conn, 'marks', 'student_id', 'student_user_id', 'm');
+      $subjectNameExpr = "CONCAT('Subject ', m.subject_id)";
+      $subjectJoinSql = '';
+
+      if (student_auth_table_exists($conn, 'subjects') && student_auth_column_exists($conn, 'marks', 'subject_id')) {
+        $subjectJoinSql = ' LEFT JOIN subjects s ON m.subject_id = s.id';
+        if (student_auth_column_exists($conn, 'subjects', 'name') && student_auth_column_exists($conn, 'subjects', 'subject_name')) {
+          $subjectNameExpr = "COALESCE(NULLIF(s.name, ''), s.subject_name, CONCAT('Subject ', m.subject_id))";
+        } elseif (student_auth_column_exists($conn, 'subjects', 'name')) {
+          $subjectNameExpr = "COALESCE(NULLIF(s.name, ''), CONCAT('Subject ', m.subject_id))";
+        } elseif (student_auth_column_exists($conn, 'subjects', 'subject_name')) {
+          $subjectNameExpr = "COALESCE(NULLIF(s.subject_name, ''), CONCAT('Subject ', m.subject_id))";
+        }
+      } elseif (student_auth_column_exists($conn, 'marks', 'subject')) {
+        $subjectNameExpr = 'm.subject';
+      }
+
+      $totalMarksExpr = student_auth_column_exists($conn, 'marks', 'total_marks')
+        ? 'COALESCE(m.total_marks, 100)'
+        : '100';
+
+      $sql = "SELECT {$subjectNameExpr} AS subject, {$totalMarksExpr} AS total_marks, COALESCE(m.{$marksValueColumn}, 0) AS obtained_marks
+          FROM marks m{$subjectJoinSql}
+          WHERE {$marksFilter['sql']}
+          ORDER BY subject ASC";
+
+      $stmt = $conn->prepare( $sql);
+      if ($stmt) {
+        $filterParams = $marksFilter['params'];
+        if (student_auth_bind_dynamic_params($stmt, $marksFilter['types'], $filterParams)) {
+          $stmt->execute();
+          $result = $stmt->get_result();
+          while ($result && ($row = $result->fetch_assoc())) {
+            $marks_records[] = $row;
+            $recordsLoaded = true;
+          }
         }
         $stmt->close();
-
-        // Calculate average
-        if (count($marks_records) > 0 && $total_marks > 0) {
-            $average = round(($obtained_marks / $total_marks) * 100, 2);
-    } else {
-          $average = 0;
-      $lowest = 0;
-        }
+      }
     }
+  }
+
+  foreach ($marks_records as $row) {
+    $recordTotalMarks = (float) ($row['total_marks'] ?? 0);
+    $recordObtainedMarks = (float) ($row['obtained_marks'] ?? 0);
+
+    $total_marks += $recordTotalMarks;
+    $obtained_marks += $recordObtainedMarks;
+
+    $percentage = $recordTotalMarks > 0 ? ($recordObtainedMarks / $recordTotalMarks) * 100 : 0;
+    if ($percentage > $highest) $highest = $percentage;
+    if ($percentage < $lowest) $lowest = $percentage;
+  }
+
+  // Calculate average
+  if (count($marks_records) > 0 && $total_marks > 0) {
+    $average = round(($obtained_marks / $total_marks) * 100, 2);
+  } else {
+    $average = 0;
+    $lowest = 0;
+  }
 } catch (Exception $e) {
     error_log("Marks query error: " . $e->getMessage());
 }

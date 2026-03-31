@@ -31,18 +31,39 @@ try {
         $stmt->close();
     }
 
-    // Get average marks
-  $sql_marks = "SELECT AVG(marks) as avg_marks FROM marks WHERE {$studentFilter['sql']}";
-    $stmt = $conn->prepare( $sql_marks);
-    if ($stmt) {
-    $filterParams = $studentFilter['params'];
-    if (student_auth_bind_dynamic_params($stmt, $studentFilter['types'], $filterParams)) {
-      $stmt->execute();
-      $result = $stmt->get_result();
-      $row = $result->fetch_assoc();
-      $stats['average_marks'] = round($row['avg_marks'] ?? 0, 2);
+    // Get average marks (prefer grades table, fallback to marks table).
+    $marksAverageSql = '';
+    $marksAverageFilter = null;
+
+    if (student_auth_table_exists($conn, 'grades') && student_auth_column_exists($conn, 'grades', 'obtained_marks')) {
+      $marksAverageFilter = student_auth_link_filter_sql($conn, 'grades');
+      $marksAverageSql = "SELECT AVG(obtained_marks) as avg_marks FROM grades WHERE {$marksAverageFilter['sql']}";
+    } elseif (student_auth_table_exists($conn, 'marks')) {
+      $marksValueColumn = null;
+      if (student_auth_column_exists($conn, 'marks', 'marks')) {
+        $marksValueColumn = 'marks';
+      } elseif (student_auth_column_exists($conn, 'marks', 'obtained_marks')) {
+        $marksValueColumn = 'obtained_marks';
+      }
+
+      if ($marksValueColumn !== null) {
+        $marksAverageFilter = student_auth_link_filter_sql($conn, 'marks');
+        $marksAverageSql = "SELECT AVG({$marksValueColumn}) as avg_marks FROM marks WHERE {$marksAverageFilter['sql']}";
+      }
     }
+
+    if ($marksAverageSql !== '' && is_array($marksAverageFilter)) {
+      $stmt = $conn->prepare( $marksAverageSql);
+      if ($stmt) {
+        $filterParams = $marksAverageFilter['params'];
+        if (student_auth_bind_dynamic_params($stmt, $marksAverageFilter['types'], $filterParams)) {
+          $stmt->execute();
+          $result = $stmt->get_result();
+          $row = $result->fetch_assoc();
+          $stats['average_marks'] = round((float) ($row['avg_marks'] ?? 0), 2);
+        }
         $stmt->close();
+      }
     }
 
     // Get pending fees

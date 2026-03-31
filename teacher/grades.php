@@ -75,6 +75,8 @@ function teacher_grade_from_marks($obtainedMarks, $totalMarks)
 $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
 $subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
 $studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no', 'roll_number']);
+$studentsHasUserId = teacher_column_exists($conn, 'students', 'user_id');
+$gradesHasStudentUserId = teacher_column_exists($conn, 'grades', 'student_user_id');
 
 function teacher_class_owner_id($conn, $classId, array $teacherIds)
 {
@@ -122,7 +124,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
   } else {
     $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
     $studentClassWhere = teacher_auth_student_class_where_sql($conn, 'students', $class_id, $selectedClassLabel);
-    $studentStmt = $conn->prepare( "SELECT id FROM students WHERE {$studentClassWhere}");
+    $studentSelectColumns = $studentsHasUserId
+      ? 'id, COALESCE(NULLIF(user_id, 0), id) AS linked_user_id'
+      : 'id, id AS linked_user_id';
+    $studentStmt = $conn->prepare( "SELECT {$studentSelectColumns} FROM students WHERE {$studentClassWhere}");
     if (!$studentStmt) {
       $error = 'Error retrieving students.';
     } else {
@@ -132,6 +137,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
 
       while ($result_students && ($student = $result_students->fetch_assoc())) {
         $student_id = (int) ($student['id'] ?? 0);
+        $linked_student_user_id = (int) ($student['linked_user_id'] ?? $student_id);
+        if ($linked_student_user_id <= 0) {
+          $linked_student_user_id = $student_id;
+        }
         if ($student_id <= 0) {
           continue;
         }
@@ -141,40 +150,108 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
         $remarks = trim((string) ($_POST['remarks_' . $student_id] ?? ''));
         $total_marks = 100;
         $grade = teacher_grade_from_marks($obtained_marks, $total_marks);
+        $existingGradeId = 0;
 
-        $checkStmt = $conn->prepare( 'SELECT id FROM grades WHERE student_id = ? AND subject_id = ? AND exam_type = ? LIMIT 1');
+        if ($gradesHasStudentUserId) {
+          $checkStmt = $conn->prepare(
+            'SELECT id FROM grades WHERE (student_id = ? OR student_user_id = ?) AND subject_id = ? AND exam_type = ? ORDER BY id DESC LIMIT 1'
+          );
+        } else {
+          $checkStmt = $conn->prepare( 'SELECT id FROM grades WHERE student_id = ? AND subject_id = ? AND exam_type = ? LIMIT 1');
+        }
+
         if (!$checkStmt) {
           continue;
         }
 
-        $checkStmt->bind_param( 'iis', $student_id, $subject_id, $exam_type);
+        if ($gradesHasStudentUserId) {
+          $checkStmt->bind_param( 'iiis', $student_id, $linked_student_user_id, $subject_id, $exam_type);
+        } else {
+          $checkStmt->bind_param( 'iis', $student_id, $subject_id, $exam_type);
+        }
+
         $checkStmt->execute();
         $result_check = $checkStmt->get_result();
-        $hasExisting = $result_check && $result_check->num_rows > 0;
+        $existingGradeRow = $result_check ? $result_check->fetch_assoc() : null;
+        if ($existingGradeRow) {
+          $existingGradeId = (int) ($existingGradeRow['id'] ?? 0);
+        }
         $checkStmt->close();
 
-        if ($hasExisting) {
-          $updateStmt = $conn->prepare(
-            'UPDATE grades SET obtained_marks = ?, grade = ?, remarks = ?, teacher_id = ? WHERE student_id = ? AND subject_id = ? AND exam_type = ?'
-          );
-          if (!$updateStmt) {
-            continue;
+        if ($existingGradeId > 0) {
+          if ($gradesHasStudentUserId) {
+            $updateStmt = $conn->prepare(
+              'UPDATE grades SET student_id = ?, student_user_id = ?, obtained_marks = ?, grade = ?, remarks = ?, teacher_id = ? WHERE id = ?'
+            );
+            if (!$updateStmt) {
+              continue;
+            }
+
+            $updateStmt->bind_param(
+              'iiissii',
+              $student_id,
+              $linked_student_user_id,
+              $obtained_marks,
+              $grade,
+              $remarks,
+              $class_owner_id,
+              $existingGradeId
+            );
+          } else {
+            $updateStmt = $conn->prepare(
+              'UPDATE grades SET student_id = ?, obtained_marks = ?, grade = ?, remarks = ?, teacher_id = ? WHERE id = ?'
+            );
+            if (!$updateStmt) {
+              continue;
+            }
+
+            $updateStmt->bind_param(
+              'iissii',
+              $student_id,
+              $obtained_marks,
+              $grade,
+              $remarks,
+              $class_owner_id,
+              $existingGradeId
+            );
           }
 
-          $updateStmt->bind_param( 'issiiis', $obtained_marks, $grade, $remarks, $class_owner_id, $student_id, $subject_id, $exam_type);
           if ($updateStmt->execute()) {
             $savedRows++;
           }
           $updateStmt->close();
         } else {
-          $insertStmt = $conn->prepare(
-            'INSERT INTO grades (student_id, subject_id, exam_type, total_marks, obtained_marks, grade, remarks, teacher_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-          );
+          if ($gradesHasStudentUserId) {
+            $insertStmt = $conn->prepare(
+              'INSERT INTO grades (student_id, student_user_id, subject_id, exam_type, total_marks, obtained_marks, grade, remarks, teacher_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+          } else {
+            $insertStmt = $conn->prepare(
+              'INSERT INTO grades (student_id, subject_id, exam_type, total_marks, obtained_marks, grade, remarks, teacher_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            );
+          }
+
           if (!$insertStmt) {
             continue;
           }
 
-          $insertStmt->bind_param( 'iisiissi', $student_id, $subject_id, $exam_type, $total_marks, $obtained_marks, $grade, $remarks, $class_owner_id);
+          if ($gradesHasStudentUserId) {
+            $insertStmt->bind_param(
+              'iiisiissi',
+              $student_id,
+              $linked_student_user_id,
+              $subject_id,
+              $exam_type,
+              $total_marks,
+              $obtained_marks,
+              $grade,
+              $remarks,
+              $class_owner_id
+            );
+          } else {
+            $insertStmt->bind_param( 'iisiissi', $student_id, $subject_id, $exam_type, $total_marks, $obtained_marks, $grade, $remarks, $class_owner_id);
+          }
+
           if ($insertStmt->execute()) {
             $savedRows++;
           }
@@ -234,10 +311,14 @@ if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists
   $studentClassWhere = teacher_auth_student_class_where_sql($conn, 's', $selected_class, $selectedClassLabel);
   $rollSelect = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : "''";
   $orderBy = $studentRollColumn !== null ? "s.`{$studentRollColumn}`" : 's.id';
+  $studentLinkedUserExpr = $studentsHasUserId ? 'COALESCE(NULLIF(s.user_id, 0), s.id)' : 's.id';
+  $gradeJoinCondition = $gradesHasStudentUserId
+    ? "(g.student_id = s.id OR g.student_user_id = {$studentLinkedUserExpr})"
+    : 'g.student_id = s.id';
 
   $sql_students = "SELECT s.id, {$rollSelect} AS roll_no, s.name, g.obtained_marks, g.grade, g.remarks
            FROM students s
-           LEFT JOIN grades g ON s.id = g.student_id AND g.subject_id = ? AND g.exam_type = ?
+           LEFT JOIN grades g ON {$gradeJoinCondition} AND g.subject_id = ? AND g.exam_type = ?
            WHERE {$studentClassWhere}
            ORDER BY {$orderBy} ASC";
   $studentsStmt = $conn->prepare( $sql_students);

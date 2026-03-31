@@ -110,6 +110,7 @@ CREATE TABLE IF NOT EXISTS attendance (
 CREATE TABLE IF NOT EXISTS grades (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NULL,
+    student_user_id INT NULL,
     subject_id INT NULL,
     exam_type VARCHAR(60) NULL,
     total_marks INT DEFAULT 100,
@@ -123,6 +124,7 @@ CREATE TABLE IF NOT EXISTS grades (
 CREATE TABLE IF NOT EXISTS marks (
     id INT AUTO_INCREMENT PRIMARY KEY,
     student_id INT NULL,
+    student_user_id INT NULL,
     subject_id INT NULL,
     teacher_id INT NULL,
     marks INT NULL,
