@@ -112,7 +112,7 @@ $flash = admin_pull_flash();
 
     <div class="content-card">
       <h5 class="mb-4">School Information</h5>
-      <form method="POST" action="">
+      <form method="POST" action="" novalidate>
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">School Name</label>
@@ -135,6 +135,8 @@ $flash = admin_pull_flash();
       </form>
     </div>
   </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

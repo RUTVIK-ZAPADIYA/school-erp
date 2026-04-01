@@ -204,7 +204,7 @@ $flash = admin_pull_flash();
 
     <div class="content-card">
       <div class="search-box">
-        <form method="GET" action="">
+        <form method="GET" action="" novalidate>
           <input
             type="text"
             class="form-control"
@@ -236,7 +236,7 @@ $flash = admin_pull_flash();
                     <a class="btn btn-sm btn-outline-primary" href="edit-class.php?id=<?php echo (int) $classRow['id']; ?>" title="Edit Class">
                       <i class="fas fa-edit"></i>
                     </a>
-                    <form method="POST" action="" style="display:inline-block;">
+                    <form method="POST" action="" style="display:inline-block;" novalidate>
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="class_id" value="<?php echo (int) $classRow['id']; ?>">
                       <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this class?');">
@@ -256,6 +256,8 @@ $flash = admin_pull_flash();
       </div>
     </div>
   </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

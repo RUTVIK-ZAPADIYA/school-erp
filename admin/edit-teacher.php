@@ -451,7 +451,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $teacherRow) {
       <?php endif; ?>
 
       <?php if ($teacherRow): ?>
-        <form method="POST" action="">
+        <form method="POST" action="" novalidate>
           <input type="hidden" name="teacher_id" value="<?php echo (int) $teacherId; ?>">
 
           <div class="row">

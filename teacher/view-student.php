@@ -189,7 +189,6 @@ foreach ($recent_assignments as $assignment) {
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -403,12 +402,21 @@ foreach ($recent_assignments as $assignment) {
             </div>
         </section>
 
-        <!-- Grade Distribution Chart -->
+        <!-- Grade Distribution Summary -->
         <?php if ($total_subjects > 0): ?>
         <section class="glass-panel p-6 rounded-xl">
             <h3 class="text-xl font-semibold text-on-surface mb-6">Grade Distribution</h3>
-            <div class="h-64">
-                <canvas id="gradeChart"></canvas>
+            <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+                <?php foreach ($grade_distribution as $gradeLabel => $gradeCount): ?>
+                    <?php
+                        $gradePercent = $total_subjects > 0 ? round(($gradeCount / $total_subjects) * 100, 1) : 0;
+                    ?>
+                    <div class="bg-white border border-outline-variant rounded-lg p-3 text-center">
+                        <p class="text-sm text-on-surface-variant">Grade <?php echo htmlspecialchars((string) $gradeLabel); ?></p>
+                        <p class="text-xl font-bold text-on-surface"><?php echo (int) $gradeCount; ?></p>
+                        <p class="text-xs text-on-surface-variant"><?php echo $gradePercent; ?>%</p>
+                    </div>
+                <?php endforeach; ?>
             </div>
         </section>
         <?php endif; ?>
@@ -491,51 +499,6 @@ foreach ($recent_assignments as $assignment) {
     </main>
 
     <script>
-        // Grade Distribution Chart
-        <?php if ($total_subjects > 0): ?>
-        const ctx = document.getElementById('gradeChart').getContext('2d');
-        new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['A (90-100%)', 'B (80-89%)', 'C (70-79%)', 'D (60-69%)', 'F (0-59%)'],
-                datasets: [{
-                    label: 'Grade Distribution',
-                    data: [<?php echo implode(',', array_values($grade_distribution)); ?>],
-                    backgroundColor: [
-                        '#10b981',
-                        '#3b82f6',
-                        '#f59e0b',
-                        '#f56565',
-                        '#9ca3af'
-                    ],
-                    borderColor: [
-                        '#10b981',
-                        '#3b82f6',
-                        '#f59e0b',
-                        '#f56565',
-                        '#9ca3af'
-                    ],
-                    borderWidth: 2,
-                    hoverOffset: 8
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: {
-                        position: 'bottom',
-                        labels: {
-                            padding: 20,
-                            usePointStyle: true
-                        }
-                    }
-                },
-                cutout: '60%'
-            }
-        });
-        <?php endif; ?>
-
         function exportReport() {
             alert('Student report export feature coming soon in Pro Edition!');
         }

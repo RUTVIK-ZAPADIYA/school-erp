@@ -195,7 +195,6 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     :root {
       --primary: #003b93;
@@ -234,8 +233,6 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
       bottom: 24px;
       right: 24px;
       z-index: 1000;
-    }
-      to { opacity: 1; transform: translateY(0); }
     }
 
     .assignment-header {
@@ -451,13 +448,13 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
       </div>
     </div>
 
-    <!-- Grade Distribution Chart -->
+    <!-- Grade Distribution Summary -->
     <?php if ($graded_count > 0): ?>
     <div class="glass-panel rounded-xl pro-shadow mb-8">
       <div class="px-6 py-5 border-b border-outline-variant">
         <div class="flex items-center gap-3">
           <div class="w-10 h-10 bg-tertiary/10 rounded-xl flex items-center justify-center">
-            <span class="material-symbols-outlined text-tertiary">bar_chart</span>
+            <span class="material-symbols-outlined text-tertiary">analytics</span>
           </div>
           <div>
             <h2 class="text-xl font-bold text-on-surface">Grade Distribution</h2>
@@ -466,7 +463,18 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
         </div>
       </div>
       <div class="p-6">
-        <canvas id="gradeChart" width="400" height="200"></canvas>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-3">
+          <?php foreach ($grade_distribution as $gradeLabel => $gradeCount): ?>
+            <?php
+              $gradePercent = $graded_count > 0 ? round(($gradeCount / $graded_count) * 100, 1) : 0;
+            ?>
+            <div class="bg-white border border-outline-variant rounded-lg p-3 text-center">
+              <p class="text-sm text-on-surface-variant">Grade <?php echo htmlspecialchars((string) $gradeLabel); ?></p>
+              <p class="text-xl font-bold text-on-surface"><?php echo (int) $gradeCount; ?></p>
+              <p class="text-xs text-on-surface-variant"><?php echo $gradePercent; ?>%</p>
+            </div>
+          <?php endforeach; ?>
+        </div>
       </div>
     </div>
     <?php endif; ?>
@@ -640,68 +648,6 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
   <script src="../js/jquery.js"></script>
   <script src="../js/validate.js"></script>
   <script>
-    // Grade Distribution Chart
-    <?php if ($graded_count > 0): ?>
-    const gradeCtx = document.getElementById('gradeChart').getContext('2d');
-    new Chart(gradeCtx, {
-      type: 'bar',
-      data: {
-        labels: ['A (90-100%)', 'B (80-89%)', 'C (70-79%)', 'D (60-69%)', 'F (0-59%)'],
-        datasets: [{
-          label: 'Number of Students',
-          data: [<?php echo implode(',', array_values($grade_distribution)); ?>],
-          backgroundColor: [
-            'rgba(16, 185, 129, 0.8)',
-            'rgba(59, 130, 246, 0.8)',
-            'rgba(245, 158, 11, 0.8)',
-            'rgba(245, 101, 101, 0.8)',
-            'rgba(156, 163, 175, 0.8)'
-          ],
-          borderColor: [
-            '#10b981',
-            '#3b82f6',
-            '#f59e0b',
-            '#f56565',
-            '#9ca3af'
-          ],
-          borderWidth: 1,
-          borderRadius: 8,
-          borderSkipped: false
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            grid: {
-              color: 'rgba(0, 59, 147, 0.1)'
-            },
-            ticks: {
-              stepSize: 1
-            }
-          },
-          x: {
-            grid: {
-              color: 'rgba(0, 59, 147, 0.1)'
-            }
-          }
-        },
-        elements: {
-          bar: {
-            borderRadius: 8
-          }
-        }
-      }
-    });
-    <?php endif; ?>
-
     // Floating Action Button functionality
     const fabMain = document.getElementById('fab-main');
     const fabMenu = document.getElementById('fab-menu');

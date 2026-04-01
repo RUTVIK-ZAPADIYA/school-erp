@@ -452,7 +452,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="">
+      <form method="POST" action="" novalidate>
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Roll Number *</label>

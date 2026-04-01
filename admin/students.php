@@ -212,6 +212,28 @@ if ($result && $result->num_rows > 0) {
       outline: 0;
       box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
+
+    .create-student-btn,
+    .create-student-btn:link,
+    .create-student-btn:visited {
+      background-color: #0d6efd !important;
+      border-color: #0d6efd !important;
+      color: #ffffff !important;
+      text-decoration: none !important;
+    }
+
+    .create-student-btn i {
+      color: #ffffff !important;
+    }
+
+    .create-student-btn:hover,
+    .create-student-btn:focus,
+    .create-student-btn:active {
+      background-color: #0b5ed7 !important;
+      border-color: #0a58ca !important;
+      color: #ffffff !important;
+      text-decoration: none !important;
+    }
   </style>
 </head>
 <body>
@@ -220,7 +242,7 @@ if ($result && $result->num_rows > 0) {
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-user-graduate"></i> Manage Students</h2>
-      <a href="add-student.php" class="btn btn-success">
+      <a href="add-student.php" class="btn create-student-btn">
         <i class="fas fa-plus"></i> Add New Student
       </a>
     </div>
@@ -304,7 +326,7 @@ if ($result && $result->num_rows > 0) {
     
     <div class="content-card">
       <div class="search-box">
-        <form method="GET" action="" class="mb-3">
+        <form method="GET" action="" class="mb-3" novalidate>
           <input type="text" class="form-control" name="search" placeholder="Search students by name, roll number, or class..." 
             value="<?php echo htmlspecialchars($search); ?>">
         </form>
@@ -462,7 +484,7 @@ if ($result && $result->num_rows > 0) {
     <div class="modal fade" id="deleteStudentModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog">
         <div class="modal-content">
-          <form method="post">
+          <form method="post" novalidate>
             <div class="modal-header">
               <h5 class="modal-title">Confirm Delete</h5>
               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
@@ -483,6 +505,8 @@ if ($result && $result->num_rows > 0) {
     </div>
   </div>
   
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script>
     document.addEventListener('DOMContentLoaded', function() {

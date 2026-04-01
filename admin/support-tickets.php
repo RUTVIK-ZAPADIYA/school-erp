@@ -84,6 +84,7 @@ $total_count = count($tickets);
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
   <!-- jQuery -->
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <!-- jQuery Validation Plugin -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.css">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
@@ -192,7 +193,7 @@ $total_count = count($tickets);
               </div>
             <?php else: ?>
               <!-- Reply Form -->
-              <form method="POST" class="replyForm" data-ticket="<?php echo $ticket['id']; ?>" novalidate>
+              <form method="POST" class="replyForm" data-ticket="<?php echo $ticket['id']; ? novalidate>" novalidate>
                 <input type="hidden" name="action" value="reply">
                 <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
 

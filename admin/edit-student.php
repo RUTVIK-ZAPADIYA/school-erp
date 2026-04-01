@@ -504,7 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <?php endif; ?>
       
       <?php if ($student): ?>
-        <form method="POST" action="">
+        <form method="POST" action="" novalidate>
           <input type="hidden" name="student_id" value="<?php echo $student['id']; ?>">
           
           <div class="row">
@@ -581,6 +581,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
   
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

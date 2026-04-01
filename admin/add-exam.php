@@ -239,7 +239,7 @@ $flash = admin_pull_flash();
         </div>
       <?php endif; ?>
 
-      <form method="POST" action="">
+      <form method="POST" action="" novalidate>
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Exam Name *</label>

@@ -214,7 +214,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $feeRecord) {
       <?php endif; ?>
 
       <?php if ($feeRecord): ?>
-        <form method="POST" action="">
+        <form method="POST" action="" novalidate>
           <input type="hidden" name="fee_id" value="<?php echo (int) $feeId; ?>">
 
           <div class="row">

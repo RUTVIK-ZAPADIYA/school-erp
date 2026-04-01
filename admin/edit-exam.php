@@ -248,7 +248,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $examRow) {
       <?php endif; ?>
 
       <?php if ($examRow): ?>
-        <form method="POST" action="">
+        <form method="POST" action="" novalidate>
           <input type="hidden" name="exam_id" value="<?php echo (int) $examId; ?>">
 
           <div class="row">

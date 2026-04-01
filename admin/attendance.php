@@ -326,7 +326,7 @@ $flash = admin_pull_flash();
                     <a class="btn btn-sm btn-outline-primary" href="edit-attendance.php?id=<?php echo (int) $attendanceRow['id']; ?>" title="Edit Attendance">
                       <i class="fas fa-edit"></i>
                     </a>
-                    <form method="POST" action="" style="display:inline-block;">
+                    <form method="POST" action="" style="display:inline-block;" novalidate>
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="attendance_id" value="<?php echo (int) $attendanceRow['id']; ?>">
                       <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('Delete this attendance record?');">
@@ -346,6 +346,8 @@ $flash = admin_pull_flash();
       </div>
     </div>
   </div>
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

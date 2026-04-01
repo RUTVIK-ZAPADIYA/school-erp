@@ -199,7 +199,6 @@ for ($i = 6; $i >= 0; $i--) {
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet">
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
@@ -332,8 +331,24 @@ for ($i = 6; $i >= 0; $i--) {
         <div class="px-6 py-4 border-b border-outline-variant/20">
           <h2 class="text-xl font-semibold text-on-surface">Attendance Trend (7 Days)</h2>
         </div>
-        <div class="p-4 h-72">
-          <canvas id="attendanceTrendChart"></canvas>
+        <div class="p-4">
+          <?php $trendTotal = array_sum($trendValues); ?>
+          <?php if ($trendTotal > 0): ?>
+            <div class="space-y-2">
+              <?php foreach ($trendLabels as $index => $trendLabel): ?>
+                <?php
+                  $entryCount = (int) ($trendValues[$index] ?? 0);
+                  $entryPct = $trendTotal > 0 ? (int) round(($entryCount / $trendTotal) * 100) : 0;
+                ?>
+                <div class="flex items-center justify-between bg-white border border-outline-variant/30 rounded-lg px-3 py-2">
+                  <span class="text-sm font-semibold text-on-surface"><?php echo htmlspecialchars((string) $trendLabel); ?></span>
+                  <span class="text-sm text-on-surface-variant"><?php echo $entryCount; ?> entries (<?php echo $entryPct; ?>%)</span>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            <p class="text-sm text-on-surface-variant">No attendance entries found in the last 7 days.</p>
+          <?php endif; ?>
         </div>
       </div>
     </section>
@@ -354,43 +369,6 @@ for ($i = 6; $i >= 0; $i--) {
     </section>
   </main>
 
-  <script>
-    const trendLabels = <?php echo json_encode($trendLabels); ?>;
-    const trendValues = <?php echo json_encode($trendValues); ?>;
-    const trendCanvas = document.getElementById('attendanceTrendChart');
-
-    if (trendCanvas) {
-      new Chart(trendCanvas.getContext('2d'), {
-        type: 'line',
-        data: {
-          labels: trendLabels,
-          datasets: [{
-            label: 'Attendance Entries',
-            data: trendValues,
-            borderColor: '#003b93',
-            backgroundColor: 'rgba(0, 59, 147, 0.12)',
-            borderWidth: 2,
-            fill: true,
-            tension: 0.35,
-            pointRadius: 3
-          }]
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            y: {
-              beginAtZero: true,
-              ticks: { precision: 0 }
-            }
-          },
-          plugins: {
-            legend: { display: false }
-          }
-        }
-      });
-    }
-  </script>
   <script src="../js/jquery.js"></script>
   <script src="../js/validate.js"></script>
 </body>

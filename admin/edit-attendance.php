@@ -272,7 +272,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $attendanceRow && $attendanceDateCo
       <?php endif; ?>
 
       <?php if ($attendanceRow && $attendanceDateColumn !== null): ?>
-        <form method="POST" action="">
+        <form method="POST" action="" novalidate>
           <input type="hidden" name="attendance_id" value="<?php echo (int) $attendanceId; ?>">
 
           <div class="row">

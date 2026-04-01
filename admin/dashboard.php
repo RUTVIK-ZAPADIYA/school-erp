@@ -58,10 +58,14 @@ $teacherRatio = $totalTeachers > 0 ? '1:' . max(1, (int) round($totalStudents / 
 
 $feesPaid = 0.0;
 $feesPending = 0.0;
-$tuitionPct = 68;
-$sportsPct = 15;
-$labPct = 12;
-$infraPct = 5;
+$tuitionPct = 0;
+$sportsPct = 0;
+$labPct = 0;
+$infraPct = 0;
+$tuitionAmount = 0.0;
+$sportsAmount = 0.0;
+$labAmount = 0.0;
+$infraAmount = 0.0;
 
 // Aggregate fee totals and revenue stream distribution.
 if (tableExists($conn, 'fees')) {
@@ -72,7 +76,6 @@ if (tableExists($conn, 'fees')) {
   );
   $feesPending = (float) scalarValue(
     $conn,
-  // Calculate attendance performance from attendance records.
     "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(status,'')) IN ('pending','unpaid','due')",
     0
   );
@@ -94,7 +97,8 @@ if (tableExists($conn, 'fees')) {
 $totalFeeTarget = $feesPaid + $feesPending;
 $feeCollectionPct = $totalFeeTarget > 0 ? (int) round(($feesPaid / $totalFeeTarget) * 100) : 0;
 
-$attendancePct = 84.2;
+$attendancePct = 0.0;
+$attendanceCount = 0;
 if (tableExists($conn, 'attendance')) {
   $presentCount = (int) scalarValue(
     $conn,
@@ -107,39 +111,75 @@ if (tableExists($conn, 'attendance')) {
   }
 }
 
-$currentYear = date('Y');
-$monthLabels = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
-$monthValues = array_fill(0, 12, 0);
-
-// Build monthly enrollment trend data for the chart.
+$currentMonthEnrollments = 0;
+$previousMonthEnrollments = 0;
 if (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
-  $monthlyResult = $conn->query(
-    "SELECT MONTH(created_at) AS month_no, COUNT(*) AS total
+  $currentMonthEnrollments = (int) scalarValue(
+    $conn,
+    "SELECT COUNT(*)
      FROM students
-     WHERE YEAR(created_at) = {$currentYear}
-     GROUP BY MONTH(created_at)"
+     WHERE YEAR(created_at) = YEAR(CURDATE())
+       AND MONTH(created_at) = MONTH(CURDATE())",
+    0
   );
-  if ($monthlyResult) {
-    while ($row = $monthlyResult->fetch_assoc()) {
-      $monthIndex = (int) $row['month_no'] - 1;
-      if ($monthIndex >= 0 && $monthIndex < 12) {
-        $monthValues[$monthIndex] = (int) $row['total'];
-      }
-    }
-  }
+  $previousMonthEnrollments = (int) scalarValue(
+    $conn,
+    "SELECT COUNT(*)
+     FROM students
+     WHERE YEAR(created_at) = YEAR(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))
+       AND MONTH(created_at) = MONTH(DATE_SUB(CURDATE(), INTERVAL 1 MONTH))",
+    0
+  );
 }
 
-if (array_sum($monthValues) === 0) {
-  $monthValues = [8, 10, 9, 13, 16, 15, 19, 22, 24, 21, 20, 22];
+if ($previousMonthEnrollments > 0) {
+  $enrollmentGrowthPct = (int) round((($currentMonthEnrollments - $previousMonthEnrollments) / $previousMonthEnrollments) * 100);
+} elseif ($currentMonthEnrollments > 0) {
+  $enrollmentGrowthPct = 100;
+} else {
+  $enrollmentGrowthPct = 0;
 }
 
-$maxMonthValue = max($monthValues);
-$maxMonthIndex = (int) array_search($maxMonthValue, $monthValues, true);
-$lastMonth = (int) date('n') - 1;
-$previousMonth = max(0, $lastMonth - 1);
-$currentMonthValue = $monthValues[$lastMonth];
-$previousMonthValue = $monthValues[$previousMonth] > 0 ? $monthValues[$previousMonth] : 1;
-$enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) / $previousMonthValue) * 100);
+$academicYearStart = (int) date('Y');
+$academicYearLabel = $academicYearStart . '/' . substr((string) ($academicYearStart + 1), -2);
+$todayDisplay = date('d M Y');
+
+if ($feeCollectionPct >= 85) {
+  $feeHealth = 'On Track';
+  $feeHealthClass = 'health-good';
+} elseif ($feeCollectionPct >= 60) {
+  $feeHealth = 'Monitor';
+  $feeHealthClass = 'health-watch';
+} else {
+  $feeHealth = 'Needs Action';
+  $feeHealthClass = 'health-alert';
+}
+
+if ($attendancePct >= 90) {
+  $attendanceHealth = 'Strong';
+  $attendanceHealthClass = 'health-good';
+} elseif ($attendancePct >= 75) {
+  $attendanceHealth = 'Moderate';
+  $attendanceHealthClass = 'health-watch';
+} else {
+  $attendanceHealth = 'Low';
+  $attendanceHealthClass = 'health-alert';
+}
+
+$ratioPerTeacher = $totalTeachers > 0 ? ($totalStudents / $totalTeachers) : 0;
+if ($totalTeachers <= 0) {
+  $ratioHealth = 'No Data';
+  $ratioHealthClass = 'health-muted';
+} elseif ($ratioPerTeacher <= 20) {
+  $ratioHealth = 'Balanced';
+  $ratioHealthClass = 'health-good';
+} elseif ($ratioPerTeacher <= 25) {
+  $ratioHealth = 'Watch';
+  $ratioHealthClass = 'health-watch';
+} else {
+  $ratioHealth = 'Overloaded';
+  $ratioHealthClass = 'health-alert';
+}
 ?>
 <!-- Render dashboard cards, charts, and summary panels. -->
 <!DOCTYPE html>
@@ -153,27 +193,43 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
   <link rel="stylesheet" href="../assets/css/responsive.css">
   <link rel="stylesheet" href="../assets/css/theme.css">
   <style>
+    body {
+      background:
+        radial-gradient(circle at 8% 12%, rgba(58, 123, 231, 0.14), transparent 30%),
+        radial-gradient(circle at 90% 4%, rgba(16, 185, 129, 0.1), transparent 28%),
+        #eef3f9;
+      color: #172746;
+    }
     .dashboard-shell {
       margin-left: 280px;
       padding: 24px;
+      min-height: 100vh;
+    }
+    .dashboard-inner {
+      max-width: 1260px;
+      margin: 0 auto;
     }
     .topbar {
-      background: #ffffff;
-      border: 1px solid #dbe8f5;
-      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.86);
+      border: 1px solid #d6e4f4;
+      border-radius: 18px;
       padding: 12px 16px;
       display: flex;
       align-items: center;
       justify-content: space-between;
       gap: 14px;
-      box-shadow: 0 8px 18px rgba(23, 36, 61, 0.07);
+      box-shadow: 0 12px 26px rgba(23, 36, 61, 0.08);
       margin-bottom: 18px;
+      position: sticky;
+      top: 14px;
+      z-index: 20;
+      backdrop-filter: blur(8px);
     }
     .topbar-search {
       display: flex;
       align-items: center;
       gap: 10px;
-      background: #f2f6fb;
+      background: #f5f8fc;
       border: 1px solid #dbe8f5;
       border-radius: 12px;
       padding: 8px 12px;
@@ -211,24 +267,45 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       color: #18356b;
       border-color: #2a61d8;
     }
+    .headline-panel {
+      border: 1px solid #d7e4f2;
+      border-radius: 18px;
+      padding: 18px;
+      background: linear-gradient(120deg, #ffffff 0%, #f2f7ff 62%, #eefaf5 100%);
+      box-shadow: 0 14px 30px rgba(23, 36, 61, 0.08);
+      margin-bottom: 16px;
+    }
     .title-row {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 12px;
     }
     .title-row h1 {
       margin: 0;
-      font-size: 2rem;
+      font-size: 2.05rem;
       font-weight: 800;
       color: #141f36;
+      line-height: 1.15;
     }
     .title-row p {
-      margin: 2px 0 0;
+      margin: 4px 0 0;
       color: #607493;
       font-weight: 600;
       font-size: 0.93rem;
+    }
+    .headline-meta {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+      background: #e9f1fc;
+      color: #244777;
+      border-radius: 999px;
+      padding: 6px 12px;
+      font-size: 0.75rem;
+      font-weight: 700;
     }
     .title-actions {
       display: flex;
@@ -243,6 +320,48 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       padding: 8px 14px;
       font-size: 0.85rem;
     }
+    .insight-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 10px;
+    }
+    .insight-pill {
+      border: 1px solid #d9e7f6;
+      background: rgba(255, 255, 255, 0.85);
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .insight-label {
+      color: #4f668d;
+      font-size: 0.8rem;
+      font-weight: 700;
+    }
+    .insight-value {
+      font-size: 0.78rem;
+      font-weight: 800;
+      border-radius: 999px;
+      padding: 3px 10px;
+    }
+    .health-good {
+      color: #196b47;
+      background: #e6f7ef;
+    }
+    .health-watch {
+      color: #7a5a1e;
+      background: #fff6e5;
+    }
+    .health-alert {
+      color: #8a2737;
+      background: #fdecef;
+    }
+    .health-muted {
+      color: #486182;
+      background: #eaf1fb;
+    }
     .metrics-grid {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -255,6 +374,27 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       background: #fff;
       padding: 14px;
       box-shadow: 0 8px 18px rgba(23, 36, 61, 0.06);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .metric-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 14px 24px rgba(23, 36, 61, 0.12);
+    }
+    .metric-card.metric-enroll .metric-icon {
+      background: #ebf3ff;
+      color: #1f4fb5;
+    }
+    .metric-card.metric-fees .metric-icon {
+      background: #e9f9ef;
+      color: #1f7c4e;
+    }
+    .metric-card.metric-ratio .metric-icon {
+      background: #fff2e7;
+      color: #9a5418;
+    }
+    .metric-card.metric-performance .metric-icon {
+      background: #efeafe;
+      color: #5a3ba5;
     }
     .metric-head {
       display: flex;
@@ -299,12 +439,20 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       font-size: 0.72rem;
       font-weight: 600;
     }
+    .section-kicker {
+      margin: 4px 0 10px;
+      color: #3d557b;
+      font-size: 0.82rem;
+      font-weight: 800;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
     .panel {
       border: 1px solid #dbe8f5;
-      border-radius: 14px;
+      border-radius: 16px;
       background: #fff;
-      box-shadow: 0 8px 18px rgba(23, 36, 61, 0.06);
-      padding: 16px;
+      box-shadow: 0 10px 22px rgba(23, 36, 61, 0.07);
+      padding: 18px;
       height: 100%;
     }
     .panel h4 {
@@ -317,94 +465,27 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       color: #7a8ea9;
       font-weight: 600;
     }
-    .chart-bars {
-      display: grid;
-      grid-template-columns: repeat(12, 1fr);
-      align-items: end;
-      gap: 8px;
-      min-height: 180px;
-      margin-top: 12px;
-    }
-    .bar {
-      background: #dbe6f7;
-      border-radius: 8px 8px 0 0;
-      position: relative;
-      transition: 0.25s ease;
-    }
-    .bar:hover,
-    .bar.active {
-      background: #0f2f66;
-    }
-    .bar-label {
-      position: absolute;
-      bottom: -20px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 0.58rem;
-      font-weight: 700;
-      color: #7488a4;
-    }
-    .stream-item {
-      margin-top: 14px;
-    }
-    .stream-line {
-      height: 6px;
-      border-radius: 20px;
-      background: #e4edf8;
-      overflow: hidden;
-      margin-top: 6px;
-    }
-    .stream-fill {
-      height: 100%;
-      background: linear-gradient(90deg, #12356f, #2f61be);
-    }
-    .donut {
-      width: 150px;
-      height: 150px;
-      border-radius: 50%;
-      margin: 10px auto 12px;
-      background: conic-gradient(#0f2f66 0 84%, #f2a94f 84% 90%, #e6edf7 90% 100%);
-      display: grid;
-      place-items: center;
-    }
-    .donut-core {
-      width: 108px;
-      height: 108px;
-      border-radius: 50%;
-      background: #fff;
-      display: grid;
-      place-items: center;
-      text-align: center;
-    }
-    .donut-core strong {
-      font-size: 2rem;
-      line-height: 1;
-      color: #102b59;
-    }
-    .dept-item {
+    .summary-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
-      padding: 9px 0;
+      padding: 10px 0;
       border-bottom: 1px solid #e8eff8;
     }
-    .dept-item:last-child {
+    .summary-item:last-child {
       border-bottom: 0;
       padding-bottom: 0;
     }
-    .dept-badge {
-      width: 34px;
-      height: 34px;
-      border-radius: 8px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .summary-label {
+      color: #5b7091;
+      font-size: 0.85rem;
+      font-weight: 700;
+    }
+    .summary-value {
+      color: #162948;
+      font-size: 0.92rem;
       font-weight: 800;
-      font-size: 0.74rem;
-      color: #18356b;
-      background: #e7eefb;
-      margin-right: 10px;
     }
     .fab-quick {
       position: fixed;
@@ -438,6 +519,16 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
         max-width: 100%;
         min-width: 100%;
       }
+      .headline-panel {
+        padding: 14px;
+      }
+      .insight-grid {
+        grid-template-columns: 1fr;
+      }
+      .title-actions {
+        width: 100%;
+        justify-content: flex-start;
+      }
     }
     @media (max-width: 600px) {
       .title-row {
@@ -449,6 +540,13 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       .title-row h1 {
         font-size: 1.6rem;
       }
+      .topbar-links {
+        width: 100%;
+        justify-content: space-between;
+      }
+      .topbar-link {
+        font-size: 0.8rem;
+      }
     }
   </style>
 </head>
@@ -456,6 +554,7 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
   <?php include 'sidebar.php'; ?>
 
   <div class="dashboard-shell">
+    <div class="dashboard-inner">
     <div class="topbar">
       <div class="topbar-search">
         <i class="fas fa-search"></i>
@@ -468,19 +567,37 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       </div>
     </div>
 
-    <div class="title-row">
-      <div>
-        <h1>Scholar Metric Insights</h1>
-        <p>Institutional Performance Overview - Academic Year 2023/24</p>
+    <div class="headline-panel">
+      <div class="title-row">
+        <div>
+          <h1>Scholar Metric Insights</h1>
+          <p>Institutional performance overview for Academic Year <?php echo htmlspecialchars($academicYearLabel); ?></p>
+          <span class="headline-meta"><i class="fas fa-calendar-day"></i> Updated <?php echo htmlspecialchars($todayDisplay); ?></span>
+        </div>
+        <div class="title-actions">
+          <button class="btn-soft"><i class="fas fa-download"></i> Download Summary</button>
+          <button class="btn btn-primary"><i class="fas fa-bolt"></i> Generate Report</button>
+        </div>
       </div>
-      <div class="title-actions">
-        <button class="btn-soft"><i class="fas fa-download"></i> Export PDF</button>
-        <button class="btn btn-primary"><i class="fas fa-bolt"></i> Generate Report</button>
+
+      <div class="insight-grid">
+        <div class="insight-pill">
+          <span class="insight-label">Fee Collection Health</span>
+          <span class="insight-value <?php echo $feeHealthClass; ?>"><?php echo htmlspecialchars($feeHealth); ?></span>
+        </div>
+        <div class="insight-pill">
+          <span class="insight-label">Attendance Health</span>
+          <span class="insight-value <?php echo $attendanceHealthClass; ?>"><?php echo htmlspecialchars($attendanceHealth); ?></span>
+        </div>
+        <div class="insight-pill">
+          <span class="insight-label">Classroom Capacity</span>
+          <span class="insight-value <?php echo $ratioHealthClass; ?>"><?php echo htmlspecialchars($ratioHealth); ?></span>
+        </div>
       </div>
     </div>
 
     <div class="metrics-grid">
-      <div class="metric-card">
+      <div class="metric-card metric-enroll">
         <div class="metric-head">
           <span class="metric-icon"><i class="fas fa-user-graduate"></i></span>
           <span class="metric-chip"><?php echo ($enrollmentGrowthPct >= 0 ? '+' : '') . $enrollmentGrowthPct; ?>%</span>
@@ -489,7 +606,7 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
         <div class="metric-value"><?php echo number_format($totalStudents); ?></div>
         <div class="metric-foot">Students currently in the system</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card metric-fees">
         <div class="metric-head">
           <span class="metric-icon"><i class="fas fa-money-bill-wave"></i></span>
           <span class="metric-chip"><?php echo $feeCollectionPct; ?>% Target</span>
@@ -498,19 +615,19 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
         <div class="metric-value"><?php echo formatCompactCurrency($feesPaid); ?></div>
         <div class="metric-foot">Expected: <?php echo formatCompactCurrency($totalFeeTarget); ?> total</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card metric-ratio">
         <div class="metric-head">
           <span class="metric-icon"><i class="fas fa-users"></i></span>
-          <span class="metric-chip" style="background:#fdeaea;color:#ab2f2f;">Alert</span>
+          <span class="metric-chip <?php echo $ratioHealthClass; ?>"><?php echo htmlspecialchars($ratioHealth); ?></span>
         </div>
         <div class="metric-label">Teacher-Student Ratio</div>
         <div class="metric-value"><?php echo htmlspecialchars($teacherRatio); ?></div>
         <div class="metric-foot">Target ratio is 1:20</div>
       </div>
-      <div class="metric-card">
+      <div class="metric-card metric-performance">
         <div class="metric-head">
           <span class="metric-icon"><i class="fas fa-chart-line"></i></span>
-          <span class="metric-chip">Record</span>
+          <span class="metric-chip <?php echo $attendanceHealthClass; ?>"><?php echo htmlspecialchars($attendanceHealth); ?></span>
         </div>
         <div class="metric-label">Academic Performance</div>
         <div class="metric-value"><?php echo $attendancePct; ?>%</div>
@@ -518,145 +635,98 @@ $enrollmentGrowthPct = (int) round((($currentMonthValue - $previousMonthValue) /
       </div>
     </div>
 
+    <div class="section-kicker">Enrollment and Revenue Pulse</div>
     <div class="row">
       <div class="col-lg-8 mb-3">
         <div class="panel">
           <div class="d-flex justify-content-between align-items-start mb-2">
             <div>
-              <h4>Enrollment Growth</h4>
-              <small>Last 12 months data analysis</small>
+              <h4>Enrollment Snapshot</h4>
+              <small>Live metrics from student records</small>
             </div>
-            <div class="d-flex gap-2">
-              <button class="btn-soft py-1 px-2">2023</button>
-              <button class="btn-soft py-1 px-2">2022</button>
-            </div>
+            <a href="students.php" class="small fw-bold">View Students</a>
           </div>
 
-          <div class="chart-bars" aria-label="Enrollment Growth Chart">
-            <?php foreach ($monthValues as $index => $value): ?>
-              <?php
-                $height = $maxMonthValue > 0 ? max(12, (int) round(($value / $maxMonthValue) * 100)) : 12;
-                $activeClass = $index === $maxMonthIndex ? 'active' : '';
-              ?>
-              <div class="bar <?php echo $activeClass; ?>" style="height:<?php echo $height; ?>%;">
-                <span class="bar-label"><?php echo $monthLabels[$index]; ?></span>
-              </div>
-            <?php endforeach; ?>
+          <div class="summary-item">
+            <span class="summary-label">Current Month Enrollments</span>
+            <span class="summary-value"><?php echo number_format($currentMonthEnrollments); ?></span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Previous Month Enrollments</span>
+            <span class="summary-value"><?php echo number_format($previousMonthEnrollments); ?></span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Monthly Growth</span>
+            <span class="summary-value <?php echo $enrollmentGrowthPct >= 0 ? 'text-success' : 'text-danger'; ?>"><?php echo ($enrollmentGrowthPct >= 0 ? '+' : '') . $enrollmentGrowthPct; ?>%</span>
+          </div>
+          <div class="summary-item">
+            <span class="summary-label">Total Active Students</span>
+            <span class="summary-value"><?php echo number_format($totalStudents); ?></span>
           </div>
         </div>
       </div>
 
       <div class="col-lg-4 mb-3">
         <div class="panel h-100">
-          <h4>Revenue Streams</h4>
-          <small>Fee distribution breakdown</small>
+          <h4>Fee Stream Distribution</h4>
+          <small>Calculated from fee type records</small>
 
-          <div class="stream-item">
-            <div class="d-flex justify-content-between"><span class="small fw-semibold">Tuition Fees</span><span class="small"><?php echo $tuitionPct; ?>%</span></div>
-            <div class="stream-line"><div class="stream-fill" style="width:<?php echo $tuitionPct; ?>%;"></div></div>
+          <div class="summary-item">
+            <span class="summary-label">Tuition Fees</span>
+            <span class="summary-value"><?php echo formatCompactCurrency($tuitionAmount); ?> (<?php echo $tuitionPct; ?>%)</span>
           </div>
-          <div class="stream-item">
-            <div class="d-flex justify-content-between"><span class="small fw-semibold">Sports & Extra-curricular</span><span class="small"><?php echo $sportsPct; ?>%</span></div>
-            <div class="stream-line"><div class="stream-fill" style="width:<?php echo $sportsPct; ?>%;"></div></div>
+          <div class="summary-item">
+            <span class="summary-label">Sports & Extra-curricular</span>
+            <span class="summary-value"><?php echo formatCompactCurrency($sportsAmount); ?> (<?php echo $sportsPct; ?>%)</span>
           </div>
-          <div class="stream-item">
-            <div class="d-flex justify-content-between"><span class="small fw-semibold">Laboratory & Tech</span><span class="small"><?php echo $labPct; ?>%</span></div>
-            <div class="stream-line"><div class="stream-fill" style="width:<?php echo $labPct; ?>%;"></div></div>
+          <div class="summary-item">
+            <span class="summary-label">Laboratory & Tech</span>
+            <span class="summary-value"><?php echo formatCompactCurrency($labAmount); ?> (<?php echo $labPct; ?>%)</span>
           </div>
-          <div class="stream-item">
-            <div class="d-flex justify-content-between"><span class="small fw-semibold">Infrastructure Dev.</span><span class="small"><?php echo $infraPct; ?>%</span></div>
-            <div class="stream-line"><div class="stream-fill" style="width:<?php echo $infraPct; ?>%;"></div></div>
+          <div class="summary-item">
+            <span class="summary-label">Infrastructure Development</span>
+            <span class="summary-value"><?php echo formatCompactCurrency($infraAmount); ?> (<?php echo $infraPct; ?>%)</span>
           </div>
 
           <div class="mt-4 p-3 rounded-3" style="background:#fff2f2;border:1px solid #ffd4d4;">
             <div class="small fw-semibold text-danger"><i class="fas fa-triangle-exclamation"></i> Unpaid Balance</div>
-            <div class="h4 mb-0 mt-1 text-danger fw-bold"><?php echo '$' . number_format($feesPending, 0); ?></div>
+            <div class="h4 mb-0 mt-1 text-danger fw-bold"><?php echo '₹' . number_format($feesPending, 0); ?></div>
           </div>
         </div>
       </div>
     </div>
 
+    <div class="section-kicker">Institution Operations</div>
     <div class="row">
-      <div class="col-lg-5 mb-3">
+      <div class="col-lg-12 mb-3">
         <div class="panel h-100">
-          <h4>Regional Benchmarking</h4>
-          <div class="donut">
-            <div class="donut-core">
-              <div>
-                <strong>A+</strong>
-                <div class="small text-muted fw-semibold">NATIONAL PERCENTILE: 94TH</div>
-              </div>
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div>
+              <h4>Operational Snapshot</h4>
+              <small>Live institutional indicators from current data</small>
             </div>
-          </div>
-          <div class="small fw-semibold text-secondary mb-1"><i class="fas fa-circle" style="font-size:9px;color:#0f2f66;"></i> Scholar Metric Mean Score (84.2%)</div>
-          <div class="small fw-semibold text-secondary"><i class="fas fa-circle" style="font-size:9px;color:#f2a94f;"></i> Regional Milestone Gap (+2.4%)</div>
-        </div>
-      </div>
-
-      <div class="col-lg-7 mb-3">
-        <div class="panel h-100">
-          <div class="d-flex justify-content-between align-items-center">
-            <h4>Departmental Standings</h4>
-            <a href="reports.php" class="small fw-bold">View All Departments</a>
+            <a href="reports.php" class="small fw-bold">View Detailed Reports</a>
           </div>
 
-          <div class="dept-item">
-            <div class="d-flex align-items-center">
-              <span class="dept-badge">ST</span>
-              <div>
-                <div class="fw-bold">Science & Technology</div>
-                <small>Dean: Dr. Marcus Thorne</small>
-              </div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">4,230 Students</div>
-              <small class="text-success">+ 4.2% Growth</small>
-            </div>
+          <div class="summary-item">
+            <span class="summary-label">Attendance Records Captured</span>
+            <span class="summary-value"><?php echo number_format($attendanceCount); ?></span>
           </div>
-
-          <div class="dept-item">
-            <div class="d-flex align-items-center">
-              <span class="dept-badge" style="background:#f5f1e4;color:#695a28;">HU</span>
-              <div>
-                <div class="fw-bold">Humanities & Arts</div>
-                <small>Dean: Prof. Elena Vance</small>
-              </div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">3,120 Students</div>
-              <small class="text-muted">- Stable</small>
-            </div>
+          <div class="summary-item">
+            <span class="summary-label">Attendance Performance</span>
+            <span class="summary-value"><?php echo $attendancePct; ?>%</span>
           </div>
-
-          <div class="dept-item">
-            <div class="d-flex align-items-center">
-              <span class="dept-badge" style="background:#e9f0f5;color:#3f5f76;">BS</span>
-              <div>
-                <div class="fw-bold">Business School</div>
-                <small>Dean: Sarah Jenkins, MBA</small>
-              </div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">2,840 Students</div>
-              <small class="text-success">+ 1.8% Growth</small>
-            </div>
+          <div class="summary-item">
+            <span class="summary-label">Total Teachers</span>
+            <span class="summary-value"><?php echo number_format($totalTeachers); ?></span>
           </div>
-
-          <div class="dept-item">
-            <div class="d-flex align-items-center">
-              <span class="dept-badge" style="background:#fdecef;color:#ac2f4a;">MD</span>
-              <div>
-                <div class="fw-bold">Medical Sciences</div>
-                <small>Dean: Dr. Julian Reyes</small>
-              </div>
-            </div>
-            <div class="text-end">
-              <div class="fw-bold">2,292 Students</div>
-              <small class="text-danger">- 1.2% Attrition</small>
-            </div>
+          <div class="summary-item">
+            <span class="summary-label">Total Collected Fees</span>
+            <span class="summary-value"><?php echo formatCompactCurrency($feesPaid); ?></span>
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 

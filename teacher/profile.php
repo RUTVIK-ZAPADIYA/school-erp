@@ -243,7 +243,6 @@ if ($result_trend) {
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script id="tailwind-config">
     tailwind.config = {
       darkMode: "class",
@@ -473,9 +472,9 @@ if ($result_trend) {
       </div>
     </section>
 
-    <!-- Performance Chart and Recent Activity -->
+    <!-- Performance Summary and Recent Activity -->
     <section class="grid grid-cols-1 lg:grid-cols-2 gap-8">
-      <!-- Performance Trend Chart -->
+      <!-- Performance Trend Summary -->
       <div class="glass-panel rounded-xl pro-shadow">
         <div class="px-6 py-4 border-b border-outline-variant/10 flex items-center gap-3 bg-stone-50/30">
           <div class="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
@@ -487,7 +486,23 @@ if ($result_trend) {
           </div>
         </div>
         <div class="p-6">
-          <canvas id="performanceChart" width="400" height="200"></canvas>
+          <?php if (!empty($performance_trend)): ?>
+            <div class="space-y-3">
+              <?php foreach ($performance_trend as $trend): ?>
+                <?php
+                  $monthLabel = isset($trend['month']) ? date('M Y', strtotime((string) $trend['month'] . '-01')) : 'N/A';
+                  $avgPerformance = isset($trend['avg_performance']) ? round((float) $trend['avg_performance'], 1) : 0;
+                  $totalGrades = isset($trend['total_grades']) ? (int) $trend['total_grades'] : 0;
+                ?>
+                <div class="flex items-center justify-between py-2 border-b border-outline-variant/10">
+                  <span class="text-sm font-semibold text-on-surface"><?php echo htmlspecialchars($monthLabel); ?></span>
+                  <span class="text-sm text-on-surface-variant"><?php echo $avgPerformance; ?>% across <?php echo $totalGrades; ?> grades</span>
+                </div>
+              <?php endforeach; ?>
+            </div>
+          <?php else: ?>
+            <p class="text-sm text-on-surface-variant">No performance records are available for the last 6 months.</p>
+          <?php endif; ?>
         </div>
       </div>
 
@@ -693,66 +708,6 @@ if ($result_trend) {
   <script src="../js/jquery.js"></script>
   <script src="../js/validate.js"></script>
   <script>
-    // Performance Chart
-    const ctx = document.getElementById('performanceChart').getContext('2d');
-    const performanceData = <?php echo json_encode($performance_trend); ?>;
-
-    new Chart(ctx, {
-      type: 'line',
-      data: {
-        labels: performanceData.map(item => {
-          const date = new Date(item.month + '-01');
-          return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
-        }),
-        datasets: [{
-          label: 'Average Performance (%)',
-          data: performanceData.map(item => parseFloat(item.avg_performance).toFixed(1)),
-          borderColor: '#003b93',
-          backgroundColor: 'rgba(0, 59, 147, 0.1)',
-          tension: 0.4,
-          fill: true,
-          pointBackgroundColor: '#003b93',
-          pointBorderColor: '#ffffff',
-          pointBorderWidth: 2,
-          pointRadius: 6,
-          pointHoverRadius: 8
-        }]
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: {
-            display: false
-          }
-        },
-        scales: {
-          y: {
-            beginAtZero: true,
-            max: 100,
-            grid: {
-              color: 'rgba(0, 59, 147, 0.1)'
-            },
-            ticks: {
-              callback: function(value) {
-                return value + '%';
-              }
-            }
-          },
-          x: {
-            grid: {
-              color: 'rgba(0, 59, 147, 0.1)'
-            }
-          }
-        },
-        elements: {
-          point: {
-            hoverBorderWidth: 3
-          }
-        }
-      }
-    });
-
     function openEditModal() {
       const modal = document.getElementById('editModal');
       modal.classList.remove('opacity-0', 'pointer-events-none');
