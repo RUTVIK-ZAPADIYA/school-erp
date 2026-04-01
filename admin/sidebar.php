@@ -48,6 +48,9 @@ function isAdminActive(array $pages, $currentPage)
     <a href="dashboard.php" class="<?php echo isAdminActive(['dashboard.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">grid_view</span><span>Dashboard</span>
     </a>
+    <a href="manage-users.php" class="<?php echo isAdminActive(['manage-users.php'], $currentPage); ?>">
+      <span class="material-symbols-outlined">manage_accounts</span><span>Manage Users</span>
+    </a>
     <a href="students.php" class="<?php echo isAdminActive(['students.php', 'add-student.php', 'edit-student.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">school</span><span>Students</span>
     </a>
@@ -82,21 +85,6 @@ function isAdminActive(array $pages, $currentPage)
       <span class="material-symbols-outlined">settings</span><span>Settings</span>
     </a>
   </nav>
-
-  <div class="admin-side-widget">
-    <div class="admin-side-widget-title">
-      <span class="material-symbols-outlined">monitoring</span>
-      <span>Operations Snapshot</span>
-    </div>
-    <div class="admin-side-widget-row">
-      <span>System Status</span>
-      <strong>Healthy</strong>
-    </div>
-    <div class="admin-side-widget-row">
-      <span>Portal Role</span>
-      <strong>Admin</strong>
-    </div>
-  </div>
 
   <div class="admin-sidebar-footer">
     <a href="logout.php" class="admin-logout-link">

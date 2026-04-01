@@ -139,13 +139,13 @@ $(document).ready(function () {
         ? parseFloat(field.data("minValue"))
         : field.attr("min") !== undefined
         ? parseFloat(field.attr("min"))
-        : null;
+        : NaN;
     var maxValue =
       field.data("maxValue") !== undefined
         ? parseFloat(field.data("maxValue"))
         : field.attr("max") !== undefined
         ? parseFloat(field.attr("max"))
-        : null;
+        : NaN;
     var fileSize = field.data("filesize") || 0;
     var fileType = field.data("filetype") || "";
     var patternValue = field.attr("pattern") || "";
@@ -215,10 +215,12 @@ $(document).ready(function () {
             errorMessage = "Please enter a valid number.";
           } else {
             const numericValue = parseFloat(value);
+            const hasMinValue = Number.isFinite(minValue);
+            const hasMaxValue = Number.isFinite(maxValue);
 
-            if (!isNaN(minValue) && numericValue < minValue) {
+            if (hasMinValue && numericValue < minValue) {
               errorMessage = `Value must be at least ${minValue}.`;
-            } else if (!isNaN(maxValue) && numericValue > maxValue) {
+            } else if (hasMaxValue && numericValue > maxValue) {
               errorMessage = `Value must be at most ${maxValue}.`;
             }
           }

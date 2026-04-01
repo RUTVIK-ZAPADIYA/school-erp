@@ -86,13 +86,8 @@ try {
         $stmt->close();
     }
 
-<<<<<<< Updated upstream
-    // Count leave entries
-  $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$studentFilter['sql']}";
-=======
     // Get leave applications
   $sql_leave = "SELECT COUNT(*) as count FROM leave_applications WHERE {$leaveFilter['sql']}";
->>>>>>> Stashed changes
     $stmt = $conn->prepare( $sql_leave);
     if ($stmt) {
     $filterParams = $leaveFilter['params'];

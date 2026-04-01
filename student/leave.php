@@ -20,13 +20,68 @@ $formValues = [
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $formValues['leave_type'] = strtolower(trim((string) ($_POST['leave_type'] ?? '')));
-  $formValues['days'] = (int) ($_POST['days'] ?? 0);
+  $formValues['days'] = trim((string) ($_POST['days'] ?? ''));
   $formValues['from_date'] = trim((string) ($_POST['from_date'] ?? ''));
   $formValues['to_date'] = trim((string) ($_POST['to_date'] ?? ''));
   $formValues['reason'] = trim((string) ($_POST['reason'] ?? ''));
 
+  $allowedLeaveTypes = ['sick', 'casual', 'emergency', 'other'];
+  $dateParser = static function ($value) {
+    if ($value === '') {
+      return null;
+    }
+
+    $parsed = DateTimeImmutable::createFromFormat('Y-m-d', $value);
+    if (!$parsed) {
+      return null;
+    }
+
+    $errors = DateTimeImmutable::getLastErrors();
+    if (is_array($errors) && ((int) ($errors['warning_count'] ?? 0) > 0 || (int) ($errors['error_count'] ?? 0) > 0)) {
+      return null;
+    }
+
+    return $parsed;
+  };
+
+  if (!in_array($formValues['leave_type'], $allowedLeaveTypes, true)) {
+    $errorMessage = 'Please select a valid leave type.';
+  }
+
+  $fromDateObject = $dateParser($formValues['from_date']);
+  $toDateObject = $dateParser($formValues['to_date']);
+
+  if ($errorMessage === '' && (!$fromDateObject || !$toDateObject)) {
+    $errorMessage = 'Please select valid from and to dates.';
+  }
+
+  if ($errorMessage === '' && $toDateObject < $fromDateObject) {
+    $errorMessage = 'To date must be on or after from date.';
+  }
+
+  $calculatedDays = 0;
+  if ($fromDateObject && $toDateObject && $toDateObject >= $fromDateObject) {
+    $calculatedDays = ((int) $fromDateObject->diff($toDateObject)->days) + 1;
+    $formValues['days'] = (string) $calculatedDays;
+  }
+
+  if ($errorMessage === '' && $calculatedDays <= 0) {
+    $errorMessage = 'Unable to calculate leave days from the selected dates.';
+  }
+
+  $reasonLength = function_exists('mb_strlen') ? mb_strlen($formValues['reason']) : strlen($formValues['reason']);
+  if ($errorMessage === '' && $reasonLength < 5) {
+    $errorMessage = 'Reason must be at least 5 characters.';
+  }
+
+  if ($errorMessage === '' && $reasonLength > 1000) {
+    $errorMessage = 'Reason must be at most 1000 characters.';
+  }
+
   try {
-    if (!student_auth_table_exists($conn, 'leave_applications')) {
+    if ($errorMessage !== '') {
+      // Keep the validation message already set.
+    } elseif (!student_auth_table_exists($conn, 'leave_applications')) {
       $errorMessage = 'Leave applications table is not available. Please contact admin.';
     } else {
       $insertColumns = [];
@@ -57,14 +112,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $hasLinkedIdentity = true;
       }
 
-      if (!$hasLinkedIdentity) {
+      if ($errorMessage === '' && !$hasLinkedIdentity) {
         $errorMessage = 'Unable to resolve valid student identity for leave submission.';
       }
 
-      foreach (['leave_type', 'from_date', 'to_date', 'days'] as $requiredColumn) {
-        if (!student_auth_column_exists($conn, 'leave_applications', $requiredColumn)) {
-          $errorMessage = 'Leave table schema is incomplete. Missing column: ' . $requiredColumn;
-          break;
+      if ($errorMessage === '') {
+        foreach (['leave_type', 'from_date', 'to_date', 'days'] as $requiredColumn) {
+          if (!student_auth_column_exists($conn, 'leave_applications', $requiredColumn)) {
+            $errorMessage = 'Leave table schema is incomplete. Missing column: ' . $requiredColumn;
+            break;
+          }
         }
       }
 
@@ -83,7 +140,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $insertColumns[] = 'days';
         $insertTypes .= 'i';
-        $insertParams[] = (int) $formValues['days'];
+        $insertParams[] = $calculatedDays;
 
         if (student_auth_column_exists($conn, 'leave_applications', 'reason')) {
           $insertColumns[] = 'reason';
@@ -227,7 +284,7 @@ try {
             </div>
             <div>
               <label class="block text-sm font-medium text-stone-900 mb-2">Number of Days</label>
-              <input id="days" type="number" name="days" min="1" value="<?php echo htmlspecialchars((string) $formValues['days']); ?>" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" data-validation="required,number,minValue,dateRangeDays" data-min-value="1" data-from-field="from_date" data-to-field="to_date">
+              <input id="days" type="number" name="days" min="1" step="1" readonly value="<?php echo htmlspecialchars((string) $formValues['days']); ?>" class="w-full px-4 py-2 border border-stone-300 rounded-lg bg-stone-50 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent" data-validation="number,minValue" data-min-value="1">
               <p id="days_error" class="hidden mt-1 text-xs font-medium text-red-600"></p>
             </div>
           </div>
@@ -334,7 +391,7 @@ try {
   </main>
 
   <script src="../js/jquery.js"></script>
-  <script src="../js/validate.js"></script>
+  <script src="../js/validate.js?v=<?php echo urlencode((string) (@filemtime(__DIR__ . '/../js/validate.js') ?: time())); ?>"></script>
   <script>
     (function () {
       const fields = {
@@ -347,7 +404,20 @@ try {
         if (!value) {
           return null;
         }
-        const parsed = new Date(value + 'T00:00:00');
+        const parts = value.split('-');
+        if (parts.length !== 3) {
+          return null;
+        }
+
+        const year = Number(parts[0]);
+        const month = Number(parts[1]);
+        const day = Number(parts[2]);
+
+        if (!Number.isInteger(year) || !Number.isInteger(month) || !Number.isInteger(day)) {
+          return null;
+        }
+
+        const parsed = new Date(Date.UTC(year, month - 1, day));
         if (Number.isNaN(parsed.getTime())) {
           return null;
         }
@@ -356,7 +426,7 @@ try {
 
       function inclusiveDays(fromDate, toDate) {
         const millisPerDay = 1000 * 60 * 60 * 24;
-        return Math.floor((toDate.getTime() - fromDate.getTime()) / millisPerDay) + 1;
+        return Math.round((toDate.getTime() - fromDate.getTime()) / millisPerDay) + 1;
       }
 
       function syncDaysFromDates() {
@@ -375,8 +445,12 @@ try {
         fields.days.dispatchEvent(new Event('input', { bubbles: true }));
       }
 
-      fields.fromDate.addEventListener('change', syncDaysFromDates);
-      fields.toDate.addEventListener('change', syncDaysFromDates);
+      if (fields.fromDate && fields.toDate) {
+        fields.fromDate.addEventListener('change', syncDaysFromDates);
+        fields.toDate.addEventListener('change', syncDaysFromDates);
+      }
+
+      syncDaysFromDates();
     })();
   </script>
 </body>

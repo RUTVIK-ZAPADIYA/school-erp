@@ -209,64 +209,6 @@ if ($totalTeachers <= 0) {
       max-width: 1260px;
       margin: 0 auto;
     }
-    .topbar {
-      background: rgba(255, 255, 255, 0.86);
-      border: 1px solid #d6e4f4;
-      border-radius: 18px;
-      padding: 12px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-      box-shadow: 0 12px 26px rgba(23, 36, 61, 0.08);
-      margin-bottom: 18px;
-      position: sticky;
-      top: 14px;
-      z-index: 20;
-      backdrop-filter: blur(8px);
-    }
-    .topbar-search {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      background: #f5f8fc;
-      border: 1px solid #dbe8f5;
-      border-radius: 12px;
-      padding: 8px 12px;
-      min-width: 320px;
-      flex: 1;
-      max-width: 460px;
-    }
-    .topbar-search i {
-      color: #6f84a6;
-      font-size: 0.9rem;
-    }
-    .topbar-search input {
-      border: 0;
-      outline: 0;
-      background: transparent;
-      width: 100%;
-      color: #1f2f4d;
-      font-size: 0.92rem;
-      font-weight: 600;
-    }
-    .topbar-links {
-      display: flex;
-      gap: 14px;
-      align-items: center;
-    }
-    .topbar-link {
-      text-decoration: none;
-      color: #536b91;
-      font-size: 0.87rem;
-      font-weight: 700;
-      padding-bottom: 5px;
-      border-bottom: 2px solid transparent;
-    }
-    .topbar-link.active {
-      color: #18356b;
-      border-color: #2a61d8;
-    }
     .headline-panel {
       border: 1px solid #d7e4f2;
       border-radius: 18px;
@@ -512,13 +454,6 @@ if ($totalTeachers <= 0) {
       .metrics-grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
       }
-      .topbar {
-        flex-wrap: wrap;
-      }
-      .topbar-search {
-        max-width: 100%;
-        min-width: 100%;
-      }
       .headline-panel {
         padding: 14px;
       }
@@ -540,13 +475,6 @@ if ($totalTeachers <= 0) {
       .title-row h1 {
         font-size: 1.6rem;
       }
-      .topbar-links {
-        width: 100%;
-        justify-content: space-between;
-      }
-      .topbar-link {
-        font-size: 0.8rem;
-      }
     }
   </style>
 </head>
@@ -555,28 +483,12 @@ if ($totalTeachers <= 0) {
 
   <div class="dashboard-shell">
     <div class="dashboard-inner">
-    <div class="topbar">
-      <div class="topbar-search">
-        <i class="fas fa-search"></i>
-        <input type="text" placeholder="Search institutional records...">
-      </div>
-      <div class="topbar-links">
-        <a href="#" class="topbar-link active">Dashboard</a>
-        <a href="reports.php" class="topbar-link">Reports</a>
-        <a href="settings.php" class="topbar-link">Settings</a>
-      </div>
-    </div>
-
     <div class="headline-panel">
       <div class="title-row">
         <div>
           <h1>Scholar Metric Insights</h1>
           <p>Institutional performance overview for Academic Year <?php echo htmlspecialchars($academicYearLabel); ?></p>
           <span class="headline-meta"><i class="fas fa-calendar-day"></i> Updated <?php echo htmlspecialchars($todayDisplay); ?></span>
-        </div>
-        <div class="title-actions">
-          <button class="btn-soft"><i class="fas fa-download"></i> Download Summary</button>
-          <button class="btn btn-primary"><i class="fas fa-bolt"></i> Generate Report</button>
         </div>
       </div>
 

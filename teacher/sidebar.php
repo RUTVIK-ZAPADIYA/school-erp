@@ -49,20 +49,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <span class="text-[14px]">Profile</span>
 </a>
 </nav>
-<!-- Teacher Recognition Widget (Pro Feature 5) -->
-<div class="mt-auto mb-6 p-4 bg-gradient-to-br from-stone-50 to-white border border-outline-variant/30 rounded-xl pro-shadow">
-<div class="flex items-center gap-2 mb-2">
-<span class="material-symbols-outlined text-amber-500 text-sm" style="font-variation-settings: 'FILL' 1;">stars</span>
-<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Faculty Recognition</span>
-</div>
-<div class="flex items-center gap-3">
-<img class="w-8 h-8 rounded-full border border-white pro-shadow" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBxCF91fzs4syUOEI8L1TUsGleLRbNUMIwGSFUecqRsERsOYGwgFl7y350ienCTSOf5Rr3PG1_OL4qIoE4FYgA7iyPm4VW9YaZDsKsHsITgkx7vQ0A5L_vHI7OQMp2_PxdBu3s5uWA7HEryDOub9rCkTqxzjxeieF73fRbuPNHsmJkhZS8szK-OGH1QL6K_6A6ZATs2Tnn10r4YVI8SObS8qpWXPCP8-z5Yxfuf1O5AUzyIQlamKn0oz9DQfIoStOSqgr9KiTjZssI"/>
-<div>
-<p class="text-[11px] font-bold text-on-surface">Prof. <?php echo htmlspecialchars($teacherLastName); ?></p>
-<p class="text-[10px] text-on-surface-variant">Top Innovator '23</p>
-</div>
-</div>
-</div>
 <div class="space-y-1 pt-4 border-t border-stone-100">
 <a class="flex items-center gap-3 px-3 py-2 <?php echo $current_page == 'settings.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-400 hover:text-stone-900'; ?>" href="settings.php">
 <span class="material-symbols-outlined text-sm">settings</span>

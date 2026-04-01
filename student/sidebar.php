@@ -54,22 +54,6 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <span class="text-[14px]">Contact Admin</span>
 </a>
 </nav>
-<!-- Student Info Widget -->
-<div class="mt-auto mb-6 p-4 bg-gradient-to-br from-stone-50 to-white border border-outline-variant/30 rounded-xl pro-shadow">
-<div class="flex items-center gap-2 mb-2">
-<span class="material-symbols-outlined text-blue-500 text-sm" style="font-variation-settings: 'FILL' 1;">school</span>
-<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Student Info</span>
-</div>
-<div class="flex items-center gap-3">
-<div class="w-8 h-8 rounded-full border-2 border-blue-500 flex items-center justify-center text-white bg-blue-500 font-bold text-xs">
-<?php echo strtoupper(substr($studentDisplayName, 0, 1)); ?>
-</div>
-<div>
-<p class="text-[11px] font-bold text-on-surface"><?php echo htmlspecialchars($studentDisplayName); ?></p>
-<p class="text-[10px] text-on-surface-variant">Roll No: <?php echo htmlspecialchars($studentRollNo !== '' ? $studentRollNo : '-'); ?></p>
-</div>
-</div>
-</div>
 <div class="space-y-1 pt-4 border-t border-stone-100">
 <a class="flex items-center gap-3 px-3 py-2 text-stone-400 hover:text-stone-900" href="logout.php" onclick="return confirm('Are you sure you want to logout?');">
 <span class="material-symbols-outlined text-sm">logout</span>
