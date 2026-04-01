@@ -6,9 +6,9 @@
   --ink-500: #60708e;
   --bg-soft: #f2f6fb;
   --surface: #ffffff;
-  --brand: #14866d;
-  --brand-strong: #0f6d59;
-  --brand-tint: #d8f2eb;
+  --brand: #0d6efd;
+  --brand-strong: #0a58ca;
+  --brand-tint: #cfe2ff;
   --accent: #f1b24a;
   --danger: #d64545;
   --success: #2d9b66;
@@ -202,12 +202,12 @@ a:hover {
 .btn-create,
 .btn-primary,
 .btn-hero {
-  background: linear-gradient(135deg, var(--brand), var(--brand-strong)) !important;
-  color: #effffb !important;
+  background: #0d6efd !important;
+  color: #ffffff !important;
   border: none !important;
   font-weight: 700 !important;
   border-radius: 10px !important;
-  box-shadow: 0 8px 18px rgba(20, 134, 109, 0.25);
+  box-shadow: 0 8px 18px rgba(13, 110, 253, 0.2);
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
@@ -221,22 +221,22 @@ a:hover {
 .btn-create:hover,
 .btn-primary:hover,
 .btn-hero:hover {
-  background: linear-gradient(135deg, var(--brand-strong), #0c5b4a) !important;
-  color: #effffb !important;
+  background: #0a58ca !important;
+  color: #ffffff !important;
   transform: translateY(-2px);
-  box-shadow: 0 12px 22px rgba(20, 134, 109, 0.28);
+  box-shadow: 0 12px 22px rgba(13, 110, 253, 0.28);
 }
 
 .btn-outline {
-  border: 2px solid var(--brand) !important;
-  color: var(--brand) !important;
+  border: 2px solid #0f4c81 !important;
+  color: #0f4c81 !important;
   background: transparent !important;
   border-radius: 10px !important;
 }
 
 .btn-outline:hover {
-  background: var(--brand) !important;
-  color: #ecfffa !important;
+  background: #0f4c81 !important;
+  color: #ffffff !important;
 }
 
 .form-control,
@@ -248,8 +248,8 @@ a:hover {
 
 .form-control:focus,
 .form-select:focus {
-  border-color: var(--brand) !important;
-  box-shadow: 0 0 0 4px rgba(20, 134, 109, 0.14) !important;
+  border-color: #0f4c81 !important;
+  box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.14) !important;
 }
 
 @media (max-width: 992px) {

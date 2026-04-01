@@ -122,40 +122,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <!-- jQuery Validation Plugin -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
     <link rel="stylesheet" href="assets/css/auth-pages.css">
-    <style>
-      .error {
-        color: #dc3545 !important;
-        font-size: 0.875rem !important;
-        margin-top: 0.5rem !important;
-        display: block !important;
-      }
-      input.error {
-        border-color: #dc3545 !important;
-        background-color: #fff5f5 !important;
-      }
-      .form-control:focus {
-        border-color: #2a7f62;
-        box-shadow: 0 0 0 0.2rem rgba(42, 127, 98, 0.25);
-      }
-    </style>
   </head>
   <body class="auth-layout">
       <div class="auth-card auth-sm">
+        <p class="auth-head-kicker"><i class="fas fa-shield-halved"></i> Secure Sign In</p>
         <div class="logo-section">
           <div class="logo-icon">
             <i class="fas fa-graduation-cap"></i>
           </div>
           <h1>School ERP System</h1>
-          <p class="subtitle">Sign in to access your account</p>
+          <p class="subtitle">Sign in to access your dashboard and school operations</p>
         </div>
 
         <?php if (isset($error)): ?>
         <div class="alert alert-danger" role="alert">
-          <i class="fas fa-exclamation-circle"></i> <?php echo $error; ?>
+          <i class="fas fa-exclamation-circle"></i> <?php echo htmlspecialchars($error); ?>
         </div>
         <?php endif; ?>
 
@@ -176,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               <input type="checkbox" name="remember" id="remember">
               <span>Remember me</span>
             </label>
-            <a href="#" class="forgot-password">Forgot Password?</a>
+            <a href="forgot-password.php" class="forgot-password">Forgot Password?</a>
           </div>
 
           <button type="submit" class="btn-login">
@@ -196,6 +180,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script>
       $(document).ready(function() {
+        $('.password-toggle').attr('aria-label', 'Toggle password visibility');
+
         // Initialize jQuery Validation
         $('#loginForm').validate({
           rules: {

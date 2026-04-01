@@ -30,8 +30,15 @@ if (!function_exists('ensure_school_erp_column')) {
     function ensure_school_erp_column($conn, $tableName, $columnName, $definition)
     {
         $result = $conn->query( "SHOW COLUMNS FROM `$tableName` LIKE '$columnName'");
-        if ($result && $result->num_rows === 0) {
-            $conn->query( "ALTER TABLE `$tableName` ADD COLUMN `$columnName` $definition");
+        if (!$result) {
+            error_log("Schema check failed for {$tableName}.{$columnName}: " . $conn->error);
+            return;
+        }
+
+        if ($result->num_rows === 0) {
+            if (!$conn->query( "ALTER TABLE `$tableName` ADD COLUMN `$columnName` $definition")) {
+                error_log("Schema migration failed for {$tableName}.{$columnName}: " . $conn->error);
+            }
         }
     }
 }
@@ -294,6 +301,11 @@ if (!function_exists('ensure_school_erp_schema')) {
 
         ensure_school_erp_column($conn, 'classes', 'name', "VARCHAR(100) NULL");
         ensure_school_erp_column($conn, 'classes', 'class_name', "VARCHAR(100) NULL");
+        ensure_school_erp_column($conn, 'users', 'reset_token', 'VARCHAR(255) NULL');
+        ensure_school_erp_column($conn, 'users', 'reset_token_expiry', 'DATETIME NULL');
+        ensure_school_erp_column($conn, 'users', 'email_verification_token', 'VARCHAR(255) NULL');
+        ensure_school_erp_column($conn, 'users', 'email_verification_expiry', 'DATETIME NULL');
+        ensure_school_erp_column($conn, 'users', 'email_verified', 'TINYINT(1) DEFAULT 0');
         ensure_school_erp_column($conn, 'students', 'user_id', 'INT NULL');
         ensure_school_erp_column($conn, 'students', 'username', 'VARCHAR(100) NULL');
         ensure_school_erp_column($conn, 'students', 'class', "VARCHAR(100) NULL");

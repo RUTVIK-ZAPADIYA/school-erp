@@ -72,8 +72,16 @@
     right: -30px;
     width: 260px;
     height: 260px;
-    background: radial-gradient(circle, rgba(31, 201, 166, 0.25), transparent 65%);
+    background: radial-gradient(circle, rgba(13, 110, 253, 0.2), transparent 65%);
     pointer-events: none;
+  }
+
+  .site-footer a {
+    color: #ffffff !important;
+  }
+
+  .site-footer a:hover {
+    color: #ffffff !important;
   }
 
   .footer-brand {
@@ -84,7 +92,7 @@
 
   .footer-brand h5 {
     margin: 0;
-    color: #f2f9ff;
+    color: #ffffff;
     font-weight: 800;
   }
 
@@ -92,22 +100,22 @@
     width: 46px;
     height: 46px;
     border-radius: 12px;
-    background: linear-gradient(140deg, #2ac8a2, #17856d);
+    background: #0d6efd;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #ecfffb;
-    box-shadow: 0 10px 20px rgba(19, 167, 133, 0.32);
+    color: #ffffff;
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.32);
   }
 
   .footer-title {
-    color: #f1f7ff;
+    color: #ffffff;
     margin-bottom: 18px;
     font-weight: 700;
   }
 
   .footer-muted {
-    color: #b7c6da;
+    color: #ffffff;
     line-height: 1.75;
     max-width: 380px;
   }
@@ -122,13 +130,13 @@
 
   .footer-links a,
   .footer-links span {
-    color: #c6d3e6;
+    color: #ffffff !important;
     text-decoration: none;
     font-weight: 500;
   }
 
   .footer-links a:hover {
-    color: #f0fffb;
+    color: #ffffff !important;
   }
 
   .footer-contact-item {
@@ -136,34 +144,44 @@
     align-items: center;
     gap: 10px;
     margin-bottom: 12px;
-    color: #c8d4e8;
+    color: #ffffff;
   }
 
   .footer-contact-item i {
-    width: 28px;
-    height: 28px;
-    border-radius: 8px;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    color: #d7fff6;
-    background: rgba(42, 200, 162, 0.24);
+    color: #ffffff;
+    background: #0d6efd;
+    font-size: 1.1rem;
+    box-shadow: 0 6px 14px rgba(13, 110, 253, 0.3);
+    transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+
+  .footer-contact-item:hover i {
+    background: #0a58ca;
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.4);
   }
 
   .footer-contact-item a {
-    color: #c8d4e8;
+    color: #ffffff !important;
     text-decoration: none;
   }
 
   .footer-contact-item a:hover {
-    color: #f0fffb;
+    color: #ffffff;
   }
 
   .footer-bottom {
     margin-top: 24px;
     padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.12);
-    color: #9fb3cf;
+    color: #ffffff;
     font-size: 0.95rem;
   }
 

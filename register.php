@@ -188,27 +188,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
   <link rel="stylesheet" href="assets/css/theme.css">
   <link rel="stylesheet" href="assets/css/auth-pages.css">
-  <style>
-    .register-wrap {
-      max-width: 760px;
-      margin: 110px auto 40px;
-    }
-    .register-card {
-      border: 1px solid #e2e8f0;
-      border-radius: 16px;
-      box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
-      padding: 28px;
-      background: #ffffff;
-    }
-  </style>
 </head>
 <body>
   <?php include 'includes/navbar.php'; ?>
 
   <div class="container register-wrap">
     <div class="register-card">
-      <h2 class="mb-2">Create Student Account</h2>
-      <p class="text-muted mb-4">Use this form to register and access the Student Portal.</p>
+      <p class="auth-head-kicker"><i class="fas fa-user-graduate"></i> Student Registration</p>
+      <h2 class="auth-title mb-2">Create Student Account</h2>
+      <p class="auth-subtitle mb-4">Use this form to register and access the School ERP Student Portal.</p>
 
       <?php if (!empty($errors)): ?>
         <div class="alert alert-danger">
