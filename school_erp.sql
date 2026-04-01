@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Mar 31, 2026 at 04:29 PM
+-- Generation Time: Apr 01, 2026 at 03:54 PM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.28
 
@@ -18,10 +18,78 @@ SET time_zone = "+00:00";
 /*!40101 SET NAMES utf8mb4 */;
 
 --
--- Database: `school_erp'
+-- Database: `school_erp`
 --
 
+DELIMITER $$
+--
+-- Procedures
+--
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_products_delete` (IN `p_id` INT)   BEGIN
+    DELETE FROM products WHERE id = p_id;
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
 
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_products_edit` (IN `p_id` INT)   BEGIN
+    SELECT
+        id, name, category_id, brand, price, discount, final_price,
+        stock, description, long_description, image, gallery_images, status
+    FROM products
+    WHERE id = p_id
+    LIMIT 1;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_products_insert` (IN `p_name` VARCHAR(255), IN `p_category_id` INT, IN `p_brand` VARCHAR(100), IN `p_price` DECIMAL(10,2), IN `p_discount` INT, IN `p_stock` INT, IN `p_description` TEXT, IN `p_long_description` LONGTEXT, IN `p_image` VARCHAR(255), IN `p_gallery_images` JSON, IN `p_status` VARCHAR(10))   BEGIN
+    INSERT INTO products (
+        name, category_id, brand, price, discount, stock,
+        description, long_description, image, gallery_images, status
+    ) VALUES (
+        p_name, p_category_id, p_brand, p_price,
+        CASE
+            WHEN p_discount IS NULL OR p_discount < 0 THEN 0
+            WHEN p_discount > 30 THEN 30
+            ELSE p_discount
+        END,
+        p_stock,
+        p_description, p_long_description, p_image, p_gallery_images,
+        CASE WHEN p_status IN ('Active', 'Inactive') THEN p_status ELSE 'Active' END
+    );
+
+    SELECT LAST_INSERT_ID() AS inserted_id;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_products_read` ()   BEGIN
+    SELECT
+        id, name, category_id, brand, price, discount, final_price,
+        stock, description, long_description, image, gallery_images, status
+    FROM products
+    ORDER BY id DESC;
+END$$
+
+CREATE DEFINER=`root`@`localhost` PROCEDURE `sp_products_update` (IN `p_id` INT, IN `p_name` VARCHAR(255), IN `p_category_id` INT, IN `p_brand` VARCHAR(100), IN `p_price` DECIMAL(10,2), IN `p_discount` INT, IN `p_stock` INT, IN `p_description` TEXT, IN `p_long_description` LONGTEXT, IN `p_image` VARCHAR(255), IN `p_gallery_images` JSON, IN `p_status` VARCHAR(10))   BEGIN
+    UPDATE products
+    SET
+        name = p_name,
+        category_id = p_category_id,
+        brand = p_brand,
+        price = p_price,
+        discount = CASE
+            WHEN p_discount IS NULL OR p_discount < 0 THEN 0
+            WHEN p_discount > 30 THEN 30
+            ELSE p_discount
+        END,
+        stock = p_stock,
+        description = p_description,    
+        long_description = p_long_description,
+        image = p_image,
+        gallery_images = p_gallery_images,
+        status = CASE WHEN p_status IN ('Active', 'Inactive') THEN p_status ELSE 'Active' END
+    WHERE id = p_id;
+
+    SELECT ROW_COUNT() AS affected_rows;
+END$$
+
+DELIMITER ;
 
 -- --------------------------------------------------------
 
@@ -43,6 +111,13 @@ CREATE TABLE `assignments` (
   `file_path` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `assignments`
+--
+
+INSERT INTO `assignments` (`id`, `title`, `description`, `teacher_id`, `subject_id`, `class_id`, `due_date`, `total_marks`, `total_points`, `allow_late_submissions`, `file_path`, `created_at`) VALUES
+(1, 'fgh gf h', 'f sh', 1271, 2, 346, '2026-04-11', 100, 100, 0, NULL, '2026-03-31 17:03:48');
 
 -- --------------------------------------------------------
 
@@ -197,6 +272,36 @@ CREATE TABLE `grades` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `leave_applications`
+--
+
+CREATE TABLE `leave_applications` (
+  `id` int NOT NULL,
+  `application_id` varchar(50) DEFAULT NULL,
+  `student_id` int DEFAULT NULL,
+  `student_user_id` int DEFAULT NULL,
+  `leave_type` varchar(40) NOT NULL,
+  `from_date` date NOT NULL,
+  `to_date` date NOT NULL,
+  `days` int NOT NULL,
+  `reason` text,
+  `status` varchar(20) DEFAULT 'pending',
+  `admin_remark` text,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `leave_applications`
+--
+
+INSERT INTO `leave_applications` (`id`, `application_id`, `student_id`, `student_user_id`, `leave_type`, `from_date`, `to_date`, `days`, `reason`, `status`, `admin_remark`, `created_at`, `updated_at`) VALUES
+(1, 'LA20260331171453017', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'pending', NULL, '2026-03-31 17:14:53', '2026-03-31 17:14:53'),
+(2, 'LA20260331171546285', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'pending', NULL, '2026-03-31 17:15:46', '2026-03-31 17:15:46');
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `marks`
 --
 
@@ -310,7 +415,7 @@ CREATE TABLE `support_tickets` (
 --
 
 INSERT INTO `support_tickets` (`id`, `student_id`, `title`, `message`, `category`, `status`, `admin_reply`, `created_at`, `updated_at`, `replied_at`) VALUES
-(1, 1274, 'fa sdfad f', 'd dafasd dsf adsf', 'Data Error', 'Open', NULL, '2026-03-31 16:25:24', '2026-03-31 16:25:24', NULL);
+(1, 1274, 'fa sdfad f', 'd dafasd dsf adsf', 'Data Error', 'Resolved', 'your issue has been resolved', '2026-03-31 16:25:24', '2026-03-31 17:01:27', '2026-03-31 17:01:27');
 
 -- --------------------------------------------------------
 
@@ -324,6 +429,16 @@ CREATE TABLE `system_settings` (
   `setting_value` text,
   `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+--
+-- Dumping data for table `system_settings`
+--
+
+INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `updated_at`) VALUES
+(1, 'school_name', 'ABC School', '2026-03-31 17:19:21'),
+(2, 'school_email', 'info@school.com', '2026-03-31 17:19:21'),
+(3, 'school_phone', '+1 234 567 8900', '2026-03-31 17:19:21'),
+(4, 'school_address', '123 School St', '2026-03-31 17:19:21');
 
 -- --------------------------------------------------------
 
@@ -374,18 +489,23 @@ CREATE TABLE `users` (
   `phone` varchar(30) DEFAULT NULL,
   `status` varchar(20) DEFAULT 'Active',
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `reset_token` varchar(255) DEFAULT NULL,
+  `reset_token_expiry` datetime DEFAULT NULL,
+  `email_verification_token` varchar(255) DEFAULT NULL,
+  `email_verification_expiry` datetime DEFAULT NULL,
+  `email_verified` tinyint(1) DEFAULT '0'
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `users`
 --
 
-INSERT INTO `users` (`id`, `username`, `password`, `role`, `name`, `email`, `phone`, `status`, `created_at`, `updated_at`) VALUES
-(1, 'admin', '$2y$10$I7SJP6I89U2LQ7O/eQvQ0.oV6fyV2osBOUGwvF1nIbqTB4VT1mD5G', 'admin', 'Admin User', 'admin@school.com', '+1000000001', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26'),
-(3, 'student1', '$2y$10$trcpl/VPFEX0y1Q.YH2VkeEnFrm33W.YUvZmg0QGdtMrbbVz3DPzG', 'student', 'Rahul Sharma', 'student1@school.com', '+1000000003', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26'),
-(1273, 'rutvik', '$2y$10$7o6doclnJl4NtdilzJm9b.e9OwYuxN6xpMumNVzv2fNEnuiNf0wJa', 'teacher', 'RUTVIK ZAPADIYA', 'rutvikzapadiya111@gmail.com', '1234567890', 'Active', '2026-03-31 14:27:01', '2026-03-31 14:27:01'),
-(1274, 'shira', '$2y$10$cCk6RXT4qgK5E8WYAySa5.uETvllbA2E2us.Ie5D9DxvE0C4FN2ky', 'student', 'shira', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 16:12:59', '2026-03-31 16:12:59');
+INSERT INTO `users` (`id`, `username`, `password`, `role`, `name`, `email`, `phone`, `status`, `created_at`, `updated_at`, `reset_token`, `reset_token_expiry`, `email_verification_token`, `email_verification_expiry`, `email_verified`) VALUES
+(1, 'admin', '$2y$10$I7SJP6I89U2LQ7O/eQvQ0.oV6fyV2osBOUGwvF1nIbqTB4VT1mD5G', 'admin', 'Admin User', 'admin@school.com', '+1000000001', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26', NULL, NULL, NULL, NULL, 0),
+(3, 'student1', '$2y$10$trcpl/VPFEX0y1Q.YH2VkeEnFrm33W.YUvZmg0QGdtMrbbVz3DPzG', 'student', 'Rahul Sharma', 'student1@school.com', '+1000000003', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26', NULL, NULL, NULL, NULL, 0),
+(1273, 'rutvik', '$2y$10$7o6doclnJl4NtdilzJm9b.e9OwYuxN6xpMumNVzv2fNEnuiNf0wJa', 'teacher', 'RUTVIK ZAPADIYA', 'rutvikzapadiya111@gmail.com', '1234567890', 'Active', '2026-03-31 14:27:01', '2026-04-01 12:59:39', '5161ff491f19454071a62578510522574cc914e97f1c26483ca933b47c96e40d', '2026-04-01 18:59:39', NULL, NULL, 0),
+(1274, 'shira', '$2y$10$cCk6RXT4qgK5E8WYAySa5.uETvllbA2E2us.Ie5D9DxvE0C4FN2ky', 'student', 'shira', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 16:12:59', '2026-03-31 16:12:59', NULL, NULL, NULL, NULL, 0);
 
 --
 -- Indexes for dumped tables
@@ -439,6 +559,16 @@ ALTER TABLE `fees`
 --
 ALTER TABLE `grades`
   ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `leave_applications`
+--
+ALTER TABLE `leave_applications`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `uniq_leave_application_id` (`application_id`),
+  ADD KEY `idx_leave_student_id` (`student_id`),
+  ADD KEY `idx_leave_student_user_id` (`student_user_id`),
+  ADD KEY `idx_leave_status` (`status`);
 
 --
 -- Indexes for table `marks`
@@ -503,7 +633,7 @@ ALTER TABLE `users`
 -- AUTO_INCREMENT for table `assignments`
 --
 ALTER TABLE `assignments`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `assignment_submissions`
@@ -542,6 +672,12 @@ ALTER TABLE `grades`
   MODIFY `id` int NOT NULL AUTO_INCREMENT;
 
 --
+-- AUTO_INCREMENT for table `leave_applications`
+--
+ALTER TABLE `leave_applications`
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+
+--
 -- AUTO_INCREMENT for table `marks`
 --
 ALTER TABLE `marks`
@@ -575,7 +711,7 @@ ALTER TABLE `support_tickets`
 -- AUTO_INCREMENT for table `system_settings`
 --
 ALTER TABLE `system_settings`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
 
 --
 -- AUTO_INCREMENT for table `teachers`

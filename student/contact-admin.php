@@ -7,31 +7,38 @@ $studentContext = student_auth_context();
 $student_id = (int) ($studentContext['user_id'] ?? 0);
 $success_message = '';
 $error_message = '';
+$formValues = [
+  'category' => '',
+    'title' => '',
+    'message' => '',
+];
 
 // Process ticket form
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $title = trim($_POST['title'] ?? '');
-    $message = trim($_POST['message'] ?? '');
-    $category = trim($_POST['category'] ?? 'Technical Issue');
+    $formValues['title'] = trim((string) ($_POST['title'] ?? ''));
+    $formValues['message'] = trim((string) ($_POST['message'] ?? ''));
+    $formValues['category'] = trim((string) ($_POST['category'] ?? ''));
 
-    if (empty($title) || empty($message)) {
-      // Validate required fields
-        $error_message = 'Please fill in all required fields';
-    } else {
-      // Insert support ticket
-        $sql = "INSERT INTO support_tickets (student_id, title, message, category, status) VALUES (?, ?, ?, ?, 'Open')";
-        $stmt = $conn->prepare( $sql);
-        if ($stmt) {
-            $stmt->bind_param( "isss", $student_id, $title, $message, $category);
-            if ($stmt->execute()) {
-              // Show success message
-                $success_message = 'Your ticket has been submitted successfully! Admin will respond soon.';
-            } else {
-              // Show error message
-                $error_message = 'Error submitting ticket. Please try again.';
-            }
-            $stmt->close();
+  // Insert support ticket
+    $sql = "INSERT INTO support_tickets (student_id, title, message, category, status) VALUES (?, ?, ?, ?, 'Open')";
+    $stmt = $conn->prepare( $sql);
+    if ($stmt) {
+        $stmt->bind_param( "isss", $student_id, $formValues['title'], $formValues['message'], $formValues['category']);
+        if ($stmt->execute()) {
+          // Show success message
+            $success_message = 'Your ticket has been submitted successfully! Admin will respond soon.';
+            $formValues = [
+              'category' => '',
+                'title' => '',
+                'message' => '',
+            ];
+        } else {
+          // Show error message
+            $error_message = 'Error submitting ticket. Please try again.';
         }
+        $stmt->close();
+    } else {
+        $error_message = 'Unable to submit ticket right now. Please try again.';
     }
 }
 
@@ -63,27 +70,6 @@ try {
   <title>Contact Admin - Student Portal</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@24,400,0,0" />
-  <!-- jQuery -->
-  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-  <!-- jQuery Validation Plugin -->
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.css">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
-  <style>
-    .error {
-      color: #dc2626 !important;
-      font-size: 0.875rem !important;
-      margin-top: 0.25rem !important;
-      display: block !important;
-    }
-    input.error, textarea.error, select.error {
-      border-color: #dc2626 !important;
-      background-color: #fee2e2 !important;
-    }
-    label.error {
-      display: none !important;
-    }
-  </style>
 </head>
 <body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
@@ -117,24 +103,27 @@ try {
           <form id="contactForm" method="POST" class="space-y-4" novalidate>
             <div>
               <label class="block text-sm font-semibold text-stone-900 mb-2">Category <span class="text-red-600">*</span></label>
-              <select name="category" id="category" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500" required>
+              <select name="category" id="category" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500" data-validation="required,select">
                 <option value="">-- Select Category --</option>
-                <option value="Technical Issue">Technical Issue</option>
-                <option value="Database Problem">Database Problem</option>
-                <option value="Login Issue">Login Issue</option>
-                <option value="Data Error">Data Error</option>
-                <option value="Other">Other</option>
+                <option value="Technical Issue" <?php echo $formValues['category'] === 'Technical Issue' ? 'selected' : ''; ?>>Technical Issue</option>
+                <option value="Database Problem" <?php echo $formValues['category'] === 'Database Problem' ? 'selected' : ''; ?>>Database Problem</option>
+                <option value="Login Issue" <?php echo $formValues['category'] === 'Login Issue' ? 'selected' : ''; ?>>Login Issue</option>
+                <option value="Data Error" <?php echo $formValues['category'] === 'Data Error' ? 'selected' : ''; ?>>Data Error</option>
+                <option value="Other" <?php echo $formValues['category'] === 'Other' ? 'selected' : ''; ?>>Other</option>
               </select>
+              <p id="category_error" class="text-sm text-red-600 mt-1 hidden"></p>
             </div>
 
             <div>
               <label class="block text-sm font-semibold text-stone-900 mb-2">Subject <span class="text-red-600">*</span></label>
-              <input type="text" name="title" id="title" required maxlength="255" placeholder="Brief description of your issue" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500">
+              <input type="text" name="title" id="title" value="<?php echo htmlspecialchars($formValues['title']); ?>" placeholder="Brief description of your issue" class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500" data-validation="required,min,max" data-min="5" data-max="255">
+              <p id="title_error" class="text-sm text-red-600 mt-1 hidden"></p>
             </div>
 
             <div>
               <label class="block text-sm font-semibold text-stone-900 mb-2">Message <span class="text-red-600">*</span></label>
-              <textarea name="message" id="message" required rows="6" placeholder="Describe your problem in detail..." class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500"></textarea>
+              <textarea name="message" id="message" rows="6" placeholder="Describe your problem in detail..." class="w-full px-4 py-2 border border-stone-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-violet-500" data-validation="required,min,max" data-min="10" data-max="5000"><?php echo htmlspecialchars($formValues['message']); ?></textarea>
+              <p id="message_error" class="text-sm text-red-600 mt-1 hidden"></p>
             </div>
 
             <button type="submit" class="w-full bg-violet-600 hover:bg-violet-700 text-white font-semibold py-2 px-4 rounded-lg transition flex items-center justify-center gap-2">
@@ -239,52 +228,7 @@ try {
     </div>
   </main>
 
-  <script>
-    $(document).ready(function() {
-      $('#contactForm').validate({
-        rules: {
-          category: {
-            required: true
-          },
-          title: {
-            required: true,
-            minlength: 5,
-            maxlength: 255
-          },
-          message: {
-            required: true,
-            minlength: 10,
-            maxlength: 5000
-          }
-        },
-        messages: {
-          category: {
-            required: "Please select a category"
-          },
-          title: {
-            required: "Subject is required",
-            minlength: "Subject must be at least 5 characters",
-            maxlength: "Subject cannot exceed 255 characters"
-          },
-          message: {
-            required: "Message is required",
-            minlength: "Message must be at least 10 characters",
-            maxlength: "Message cannot exceed 5000 characters"
-          }
-        },
-        errorElement: 'span',
-        errorClass: 'error',
-        highlight: function(element, errorClass, validClass) {
-          $(element).addClass('border-red-600 bg-red-50');
-        },
-        unhighlight: function(element, errorClass, validClass) {
-          $(element).removeClass('border-red-600 bg-red-50');
-        },
-        submitHandler: function(form) {
-          form.submit();
-        }
-      });
-    });
-  </script>
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
 </body>
 </html>

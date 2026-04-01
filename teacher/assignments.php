@@ -115,14 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']))
   $points = isset($_POST['points']) ? (int) $_POST['points'] : 100;
   $class_owner_id = 0;
 
-  if ($title === '' || $class_id <= 0 || $subject_id <= 0 || !teacher_is_valid_date($due_date)) {
-    $error = 'Please fill in all required fields with valid values.';
-  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+  if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } elseif (!teacher_subject_exists($conn, $subject_id)) {
     $error = 'Selected subject was not found.';
   } else {
-    $safePoints = max(1, $points);
     $insertSql = "INSERT INTO assignments (title, description, teacher_id, class_id, subject_id, due_date, {$assignmentPointsColumn}, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
     $stmt = $conn->prepare( $insertSql);
@@ -130,7 +127,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']))
     if (!$stmt) {
       $error = 'Unable to create assignment right now.';
     } else {
-      $stmt->bind_param( 'ssiiisi', $title, $description, $class_owner_id, $class_id, $subject_id, $due_date, $safePoints);
+      $stmt->bind_param( 'ssiiisi', $title, $description, $class_owner_id, $class_id, $subject_id, $due_date, $points);
       if ($stmt->execute()) {
         $stmt->close();
         header('Location: ' . $_SERVER['PHP_SELF']);
@@ -146,44 +143,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']))
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_assignment'])) {
   $assignment_id = isset($_POST['assignment_id']) ? (int) $_POST['assignment_id'] : 0;
 
-  if ($assignment_id > 0) {
-    $ownsStmt = $conn->prepare( "SELECT id FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
-    if (!$ownsStmt) {
-      $error = 'Unable to validate assignment ownership.';
+  $ownsStmt = $conn->prepare( "SELECT id FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
+  if (!$ownsStmt) {
+    $error = 'Unable to validate assignment ownership.';
+  } else {
+    $ownsStmt->bind_param( 'i', $assignment_id);
+    $ownsStmt->execute();
+    $ownsResult = $ownsStmt->get_result();
+    $isOwner = $ownsResult && $ownsResult->num_rows > 0;
+    $ownsStmt->close();
+
+    if (!$isOwner) {
+      $error = 'Assignment not found or not assigned to your account.';
     } else {
-      $ownsStmt->bind_param( 'i', $assignment_id);
-      $ownsStmt->execute();
-      $ownsResult = $ownsStmt->get_result();
-      $isOwner = $ownsResult && $ownsResult->num_rows > 0;
-      $ownsStmt->close();
+      $deleteSubStmt = $conn->prepare( 'DELETE FROM assignment_submissions WHERE assignment_id = ?');
+      if ($deleteSubStmt) {
+        $deleteSubStmt->bind_param( 'i', $assignment_id);
+        $deleteSubStmt->execute();
+        $deleteSubStmt->close();
+      }
 
-      if (!$isOwner) {
-        $error = 'Assignment not found or not assigned to your account.';
-      } else {
-        $deleteSubStmt = $conn->prepare( 'DELETE FROM assignment_submissions WHERE assignment_id = ?');
-        if ($deleteSubStmt) {
-          $deleteSubStmt->bind_param( 'i', $assignment_id);
-          $deleteSubStmt->execute();
-          $deleteSubStmt->close();
-        }
-
-        $deleteStmt = $conn->prepare( "DELETE FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})");
-        if ($deleteStmt) {
-          $deleteStmt->bind_param( 'i', $assignment_id);
-          if ($deleteStmt->execute()) {
-            $deleteStmt->close();
-            header('Location: ' . $_SERVER['PHP_SELF']);
-            exit();
-          }
-          $error = 'Error deleting assignment: ' . $conn->error;
+      $deleteStmt = $conn->prepare( "DELETE FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})");
+      if ($deleteStmt) {
+        $deleteStmt->bind_param( 'i', $assignment_id);
+        if ($deleteStmt->execute()) {
           $deleteStmt->close();
-        } else {
-          $error = 'Unable to delete assignment right now.';
+          header('Location: ' . $_SERVER['PHP_SELF']);
+          exit();
         }
+        $error = 'Error deleting assignment: ' . $conn->error;
+        $deleteStmt->close();
+      } else {
+        $error = 'Unable to delete assignment right now.';
       }
     }
-  } else {
-    $error = 'Invalid assignment selected for deletion.';
   }
 }
 
@@ -198,14 +191,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_assignment'])) {
   $points = isset($_POST['edit_points']) ? (int) $_POST['edit_points'] : 100;
   $class_owner_id = 0;
 
-  if ($assignment_id <= 0 || $title === '' || $class_id <= 0 || $subject_id <= 0 || !teacher_is_valid_date($due_date)) {
-    $error = 'Please fill in all required fields with valid values.';
-  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+  if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } elseif (!teacher_subject_exists($conn, $subject_id)) {
     $error = 'Selected subject was not found.';
   } else {
-    $safePoints = max(1, $points);
     $updateSql = "UPDATE assignments
             SET title = ?, description = ?, class_id = ?, subject_id = ?, due_date = ?, {$assignmentPointsColumn} = ?, teacher_id = ?
             WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})";
@@ -214,7 +204,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_assignment'])) {
     if (!$stmt) {
       $error = 'Unable to update assignment right now.';
     } else {
-      $stmt->bind_param( 'ssiisiii', $title, $description, $class_id, $subject_id, $due_date, $safePoints, $class_owner_id, $assignment_id);
+      $stmt->bind_param( 'ssiisiii', $title, $description, $class_id, $subject_id, $due_date, $points, $class_owner_id, $assignment_id);
       if ($stmt->execute()) {
         $stmt->close();
         header('Location: ' . $_SERVER['PHP_SELF']);
@@ -546,7 +536,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
         </div>
 
         <form method="POST" class="space-y-6" novalidate>
-          <input type="hidden" name="assignment_id" id="edit_assignment_id">
+          <input type="hidden" name="assignment_id" id="edit_assignment_id" data-validation="required,number,minValue" data-min-value="1" data-validate-hidden="true">
           <div class="grid grid-cols-2 gap-4">
             <div>
               <label class="block text-sm font-semibold text-on-surface mb-2">Assignment Title</label>
@@ -614,7 +604,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
           <p class="text-on-surface-variant mb-6" id="deleteMessage">Are you sure you want to delete this assignment? This action cannot be undone.</p>
 
           <form method="POST" class="flex justify-center gap-3" novalidate>
-            <input type="hidden" name="assignment_id" id="delete_assignment_id">
+            <input type="hidden" name="assignment_id" id="delete_assignment_id" data-validation="required,number,minValue" data-min-value="1" data-validate-hidden="true">
             <button type="button" onclick="closeDeleteModal()" class="px-6 py-3 text-on-surface-variant font-semibold rounded-xl hover:bg-surface-variant">Cancel</button>
             <button type="submit" name="delete_assignment" class="bg-red-600 text-white px-6 py-3 rounded-xl font-semibold hover:bg-red-700">Delete Assignment</button>
           </form>

@@ -88,20 +88,18 @@ $studentRollColumn = teacher_first_existing_column($conn, 'students', ['roll_no'
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
   $class_id = isset($_POST['class_id']) ? (int) $_POST['class_id'] : 0;
   $subject_id = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : 0;
-  $dateInput = trim((string) ($_POST['date'] ?? date('Y-m-d')));
-  $date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateInput) ? $dateInput : date('Y-m-d');
+  $date = trim((string) ($_POST['date'] ?? date('Y-m-d')));
+  if ($date === '') {
+    $date = date('Y-m-d');
+  }
   $class_owner_id = 0;
 
-  if ($class_id <= 0) {
-    $error = 'Please select a class.';
-  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+  if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } elseif ($attendanceDateColumn === null) {
     $error = 'Attendance date column is not available in the database.';
   } elseif (!$attendanceHasStatus) {
     $error = 'Attendance status column is not available in the database.';
-  } elseif ($attendanceHasSubject && $subject_id <= 0) {
-    $error = 'Please select a subject.';
   } else {
     $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
     $studentClassWhere = teacher_auth_student_class_where_sql($conn, 'students', $class_id, $selectedClassLabel);
@@ -120,8 +118,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
           continue;
         }
 
-        $statusInput = strtolower(trim((string) ($_POST['attendance'][$student_id] ?? 'absent')));
-        $status = in_array($statusInput, ['present', 'absent', 'late'], true) ? $statusInput : 'absent';
+        $status = strtolower(trim((string) ($_POST['attendance'][$student_id] ?? 'absent')));
+        if ($status === '') {
+          $status = 'absent';
+        }
 
         $whereSql = "student_id = {$student_id} AND `{$attendanceDateColumn}` = '{$safeDate}'";
         if ($attendanceHasClass) {
@@ -222,8 +222,10 @@ if ($subjectNameColumn !== null) {
 // Default class and subject for display
 $selected_class = isset($_POST['class_id']) ? (int) $_POST['class_id'] : (int) ($classes[0]['id'] ?? 0);
 $selected_subject = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : (int) ($subjects[0]['id'] ?? 0);
-$selectedDateInput = trim((string) ($_POST['date'] ?? date('Y-m-d')));
-$selected_date = preg_match('/^\d{4}-\d{2}-\d{2}$/', $selectedDateInput) ? $selectedDateInput : date('Y-m-d');
+$selected_date = trim((string) ($_POST['date'] ?? date('Y-m-d')));
+if ($selected_date === '') {
+  $selected_date = date('Y-m-d');
+}
 $selected_class_owner_id = teacher_class_owner_id($conn, $selected_class, $teacher_owner_ids);
 
 if ($selected_class_owner_id <= 0) {

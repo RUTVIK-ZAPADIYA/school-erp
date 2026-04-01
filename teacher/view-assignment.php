@@ -82,14 +82,14 @@ $error = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['grade_submission'])) {
   $submission_id = isset($_POST['submission_id']) ? (int)$_POST['submission_id'] : 0;
-  $grade = isset($_POST['grade']) ? (float)$_POST['grade'] : -1;
+  $grade = isset($_POST['grade']) ? (float)$_POST['grade'] : 0;
   $remarks = isset($_POST['remarks']) ? trim($_POST['remarks']) : '';
 
-  if ($submission_id > 0 && $grade >= 0 && $grade <= $assignmentMaxPoints) {
-    $sql_update = "UPDATE assignment_submissions
+  $sql_update = "UPDATE assignment_submissions
              SET marks_obtained = ?, remarks = ?, status = 'graded'
              WHERE id = ? AND assignment_id = ?";
-    $stmt_update = $conn->prepare( $sql_update);
+  $stmt_update = $conn->prepare( $sql_update);
+  if ($stmt_update) {
     $stmt_update->bind_param( "dsii", $grade, $remarks, $submission_id, $assignment_id);
 
     if ($stmt_update->execute()) {
@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['grade_submission'])) 
 
     $stmt_update->close();
   } else {
-    $error = "Invalid grade or submission ID.";
+    $error = "Unable to submit grade right now.";
   }
 }
 
@@ -619,7 +619,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
       </div>
 
       <form method="POST" class="space-y-6" novalidate>
-        <input type="hidden" name="submission_id" id="gradeSubmissionId">
+        <input type="hidden" name="submission_id" id="gradeSubmissionId" data-validation="required,number,minValue" data-min-value="1" data-validate-hidden="true">
 
         <div>
           <label class="block text-sm font-semibold text-on-surface mb-2">Grade (out of <?php echo $assignment['total_points']; ?>)</label>

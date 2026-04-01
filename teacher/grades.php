@@ -117,9 +117,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
   $subject_id = isset($_POST['subject_id']) ? (int) $_POST['subject_id'] : 0;
   $class_owner_id = 0;
 
-  if ($class_id <= 0 || $subject_id <= 0 || $exam_type === '') {
-    $error = 'Please select class, exam type, and subject.';
-  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+  if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } else {
     $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
@@ -146,7 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_grades'])) {
         }
 
         $obtained_marks = (int) ($_POST['marks_' . $student_id] ?? 0);
-        $obtained_marks = max(0, min(100, $obtained_marks));
         $remarks = trim((string) ($_POST['remarks_' . $student_id] ?? ''));
         $total_marks = 100;
         $grade = teacher_grade_from_marks($obtained_marks, $total_marks);

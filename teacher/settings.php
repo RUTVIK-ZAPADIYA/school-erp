@@ -100,9 +100,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     }
 
     if (isset($_POST['change_password'])) {
-        $current_password = $_POST['current_password'];
-        $new_password = $_POST['new_password'];
-        $confirm_password = $_POST['confirm_password'];
+        $current_password = (string) ($_POST['current_password'] ?? '');
+        $new_password = (string) ($_POST['new_password'] ?? '');
 
         if (!$can_change_password || $account_table === null || $account_id <= 0) {
             $error = 'Password change is unavailable for the current account table.';
@@ -110,21 +109,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             // Verify current password
             $storedPassword = (string) ($user['password'] ?? '');
             if (password_verify($current_password, $storedPassword) || hash_equals($storedPassword, $current_password)) {
-                if ($new_password === $confirm_password) {
-                    if (strlen($new_password) >= 6) {
-                        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                        $sql_update = "UPDATE $account_table SET password = '$hashed_password' WHERE id = $account_id";
+                $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+                $sql_update = "UPDATE $account_table SET password = '$hashed_password' WHERE id = $account_id";
 
-                        if ($conn->query( $sql_update)) {
-                            $success = "Password changed successfully!";
-                        } else {
-                            $error = "Error updating password: " . $conn->error;
-                        }
-                    } else {
-                        $error = "New password must be at least 6 characters long.";
-                    }
+                if ($conn->query( $sql_update)) {
+                    $success = "Password changed successfully!";
                 } else {
-                    $error = "New passwords do not match.";
+                    $error = "Error updating password: " . $conn->error;
                 }
             } else {
                 $error = "Current password is incorrect.";

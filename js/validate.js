@@ -80,11 +80,38 @@ $(document).ready(function () {
     return errorfield;
   }
 
+  function resolveLinkedField(reference) {
+    if (!reference) {
+      return $();
+    }
+
+    var byId = $("#" + reference);
+    if (byId.length) {
+      return byId.first();
+    }
+
+    return $('[name="' + reference + '"]').first();
+  }
+
+  function parseIsoDate(value) {
+    if (!value) {
+      return null;
+    }
+
+    var parsed = new Date(value + "T00:00:00");
+    if (isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    return parsed;
+  }
+
   function validateInput(input) {
     var field = $(input);
     var inputType = (field.attr("type") || "").toLowerCase();
+    var validateHidden = String(field.data("validateHidden") || "") === "true" || field.attr("data-validate-hidden") === "true";
 
-    if (inputType === "hidden" || field.is(":disabled")) {
+    if ((inputType === "hidden" && !validateHidden) || field.is(":disabled")) {
       return true;
     }
 
@@ -193,6 +220,40 @@ $(document).ready(function () {
               errorMessage = `Value must be at least ${minValue}.`;
             } else if (!isNaN(maxValue) && numericValue > maxValue) {
               errorMessage = `Value must be at most ${maxValue}.`;
+            }
+          }
+        }
+
+        if (validationRules.includes("dateAfterOrEqual") && !errorMessage) {
+          var compareField = resolveLinkedField(field.data("compareField"));
+          var compareValue = compareField.length ? String(compareField.val() || "").trim() : "";
+          var currentDate = parseIsoDate(value);
+          var compareDate = parseIsoDate(compareValue);
+
+          if (!currentDate || !compareDate) {
+            errorMessage = "Please select valid dates.";
+          } else if (currentDate < compareDate) {
+            errorMessage = "Date must be on or after from date.";
+          }
+        }
+
+        if (validationRules.includes("dateRangeDays") && !errorMessage) {
+          var fromField = resolveLinkedField(field.data("fromField"));
+          var toField = resolveLinkedField(field.data("toField"));
+          var fromValue = fromField.length ? String(fromField.val() || "").trim() : "";
+          var toValue = toField.length ? String(toField.val() || "").trim() : "";
+          var fromDate = parseIsoDate(fromValue);
+          var toDate = parseIsoDate(toValue);
+          var enteredDays = parseInt(value, 10);
+
+          if (!fromDate || !toDate) {
+            errorMessage = "Please select valid from and to dates.";
+          } else if (toDate < fromDate) {
+            errorMessage = "To date must be on or after from date.";
+          } else {
+            var expectedDays = Math.floor((toDate.getTime() - fromDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+            if (enteredDays !== expectedDays) {
+              errorMessage = "Days must match selected date range (" + expectedDays + ").";
             }
           }
         }
