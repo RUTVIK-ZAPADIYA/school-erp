@@ -53,41 +53,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $form['email'] = trim((string) ($_POST['email'] ?? ''));
     $form['phone'] = trim((string) ($_POST['phone'] ?? ''));
     $password = (string) ($_POST['password'] ?? '');
-    $confirmPassword = (string) ($_POST['confirm_password'] ?? '');
 
-    if ($form['name'] === '' || $form['username'] === '' || $form['email'] === '' || $password === '') {
-        $errors[] = 'All required fields must be filled.';
+  $checkStmt = $conn->prepare( 'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1');
+  if (!$checkStmt) {
+    $errors[] = 'Registration is temporarily unavailable.';
+  } else {
+    $checkStmt->bind_param( 'ss', $form['username'], $form['email']);
+    $checkStmt->execute();
+    $checkResult = $checkStmt->get_result();
+    if ($checkResult && $checkResult->num_rows > 0) {
+      $errors[] = 'Username or email already exists.';
     }
-
-    if (!filter_var($form['email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'Please enter a valid email address.';
-    }
-
-    if (strlen($form['username']) < 3) {
-        $errors[] = 'Username must be at least 3 characters.';
-    }
-
-    if (strlen($password) < 6) {
-        $errors[] = 'Password must be at least 6 characters.';
-    }
-
-    if ($password !== $confirmPassword) {
-        $errors[] = 'Passwords do not match.';
-    }
-
-    if (empty($errors)) {
-        $checkStmt = $conn->prepare( 'SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1');
-        if (!$checkStmt) {
-            $errors[] = 'Registration is temporarily unavailable.';
-        } else {
-            $checkStmt->bind_param( 'ss', $form['username'], $form['email']);
-            $checkStmt->execute();
-            $checkResult = $checkStmt->get_result();
-            if ($checkResult && $checkResult->num_rows > 0) {
-                $errors[] = 'Username or email already exists.';
-            }
-            $checkStmt->close();
-        }
+    $checkStmt->close();
     }
 
     if (empty($errors)) {
@@ -212,31 +189,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="alert alert-success"><?php echo htmlspecialchars($success); ?> <a href="login.php" class="alert-link">Login here</a>.</div>
       <?php endif; ?>
 
-      <form method="POST" action="">
+      <form id="registerForm" method="POST" action="" novalidate>
         <div class="row g-3">
           <div class="col-md-6">
             <label class="form-label">Full Name *</label>
-            <input type="text" class="form-control" name="name" required value="<?php echo htmlspecialchars($form['name']); ?>">
+            <input type="text" class="form-control" id="name" name="name" required value="<?php echo htmlspecialchars($form['name']); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Username *</label>
-            <input type="text" class="form-control" name="username" required value="<?php echo htmlspecialchars($form['username']); ?>">
+            <input type="text" class="form-control" id="username" name="username" required value="<?php echo htmlspecialchars($form['username']); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Email *</label>
-            <input type="email" class="form-control" name="email" required value="<?php echo htmlspecialchars($form['email']); ?>">
+            <input type="email" class="form-control" id="email" name="email" required value="<?php echo htmlspecialchars($form['email']); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Phone</label>
-            <input type="text" class="form-control" name="phone" value="<?php echo htmlspecialchars($form['phone']); ?>">
+            <input type="text" class="form-control" id="phone" name="phone" value="<?php echo htmlspecialchars($form['phone']); ?>">
           </div>
           <div class="col-md-6">
             <label class="form-label">Password *</label>
-            <input type="password" class="form-control" name="password" required>
+            <input type="password" class="form-control" name="password" id="password" required autocomplete="new-password">
           </div>
           <div class="col-md-6">
             <label class="form-label">Confirm Password *</label>
-            <input type="password" class="form-control" name="confirm_password" required>
+            <input type="password" class="form-control" name="confirm_password" id="confirm_password" required autocomplete="new-password">
           </div>
         </div>
 
@@ -250,6 +227,85 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
   <?php include 'includes/footer.php'; ?>
 
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
+  <script>
+    $(document).ready(function() {
+      $('#registerForm').validate({
+        rules: {
+          name: {
+            required: true,
+            minlength: 2,
+            maxlength: 100
+          },
+          username: {
+            required: true,
+            minlength: 3,
+            maxlength: 30
+          },
+          email: {
+            required: true,
+            email: true
+          },
+          phone: {
+            digits: true,
+            minlength: 10,
+            maxlength: 15
+          },
+          password: {
+            required: true,
+            minlength: 6
+          },
+          confirm_password: {
+            required: true,
+            minlength: 6,
+            equalTo: '#password'
+          }
+        },
+        messages: {
+          name: {
+            required: 'Please enter your full name',
+            minlength: 'Full name must be at least 2 characters',
+            maxlength: 'Full name must be at most 100 characters'
+          },
+          username: {
+            required: 'Please choose a username',
+            minlength: 'Username must be at least 3 characters',
+            maxlength: 'Username must be at most 30 characters'
+          },
+          email: {
+            required: 'Please enter your email address',
+            email: 'Please enter a valid email address'
+          },
+          phone: {
+            digits: 'Phone number must contain digits only',
+            minlength: 'Phone number must be at least 10 digits',
+            maxlength: 'Phone number must be at most 15 digits'
+          },
+          password: {
+            required: 'Please enter a password',
+            minlength: 'Password must be at least 6 characters'
+          },
+          confirm_password: {
+            required: 'Please confirm your password',
+            minlength: 'Password must be at least 6 characters',
+            equalTo: 'Passwords do not match'
+          }
+        },
+        errorElement: 'div',
+        errorClass: 'error',
+        highlight: function(element) {
+          $(element).addClass('is-invalid');
+        },
+        unhighlight: function(element) {
+          $(element).removeClass('is-invalid');
+        },
+        submitHandler: function(form) {
+          form.submit();
+        }
+      });
+    });
+  </script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
