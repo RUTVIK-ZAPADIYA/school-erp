@@ -4,6 +4,225 @@ require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
 
+function attendance_admin_class_name($connection, $classId, $fallbackClassName = '')
+{
+  $classId = (int) $classId;
+  $fallbackClassName = trim((string) $fallbackClassName);
+
+  static $cache = [];
+  static $classNameColumn = null;
+  static $classNameColumnResolved = false;
+
+  $cacheKey = $classId . '|' . $fallbackClassName;
+  if (isset($cache[$cacheKey])) {
+    return $cache[$cacheKey];
+  }
+
+  if (!$classNameColumnResolved) {
+    $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
+    $classNameColumnResolved = true;
+  }
+
+  $resolvedName = $fallbackClassName !== '' ? $fallbackClassName : '-';
+
+  if ($classId > 0 && $classNameColumn !== null && admin_table_exists($connection, 'classes')) {
+    $classStmt = $connection->prepare("SELECT {$classNameColumn} AS class_name, COALESCE(section, '') AS section FROM classes WHERE id = ? LIMIT 1");
+    if ($classStmt) {
+      $classStmt->bind_param('i', $classId);
+      $classStmt->execute();
+      $classResult = $classStmt->get_result();
+      $classRow = $classResult ? $classResult->fetch_assoc() : null;
+      $classStmt->close();
+
+      if ($classRow) {
+        $nameValue = trim((string) ($classRow['class_name'] ?? ''));
+        $sectionValue = trim((string) ($classRow['section'] ?? ''));
+        if ($nameValue !== '') {
+          $resolvedName = $nameValue . ($sectionValue !== '' ? ' - ' . $sectionValue : '');
+        }
+      }
+    }
+  }
+
+  $cache[$cacheKey] = $resolvedName;
+  return $resolvedName;
+}
+
+function attendance_admin_student_details($connection, $studentId, $studentUserId)
+{
+  $studentId = (int) $studentId;
+  $studentUserId = (int) $studentUserId;
+
+  static $cache = [];
+  static $studentsHasUserId = null;
+  static $studentsHasClassId = null;
+  static $studentsHasClass = null;
+  static $rollColumn = null;
+
+  $cacheKey = $studentId . '|' . $studentUserId;
+  if (isset($cache[$cacheKey])) {
+    return $cache[$cacheKey];
+  }
+
+  if ($studentsHasUserId === null) {
+    $studentsHasUserId = admin_column_exists($connection, 'students', 'user_id');
+    $studentsHasClassId = admin_column_exists($connection, 'students', 'class_id');
+    $studentsHasClass = admin_column_exists($connection, 'students', 'class');
+    $rollColumn = admin_first_existing_column($connection, 'students', ['roll_no', 'roll_number']);
+  }
+
+  $details = [
+    'student_name' => '-',
+    'roll_no' => '-',
+    'class_name' => '-',
+  ];
+
+  $studentRow = null;
+  if (admin_table_exists($connection, 'students')) {
+    if ($studentId > 0) {
+      $studentByIdStmt = $connection->prepare('SELECT * FROM students WHERE id = ? LIMIT 1');
+      if ($studentByIdStmt) {
+        $studentByIdStmt->bind_param('i', $studentId);
+        $studentByIdStmt->execute();
+        $studentByIdResult = $studentByIdStmt->get_result();
+        $studentRow = $studentByIdResult ? $studentByIdResult->fetch_assoc() : null;
+        $studentByIdStmt->close();
+      }
+    }
+
+    if (!$studentRow && $studentsHasUserId && $studentUserId > 0) {
+      $studentByUserStmt = $connection->prepare('SELECT * FROM students WHERE user_id = ? LIMIT 1');
+      if ($studentByUserStmt) {
+        $studentByUserStmt->bind_param('i', $studentUserId);
+        $studentByUserStmt->execute();
+        $studentByUserResult = $studentByUserStmt->get_result();
+        $studentRow = $studentByUserResult ? $studentByUserResult->fetch_assoc() : null;
+        $studentByUserStmt->close();
+      }
+    }
+
+    if (!$studentRow && $studentUserId > 0) {
+      $studentLegacyStmt = $connection->prepare('SELECT * FROM students WHERE id = ? LIMIT 1');
+      if ($studentLegacyStmt) {
+        $studentLegacyStmt->bind_param('i', $studentUserId);
+        $studentLegacyStmt->execute();
+        $studentLegacyResult = $studentLegacyStmt->get_result();
+        $studentRow = $studentLegacyResult ? $studentLegacyResult->fetch_assoc() : null;
+        $studentLegacyStmt->close();
+      }
+    }
+  }
+
+  if ($studentRow) {
+    $nameValue = trim((string) ($studentRow['name'] ?? ''));
+    if ($nameValue !== '') {
+      $details['student_name'] = $nameValue;
+    }
+
+    if ($rollColumn !== null) {
+      $rollValue = trim((string) ($studentRow[$rollColumn] ?? ''));
+      if ($rollValue !== '') {
+        $details['roll_no'] = $rollValue;
+      }
+    }
+
+    $classId = $studentsHasClassId ? (int) ($studentRow['class_id'] ?? 0) : 0;
+    $fallbackClassName = $studentsHasClass ? (string) ($studentRow['class'] ?? '') : '';
+    $details['class_name'] = attendance_admin_class_name($connection, $classId, $fallbackClassName);
+  } elseif (admin_table_exists($connection, 'users') && admin_column_exists($connection, 'users', 'name')) {
+    $userLookupId = $studentUserId > 0 ? $studentUserId : $studentId;
+    if ($userLookupId > 0) {
+      $userStmt = $connection->prepare('SELECT name FROM users WHERE id = ? LIMIT 1');
+      if ($userStmt) {
+        $userStmt->bind_param('i', $userLookupId);
+        $userStmt->execute();
+        $userResult = $userStmt->get_result();
+        $userRow = $userResult ? $userResult->fetch_assoc() : null;
+        $userStmt->close();
+        if ($userRow) {
+          $userName = trim((string) ($userRow['name'] ?? ''));
+          if ($userName !== '') {
+            $details['student_name'] = $userName;
+          }
+        }
+      }
+    }
+  }
+
+  $cache[$cacheKey] = $details;
+  return $details;
+}
+
+function attendance_admin_teacher_name($connection, $reviewedByTeacherId)
+{
+  $reviewedByTeacherId = (int) $reviewedByTeacherId;
+  if ($reviewedByTeacherId <= 0) {
+    return '-';
+  }
+
+  static $cache = [];
+  static $teachersHasUserId = null;
+
+  if (isset($cache[$reviewedByTeacherId])) {
+    return $cache[$reviewedByTeacherId];
+  }
+
+  if ($teachersHasUserId === null) {
+    $teachersHasUserId = admin_column_exists($connection, 'teachers', 'user_id');
+  }
+
+  $resolvedName = '-';
+  if (admin_table_exists($connection, 'teachers') && admin_column_exists($connection, 'teachers', 'name')) {
+    if ($teachersHasUserId) {
+      $teacherByUserStmt = $connection->prepare('SELECT name FROM teachers WHERE user_id = ? LIMIT 1');
+      if ($teacherByUserStmt) {
+        $teacherByUserStmt->bind_param('i', $reviewedByTeacherId);
+        $teacherByUserStmt->execute();
+        $teacherByUserResult = $teacherByUserStmt->get_result();
+        $teacherByUserRow = $teacherByUserResult ? $teacherByUserResult->fetch_assoc() : null;
+        $teacherByUserStmt->close();
+        $candidate = trim((string) ($teacherByUserRow['name'] ?? ''));
+        if ($candidate !== '') {
+          $resolvedName = $candidate;
+        }
+      }
+    }
+
+    if ($resolvedName === '-') {
+      $teacherByIdStmt = $connection->prepare('SELECT name FROM teachers WHERE id = ? LIMIT 1');
+      if ($teacherByIdStmt) {
+        $teacherByIdStmt->bind_param('i', $reviewedByTeacherId);
+        $teacherByIdStmt->execute();
+        $teacherByIdResult = $teacherByIdStmt->get_result();
+        $teacherByIdRow = $teacherByIdResult ? $teacherByIdResult->fetch_assoc() : null;
+        $teacherByIdStmt->close();
+        $candidate = trim((string) ($teacherByIdRow['name'] ?? ''));
+        if ($candidate !== '') {
+          $resolvedName = $candidate;
+        }
+      }
+    }
+  }
+
+  if ($resolvedName === '-' && admin_table_exists($connection, 'users') && admin_column_exists($connection, 'users', 'name')) {
+    $userStmt = $connection->prepare("SELECT name FROM users WHERE id = ? AND role = 'teacher' LIMIT 1");
+    if ($userStmt) {
+      $userStmt->bind_param('i', $reviewedByTeacherId);
+      $userStmt->execute();
+      $userResult = $userStmt->get_result();
+      $userRow = $userResult ? $userResult->fetch_assoc() : null;
+      $userStmt->close();
+      $candidate = trim((string) ($userRow['name'] ?? ''));
+      if ($candidate !== '') {
+        $resolvedName = $candidate;
+      }
+    }
+  }
+
+  $cache[$reviewedByTeacherId] = $resolvedName;
+  return $resolvedName;
+}
+
 $today = date('Y-m-d');
 
 // Detect which attendance date column is available in the current schema.
@@ -42,7 +261,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delet
 $presentToday = 0;
 $absentToday = 0;
 $leaveToday = 0;
+$approvedLeaveToday = 0;
 $totalMarkedToday = 0;
+$studentsOnLeaveToday = [];
 
 // Query today's attendance summary counters for dashboard cards.
 if ($attendanceDateColumn !== null) {
@@ -77,6 +298,77 @@ $studentsHasClass = admin_column_exists($connection, 'students', 'class');
 $attendanceHasClassId = admin_column_exists($connection, 'attendance', 'class_id');
 $attendanceHasSubjectId = admin_column_exists($connection, 'attendance', 'subject_id');
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
+
+// Build approved leave list for today's attendance monitoring.
+if (
+  admin_table_exists($connection, 'leave_applications')
+  && admin_column_exists($connection, 'leave_applications', 'from_date')
+  && admin_column_exists($connection, 'leave_applications', 'to_date')
+) {
+  $hasLeaveStatusColumn = admin_column_exists($connection, 'leave_applications', 'status');
+  $hasLeaveStudentIdColumn = admin_column_exists($connection, 'leave_applications', 'student_id');
+  $hasLeaveStudentUserIdColumn = admin_column_exists($connection, 'leave_applications', 'student_user_id');
+
+  if ($hasLeaveStudentIdColumn || $hasLeaveStudentUserIdColumn) {
+    $studentIdSelect = $hasLeaveStudentIdColumn ? 'student_id' : '0 AS student_id';
+    $studentUserIdSelect = $hasLeaveStudentUserIdColumn ? 'student_user_id' : '0 AS student_user_id';
+    $leaveTypeSelect = admin_column_exists($connection, 'leave_applications', 'leave_type') ? 'leave_type' : "'' AS leave_type";
+    $reasonSelect = admin_column_exists($connection, 'leave_applications', 'reason') ? 'reason' : "'' AS reason";
+    $daysSelect = admin_column_exists($connection, 'leave_applications', 'days') ? 'days' : '0 AS days';
+    $reviewedBySelect = admin_column_exists($connection, 'leave_applications', 'reviewed_by_teacher_id')
+      ? 'reviewed_by_teacher_id'
+      : '0 AS reviewed_by_teacher_id';
+
+    if (admin_column_exists($connection, 'leave_applications', 'teacher_remark')) {
+      $remarkSelect = 'teacher_remark';
+    } elseif (admin_column_exists($connection, 'leave_applications', 'admin_remark')) {
+      $remarkSelect = 'admin_remark AS teacher_remark';
+    } else {
+      $remarkSelect = "'' AS teacher_remark";
+    }
+
+    $statusFilterSql = $hasLeaveStatusColumn
+      ? "AND LOWER(COALESCE(status, '')) IN ('approved', 'approve', 'accepted')"
+      : '';
+
+    $leaveTodaySql = "SELECT id, {$studentIdSelect}, {$studentUserIdSelect}, {$leaveTypeSelect}, {$reasonSelect}, from_date, to_date, {$daysSelect}, {$remarkSelect}, {$reviewedBySelect}
+      FROM leave_applications
+      WHERE ? BETWEEN from_date AND to_date {$statusFilterSql}
+      ORDER BY from_date ASC, id DESC";
+
+    $leaveTodayStmt = $connection->prepare($leaveTodaySql);
+    if ($leaveTodayStmt) {
+      $leaveTodayStmt->bind_param('s', $today);
+      $leaveTodayStmt->execute();
+      $leaveTodayResult = $leaveTodayStmt->get_result();
+
+      while ($leaveTodayResult && ($leaveTodayRow = $leaveTodayResult->fetch_assoc())) {
+        $studentDetails = attendance_admin_student_details(
+          $connection,
+          (int) ($leaveTodayRow['student_id'] ?? 0),
+          (int) ($leaveTodayRow['student_user_id'] ?? 0)
+        );
+
+        $studentsOnLeaveToday[] = [
+          'student_name' => (string) ($studentDetails['student_name'] ?? '-'),
+          'roll_no' => (string) ($studentDetails['roll_no'] ?? '-'),
+          'class_name' => (string) ($studentDetails['class_name'] ?? '-'),
+          'leave_type' => (string) ($leaveTodayRow['leave_type'] ?? ''),
+          'reason' => (string) ($leaveTodayRow['reason'] ?? ''),
+          'from_date' => (string) ($leaveTodayRow['from_date'] ?? ''),
+          'to_date' => (string) ($leaveTodayRow['to_date'] ?? ''),
+          'days' => (int) ($leaveTodayRow['days'] ?? 0),
+          'teacher_remark' => (string) ($leaveTodayRow['teacher_remark'] ?? ''),
+          'reviewed_teacher' => attendance_admin_teacher_name($connection, (int) ($leaveTodayRow['reviewed_by_teacher_id'] ?? 0)),
+        ];
+      }
+
+      $leaveTodayStmt->close();
+    }
+  }
+}
+
+$approvedLeaveToday = count($studentsOnLeaveToday);
 
 // Build class-wise attendance metrics with schema-aware joins.
 if ($classNameColumn !== null) {
@@ -275,6 +567,7 @@ $flash = admin_pull_flash();
       <div class="summary-item"><div class="summary-value"><?php echo (int) $presentToday; ?></div><div class="summary-label">Present Today</div></div>
       <div class="summary-item"><div class="summary-value"><?php echo (int) $absentToday; ?></div><div class="summary-label">Absent Today</div></div>
       <div class="summary-item"><div class="summary-value"><?php echo (int) $leaveToday; ?></div><div class="summary-label">On Leave</div></div>
+      <div class="summary-item"><div class="summary-value"><?php echo (int) $approvedLeaveToday; ?></div><div class="summary-label">Approved Leave Today</div></div>
     </div>
     <div class="content-card">
       <h5 class="mb-4">Class-wise Attendance</h5>
@@ -297,6 +590,53 @@ $flash = admin_pull_flash();
             <?php else: ?>
               <tr>
                 <td colspan="5" class="text-center text-muted">No attendance data available.</td>
+              </tr>
+            <?php endif; ?>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="content-card mt-4">
+      <h5 class="mb-4">Students On Approved Leave Today</h5>
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr><th>Student</th><th>Roll No</th><th>Class</th><th>Leave Type</th><th>Description</th><th>Leave Dates</th><th>Reviewed By</th></tr>
+          </thead>
+          <tbody>
+            <?php if (!empty($studentsOnLeaveToday)): ?>
+              <?php foreach ($studentsOnLeaveToday as $leaveRow): ?>
+                <?php
+                  $leaveTypeLabel = trim((string) ($leaveRow['leave_type'] ?? ''));
+                  if ($leaveTypeLabel === '') {
+                    $leaveTypeLabel = 'Leave';
+                  } else {
+                    $leaveTypeLabel = ucfirst($leaveTypeLabel);
+                  }
+                  $descriptionText = trim((string) ($leaveRow['reason'] ?? ''));
+                  $remarkText = trim((string) ($leaveRow['teacher_remark'] ?? ''));
+                ?>
+                <tr>
+                  <td><?php echo htmlspecialchars((string) ($leaveRow['student_name'] ?? '-')); ?></td>
+                  <td><?php echo htmlspecialchars((string) ($leaveRow['roll_no'] ?? '-')); ?></td>
+                  <td><?php echo htmlspecialchars((string) ($leaveRow['class_name'] ?? '-')); ?></td>
+                  <td><?php echo htmlspecialchars($leaveTypeLabel); ?></td>
+                  <td>
+                    <div><?php echo htmlspecialchars($descriptionText !== '' ? $descriptionText : '-'); ?></div>
+                    <div class="text-muted small"><?php echo htmlspecialchars($remarkText !== '' ? $remarkText : '-'); ?></div>
+                  </td>
+                  <td>
+                    <div><?php echo !empty($leaveRow['from_date']) ? htmlspecialchars(date('M d, Y', strtotime((string) $leaveRow['from_date']))) : '-'; ?></div>
+                    <div class="text-muted small">to <?php echo !empty($leaveRow['to_date']) ? htmlspecialchars(date('M d, Y', strtotime((string) $leaveRow['to_date']))) : '-'; ?></div>
+                    <div class="text-muted small"><?php echo (int) ($leaveRow['days'] ?? 0); ?> day(s)</div>
+                  </td>
+                  <td><?php echo htmlspecialchars((string) ($leaveRow['reviewed_teacher'] ?? '-')); ?></td>
+                </tr>
+              <?php endforeach; ?>
+            <?php else: ?>
+              <tr>
+                <td colspan="7" class="text-center text-muted">No students are on approved leave today.</td>
               </tr>
             <?php endif; ?>
           </tbody>

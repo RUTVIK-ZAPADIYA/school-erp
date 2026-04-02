@@ -206,9 +206,16 @@ try {
   $toDateSelect = student_auth_column_exists($conn, 'leave_applications', 'to_date') ? 'to_date' : 'NULL AS to_date';
   $daysSelect = student_auth_column_exists($conn, 'leave_applications', 'days') ? 'days' : '0 AS days';
   $statusSelect = student_auth_column_exists($conn, 'leave_applications', 'status') ? 'status' : "'pending' AS status";
+  if (student_auth_column_exists($conn, 'leave_applications', 'teacher_remark')) {
+    $remarkSelect = 'teacher_remark';
+  } elseif (student_auth_column_exists($conn, 'leave_applications', 'admin_remark')) {
+    $remarkSelect = 'admin_remark AS teacher_remark';
+  } else {
+    $remarkSelect = "'' AS teacher_remark";
+  }
   $orderByColumn = student_auth_column_exists($conn, 'leave_applications', 'from_date') ? 'from_date' : 'id';
 
-  $sql = "SELECT {$applicationIdSelect}, {$leaveTypeSelect}, {$fromDateSelect}, {$toDateSelect}, {$daysSelect}, {$statusSelect} FROM leave_applications WHERE {$leaveFilter['sql']} ORDER BY {$orderByColumn} DESC LIMIT 10";
+  $sql = "SELECT {$applicationIdSelect}, {$leaveTypeSelect}, {$fromDateSelect}, {$toDateSelect}, {$daysSelect}, {$statusSelect}, {$remarkSelect} FROM leave_applications WHERE {$leaveFilter['sql']} ORDER BY {$orderByColumn} DESC LIMIT 10";
     $stmt = $conn->prepare( $sql);
     if ($stmt) {
   $filterParams = $leaveFilter['params'];
@@ -334,6 +341,7 @@ try {
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">To Date</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Days</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Status</th>
+              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Teacher Remark</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-stone-200">
@@ -345,6 +353,7 @@ try {
                   $toDateValue = (string) ($record['to_date'] ?? '');
                   $fromDateLabel = $fromDateValue !== '' ? date('d M Y', strtotime($fromDateValue)) : '-';
                   $toDateLabel = $toDateValue !== '' ? date('d M Y', strtotime($toDateValue)) : '-';
+                  $teacherRemark = trim((string) ($record['teacher_remark'] ?? ''));
                 ?>
                 <tr class="hover:bg-stone-50 transition">
                   <td class="px-6 py-4 text-sm font-medium text-stone-900"><?php echo htmlspecialchars((string) ($record['application_id'] ?? '-')); ?></td>
@@ -370,11 +379,12 @@ try {
                       </span>
                     <?php endif; ?>
                   </td>
+                  <td class="px-6 py-4 text-sm text-stone-700 max-w-[220px] whitespace-pre-wrap"><?php echo htmlspecialchars($teacherRemark !== '' ? $teacherRemark : '-'); ?></td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
               <tr>
-                <td colspan="6" class="px-6 py-8 text-center text-stone-500">No leave applications found</td>
+                <td colspan="7" class="px-6 py-8 text-center text-stone-500">No leave applications found</td>
               </tr>
             <?php endif; ?>
           </tbody>

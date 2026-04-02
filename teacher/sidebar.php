@@ -44,6 +44,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <span class="material-symbols-outlined">group</span>
 <span class="text-[14px]">Students</span>
 </a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'leave-requests.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="leave-requests.php">
+<span class="material-symbols-outlined">approval_delegation</span>
+<span class="text-[14px]">Leave Requests</span>
+</a>
 <a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'profile.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="profile.php">
 <span class="material-symbols-outlined">person_outline</span>
 <span class="text-[14px]">Profile</span>

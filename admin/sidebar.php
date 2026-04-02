@@ -72,6 +72,9 @@ function isAdminActive(array $pages, $currentPage)
     <a href="attendance.php" class="<?php echo isAdminActive(['attendance.php', 'edit-attendance.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">fact_check</span><span>Attendance</span>
     </a>
+    <a href="leave-history.php" class="<?php echo isAdminActive(['leave-history.php'], $currentPage); ?>">
+      <span class="material-symbols-outlined">event_note</span><span>Leave History</span>
+    </a>
     <a href="exams.php" class="<?php echo isAdminActive(['exams.php', 'add-exam.php', 'edit-exam.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">assignment</span><span>Exams</span>
     </a>
