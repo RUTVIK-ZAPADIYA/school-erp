@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost:3306
--- Generation Time: Apr 01, 2026 at 03:54 PM
+-- Generation Time: Apr 02, 2026 at 05:23 AM
 -- Server version: 8.4.3
 -- PHP Version: 8.3.28
 
@@ -117,7 +117,7 @@ CREATE TABLE `assignments` (
 --
 
 INSERT INTO `assignments` (`id`, `title`, `description`, `teacher_id`, `subject_id`, `class_id`, `due_date`, `total_marks`, `total_points`, `allow_late_submissions`, `file_path`, `created_at`) VALUES
-(1, 'fgh gf h', 'f sh', 1271, 2, 346, '2026-04-11', 100, 100, 0, NULL, '2026-03-31 17:03:48');
+(1, 'assign-1', 'f sh', 1271, 2, 346, '2026-04-11', 100, 100, 0, NULL, '2026-03-31 17:03:48');
 
 -- --------------------------------------------------------
 
@@ -163,7 +163,12 @@ INSERT INTO `attendance` (`id`, `student_id`, `class_id`, `attendance_date`, `st
 (1, 12, 346, NULL, 'present', '2026-03-31 15:15:05', '2026-03-31', 3, 1271),
 (2, 13, 346, NULL, 'present', '2026-03-31 15:15:05', '2026-03-31', 3, 1271),
 (3, 12, 346, NULL, 'present', '2026-03-31 15:15:17', '2026-03-25', 3, 1271),
-(4, 13, 346, NULL, 'absent', '2026-03-31 15:15:17', '2026-03-25', 3, 1271);
+(4, 13, 346, NULL, 'absent', '2026-03-31 15:15:17', '2026-03-25', 3, 1271),
+(5, 12, 346, NULL, 'present', '2026-04-01 16:39:48', '2026-04-01', 3, 1271),
+(6, 13, 346, NULL, 'late', '2026-04-01 16:39:48', '2026-04-01', 3, 1271),
+(7, 12, 346, NULL, 'absent', '2026-04-02 04:24:46', '2026-04-02', 3, 1271),
+(8, 13, 346, NULL, 'absent', '2026-04-02 04:24:46', '2026-04-02', 3, 1271),
+(9, 14, 346, NULL, 'absent', '2026-04-02 04:24:46', '2026-04-02', 3, 1271);
 
 -- --------------------------------------------------------
 
@@ -246,8 +251,9 @@ CREATE TABLE `fees` (
 --
 
 INSERT INTO `fees` (`id`, `student_id`, `amount`, `fee_type`, `due_date`, `status`, `created_at`, `payment_method`, `remarks`, `paid_date`) VALUES
-(1, NULL, 43534.00, 'Tuition Fee', '2026-03-31', 'Paid', '2026-03-31 11:42:19', 'Cash', 'df gtredfg', '2026-03-31'),
-(2, NULL, 10000.00, 'Exam Fee', '2026-03-31', 'Paid', '2026-03-31 11:46:00', 'Online', 'srdg sfg', '2026-03-31');
+(3, 13, 10000.00, 'Tuition Fee', '2026-04-11', 'Pending', '2026-04-01 17:21:04', 'Cash', 'f gsfdg f', NULL),
+(4, 15, 10000.00, 'Tuition Fee', '2026-04-11', 'Pending', '2026-04-02 04:36:07', 'Cash', '', NULL),
+(5, 14, 3000.00, 'Exam Fee', '2026-04-22', 'Pending', '2026-04-02 05:19:18', 'Cash', 'Please pay your pending fees before due date.', NULL);
 
 -- --------------------------------------------------------
 
@@ -269,6 +275,15 @@ CREATE TABLE `grades` (
   `student_user_id` int DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+--
+-- Dumping data for table `grades`
+--
+
+INSERT INTO `grades` (`id`, `student_id`, `subject_id`, `exam_type`, `total_marks`, `obtained_marks`, `grade`, `remarks`, `teacher_id`, `created_at`, `student_user_id`) VALUES
+(1, 12, 3, 'Mid-term', 100, 0, 'F', '', 1271, '2026-04-01 16:39:29', 12),
+(2, 13, 3, 'Mid-term', 100, 0, 'F', '', 1271, '2026-04-01 16:39:29', 1274),
+(3, 14, 3, 'Mid-term', 100, 76, 'B+', 'need attention and be regular', 1271, '2026-04-02 04:28:40', 1275);
+
 -- --------------------------------------------------------
 
 --
@@ -288,16 +303,23 @@ CREATE TABLE `leave_applications` (
   `status` varchar(20) DEFAULT 'pending',
   `admin_remark` text,
   `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+  `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `teacher_remark` text,
+  `reviewed_by_teacher_id` int DEFAULT NULL,
+  `reviewed_at` datetime DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 --
 -- Dumping data for table `leave_applications`
 --
 
-INSERT INTO `leave_applications` (`id`, `application_id`, `student_id`, `student_user_id`, `leave_type`, `from_date`, `to_date`, `days`, `reason`, `status`, `admin_remark`, `created_at`, `updated_at`) VALUES
-(1, 'LA20260331171453017', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'pending', NULL, '2026-03-31 17:14:53', '2026-03-31 17:14:53'),
-(2, 'LA20260331171546285', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'pending', NULL, '2026-03-31 17:15:46', '2026-03-31 17:15:46');
+INSERT INTO `leave_applications` (`id`, `application_id`, `student_id`, `student_user_id`, `leave_type`, `from_date`, `to_date`, `days`, `reason`, `status`, `admin_remark`, `created_at`, `updated_at`, `teacher_remark`, `reviewed_by_teacher_id`, `reviewed_at`) VALUES
+(1, 'LA20260331171453017', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'approved', NULL, '2026-03-31 17:14:53', '2026-04-02 05:03:40', '', 1273, '2026-04-02 10:33:40'),
+(2, 'LA20260331171546285', 13, 1274, 'sick', '2026-03-31', '2026-04-05', 6, 'd sdfgsfdsdfg', 'rejected', NULL, '2026-03-31 17:15:46', '2026-04-02 05:12:39', 'please connect me to your parents', 1273, '2026-04-02 10:42:39'),
+(3, 'LA20260401163646936', 13, 1274, 'sick', '2026-04-01', '2026-04-07', 7, 'DSFG SDFGSDFGS DF FD GSDFG SD', 'approved', NULL, '2026-04-01 16:36:46', '2026-04-02 05:03:38', '', 1273, '2026-04-02 10:33:38'),
+(4, 'LA20260402024349327', 14, 1275, 'sick', '2026-04-02', '2026-04-13', 12, 'ds fasd fadsf asd fd', 'rejected', NULL, '2026-04-02 02:43:49', '2026-04-02 05:03:36', '', 1273, '2026-04-02 10:33:36'),
+(5, 'LA20260402043012847', 14, 1275, 'sick', '2026-04-02', '2026-04-02', 1, 'qvery ill due to fever and cold', 'approved', NULL, '2026-04-02 04:30:12', '2026-04-02 05:03:33', '', 1273, '2026-04-02 10:33:33'),
+(6, 'LA20260402050418581', 14, 1275, 'sick', '2026-04-03', '2026-04-15', 13, 'dfghjk;lkjh', 'pending', NULL, '2026-04-02 05:04:18', '2026-04-02 05:04:18', NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -334,6 +356,13 @@ CREATE TABLE `schedule` (
   `room` varchar(60) DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+--
+-- Dumping data for table `schedule`
+--
+
+INSERT INTO `schedule` (`id`, `teacher_id`, `class_id`, `subject_id`, `day_of_week`, `start_time`, `end_time`, `room`) VALUES
+(1, 1271, 346, 3, 'Monday', '08:00:00', '10:00:00', '101');
+
 -- --------------------------------------------------------
 
 --
@@ -361,7 +390,9 @@ CREATE TABLE `students` (
 
 INSERT INTO `students` (`id`, `roll_no`, `name`, `class`, `email`, `phone`, `status`, `created_at`, `updated_at`, `class_id`, `user_id`, `username`) VALUES
 (12, 'STU001', 'soham', '10', 'soham@gmail.com', '1234567890', 'Active', '2026-03-31 14:28:26', '2026-03-31 16:02:15', 346, NULL, 'STU001'),
-(13, 'stu02', 'shira', '10', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 14:29:04', '2026-03-31 16:12:59', 346, 1274, 'shira');
+(13, 'stu02', 'shira', '10', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 14:29:04', '2026-03-31 16:12:59', 346, 1274, 'shira'),
+(14, 'STU1275', 'ammar bharmal', '10', 'hardipzapadiya5931@gmail.com', '1234567890', 'Active', '2026-04-01 17:12:30', '2026-04-02 02:43:02', 346, 1275, 'ammar'),
+(15, 'STU1276', 'Meet Desai', '10', 'zerodayalliance@gmail.com', '1234567890', 'Active', '2026-04-02 04:34:27', '2026-04-02 04:34:42', 346, 1276, 'Meet1');
 
 -- --------------------------------------------------------
 
@@ -415,7 +446,9 @@ CREATE TABLE `support_tickets` (
 --
 
 INSERT INTO `support_tickets` (`id`, `student_id`, `title`, `message`, `category`, `status`, `admin_reply`, `created_at`, `updated_at`, `replied_at`) VALUES
-(1, 1274, 'fa sdfad f', 'd dafasd dsf adsf', 'Data Error', 'Resolved', 'your issue has been resolved', '2026-03-31 16:25:24', '2026-03-31 17:01:27', '2026-03-31 17:01:27');
+(1, 1274, 'fa sdfad f', 'd dafasd dsf adsf', 'Data Error', 'Resolved', 'your issue has been resolved', '2026-03-31 16:25:24', '2026-03-31 17:01:27', '2026-03-31 17:01:27'),
+(2, 1275, 'login error', 'can not login in website properly', 'Database Problem', 'Resolved', 'issue resolved', '2026-04-02 04:30:51', '2026-04-02 04:40:19', '2026-04-02 04:40:19'),
+(3, 1275, 'still same problem', 'cannot login still', 'Login Issue', 'Open', NULL, '2026-04-02 04:31:16', '2026-04-02 04:31:16', NULL);
 
 -- --------------------------------------------------------
 
@@ -435,8 +468,8 @@ CREATE TABLE `system_settings` (
 --
 
 INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `updated_at`) VALUES
-(1, 'school_name', 'ABC School', '2026-03-31 17:19:21'),
-(2, 'school_email', 'info@school.com', '2026-03-31 17:19:21'),
+(1, 'school_name', 'Neo School Of Science', '2026-04-02 05:00:12'),
+(2, 'school_email', 'info@schoolneo.com', '2026-04-02 05:00:13'),
 (3, 'school_phone', '+1 234 567 8900', '2026-03-31 17:19:21'),
 (4, 'school_address', '123 School St', '2026-03-31 17:19:21');
 
@@ -471,7 +504,8 @@ CREATE TABLE `teachers` (
 --
 
 INSERT INTO `teachers` (`id`, `name`, `email`, `phone`, `subject`, `status`, `created_at`, `updated_at`, `experience`, `qualification`, `first_name`, `last_name`, `joining_date`, `address`, `salary`, `user_id`, `username`) VALUES
-(1271, 'RUTVIK ZAPADIYA', 'rutvikzapadiya111@gmail.com', '1234567890', 'Chemistry', 'Active', '2026-03-31 14:27:01', '2026-03-31 14:27:01', 12, 'msc', 'RUTVIK', 'ZAPADIYA', '2026-03-31', 'fdge etgr e', 1000.00, 1273, 'rutvik');
+(1271, 'dwij malaviya', 'rutvikzapadiya111@gmail.com', '1234567890', 'Chemistry', 'Active', '2026-03-31 14:27:01', '2026-04-02 02:42:26', 12, 'msc', 'dwij', 'malaviya', '2026-03-31', 'fdge etgr e', 1000.00, 1273, 'dwij'),
+(1272, 'testing', 'hardipzapadiya5931@gmail.com', '1234567890', 'General', 'Active', '2026-04-01 17:12:21', '2026-04-01 17:12:21', NULL, NULL, 'testing', NULL, NULL, NULL, NULL, 1275, 'deep');
 
 -- --------------------------------------------------------
 
@@ -502,10 +536,11 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `username`, `password`, `role`, `name`, `email`, `phone`, `status`, `created_at`, `updated_at`, `reset_token`, `reset_token_expiry`, `email_verification_token`, `email_verification_expiry`, `email_verified`) VALUES
-(1, 'admin', '$2y$10$I7SJP6I89U2LQ7O/eQvQ0.oV6fyV2osBOUGwvF1nIbqTB4VT1mD5G', 'admin', 'Admin User', 'admin@school.com', '+1000000001', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26', NULL, NULL, NULL, NULL, 0),
-(3, 'student1', '$2y$10$trcpl/VPFEX0y1Q.YH2VkeEnFrm33W.YUvZmg0QGdtMrbbVz3DPzG', 'student', 'Rahul Sharma', 'student1@school.com', '+1000000003', 'Active', '2026-03-29 11:39:26', '2026-03-29 11:39:26', NULL, NULL, NULL, NULL, 0),
-(1273, 'rutvik', '$2y$10$7o6doclnJl4NtdilzJm9b.e9OwYuxN6xpMumNVzv2fNEnuiNf0wJa', 'teacher', 'RUTVIK ZAPADIYA', 'rutvikzapadiya111@gmail.com', '1234567890', 'Active', '2026-03-31 14:27:01', '2026-04-01 12:59:39', '5161ff491f19454071a62578510522574cc914e97f1c26483ca933b47c96e40d', '2026-04-01 18:59:39', NULL, NULL, 0),
-(1274, 'shira', '$2y$10$cCk6RXT4qgK5E8WYAySa5.uETvllbA2E2us.Ie5D9DxvE0C4FN2ky', 'student', 'shira', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 16:12:59', '2026-03-31 16:12:59', NULL, NULL, NULL, NULL, 0);
+(1, 'rutvik', '$2y$10$0zZr7FO1pzJkdq6gZa2Sn.vXHaycbHX0kbtX./oBGKyUHfwWww.FC', 'admin', 'rutvik zapadiya', 'admin@school.com', '+1000000001', 'Active', '2026-03-29 11:39:26', '2026-04-02 04:57:45', NULL, NULL, NULL, NULL, 0),
+(1273, 'dwij', '$2y$10$/UUhH48BgBMNtvgvd4MYTeLWK3CFA1OtSp4Iv7HEcb1iCZ6vyACfq', 'teacher', 'dwij malaviya', 'rutvikzapadiya111@gmail.com', '1234567890', 'Active', '2026-03-31 14:27:01', '2026-04-02 04:27:11', '20ae257bc0813d7f0fecaeead21793d018dbb1872c296c3ae1c32ef2a4509236', '2026-04-02 10:27:11', NULL, NULL, 0),
+(1274, 'shira', '$2y$10$cCk6RXT4qgK5E8WYAySa5.uETvllbA2E2us.Ie5D9DxvE0C4FN2ky', 'student', 'shira', 'shira@gmail.com', '+1 234 567 8900', 'Active', '2026-03-31 16:12:59', '2026-04-02 04:58:11', NULL, NULL, NULL, NULL, 0),
+(1275, 'ammar', '$2y$10$ahTVSvWZp46i9It5O/wi0eLCUIg7MQuOZYEH3pHtfrSkPgr9NUyXu', 'student', 'ammar bharmal', 'hardipzapadiya5931@gmail.com', '1234567890', 'Active', '2026-04-01 16:41:23', '2026-04-02 02:43:02', NULL, NULL, NULL, NULL, 0),
+(1276, 'Meet1', '$2y$10$z/YDf6cG1yOWkRUwN2vpROQn3NsZN2xAIGr9E1FpZIAdoCrD3hqGe', 'student', 'Meet Desai', 'zerodayalliance@gmail.com', '1234567890', 'Active', '2026-04-02 04:33:51', '2026-04-02 05:21:13', NULL, NULL, NULL, NULL, 0);
 
 --
 -- Indexes for dumped tables
@@ -645,7 +680,7 @@ ALTER TABLE `assignment_submissions`
 -- AUTO_INCREMENT for table `attendance`
 --
 ALTER TABLE `attendance`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=10;
 
 --
 -- AUTO_INCREMENT for table `classes`
@@ -663,19 +698,19 @@ ALTER TABLE `exams`
 -- AUTO_INCREMENT for table `fees`
 --
 ALTER TABLE `fees`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
 
 --
 -- AUTO_INCREMENT for table `grades`
 --
 ALTER TABLE `grades`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `leave_applications`
 --
 ALTER TABLE `leave_applications`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
 
 --
 -- AUTO_INCREMENT for table `marks`
@@ -687,13 +722,13 @@ ALTER TABLE `marks`
 -- AUTO_INCREMENT for table `schedule`
 --
 ALTER TABLE `schedule`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `students`
 --
 ALTER TABLE `students`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=14;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=16;
 
 --
 -- AUTO_INCREMENT for table `subjects`
@@ -705,25 +740,25 @@ ALTER TABLE `subjects`
 -- AUTO_INCREMENT for table `support_tickets`
 --
 ALTER TABLE `support_tickets`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4;
 
 --
 -- AUTO_INCREMENT for table `system_settings`
 --
 ALTER TABLE `system_settings`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=9;
 
 --
 -- AUTO_INCREMENT for table `teachers`
 --
 ALTER TABLE `teachers`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1272;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1273;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1275;
+  MODIFY `id` int NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1277;
 
 --
 -- Constraints for dumped tables
