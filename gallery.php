@@ -35,7 +35,7 @@
           </div>
           <div class="col-md-6 col-lg-4">
             <div class="gallery-card">
-              <img src="https://images.unsplash.com/photo-1523050854058-8df90110c9f1?auto=format&fit=crop&w=900&q=80" alt="Campus event">
+              <img src="Images/7.jpg" alt="Campus event">
               <div class="gallery-content">
                 <span class="gallery-tag"><i class="fas fa-calendar-days"></i> Events</span>
                 <h5>Annual Campus Event</h5>
