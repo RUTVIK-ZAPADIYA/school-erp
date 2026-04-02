@@ -159,12 +159,12 @@ try {
   </style>
 </head>
 <body class="bg-stone-50">
-  <?php include 'sidebar.php'; ?>
+  <?php include __DIR__ . '/sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-8">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-8 lg:pt-8">
     <!-- Header -->
     <div class="flex items-center gap-3 mb-8">
-      <span class="material-symbols-outlined text-3xl text-primary">dashboard</span>
+      <span class="material-symbols-outlined text-3xl text-blue-600">dashboard</span>
       <div>
         <h1 class="text-3xl font-bold text-stone-900">Dashboard</h1>
         <p class="text-sm text-stone-500">Welcome back, <?php echo htmlspecialchars($student_name); ?></p>
@@ -247,6 +247,9 @@ try {
           <a href="assignments.php" class="block p-3 rounded-lg hover:bg-indigo-50 text-stone-700 hover:text-indigo-600 transition">
             <span class="font-medium">→ View Assignments</span>
           </a>
+          <a href="curriculum.php" class="block p-3 rounded-lg hover:bg-sky-50 text-stone-700 hover:text-sky-600 transition">
+            <span class="font-medium">-> View Weekly Curriculum</span>
+          </a>
           <a href="fees.php" class="block p-3 rounded-lg hover:bg-amber-50 text-stone-700 hover:text-amber-600 transition">
             <span class="font-medium">→ View Fee Status</span>
           </a>
@@ -287,12 +290,5 @@ try {
     </div>
   </main>
 
-  <script>
-    // Mobile menu toggle if needed
-    function toggleSidebar() {
-      const sidebar = document.querySelector('aside');
-      sidebar?.classList.toggle('active');
-    }
-  </script>
 </body>
 </html>

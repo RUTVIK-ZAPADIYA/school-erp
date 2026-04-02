@@ -1031,11 +1031,16 @@ if ($search !== '') {
   }
 } else {
   $userSql .= ' ORDER BY id DESC';
-  $userResult = $connection->query($userSql);
-  if ($userResult) {
-    while ($userRow = $userResult->fetch_assoc()) {
-      $users[] = $userRow;
+  $listStmt = $connection->prepare($userSql);
+  if ($listStmt) {
+    $listStmt->execute();
+    $userResult = $listStmt->get_result();
+    if ($userResult) {
+      while ($userRow = $userResult->fetch_assoc()) {
+        $users[] = $userRow;
+      }
     }
+    $listStmt->close();
   }
 }
 

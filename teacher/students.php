@@ -7,8 +7,13 @@ include '../includes/db_connect.php';
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
 $teacher_id = (int) ($teacherContext['user_id'] ?? 0);
-$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
-$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_owner_ids = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? [$teacher_id]));
+if (empty($teacher_owner_ids)) {
+  $teacher_owner_ids = [0];
+}
+$teacher_ids_sql = implode(',', $teacher_owner_ids);
+$teacher_id_placeholders = implode(',', array_fill(0, count($teacher_owner_ids), '?'));
+$teacher_id_types = str_repeat('i', count($teacher_owner_ids));
 $teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
 function teacher_table_exists($conn, $tableName)
@@ -41,6 +46,20 @@ function teacher_first_existing_column($conn, $tableName, array $candidates)
   }
 
   return null;
+}
+
+function teacher_bind_dynamic_params($stmt, $types, array &$params)
+{
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
 }
 
 $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
@@ -87,10 +106,17 @@ if (
   $sql = "SELECT DISTINCT s.id, {$rollSelect} AS roll_no, s.name, s.email, {$classNameExpr} AS class_name, c.id AS class_id{$studentUserSelect}
       FROM students s
       INNER JOIN classes c ON ({$studentClassJoinSql})
-      WHERE c.teacher_id IN ({$teacher_ids_sql})
+      WHERE c.teacher_id IN ({$teacher_id_placeholders})
       ORDER BY {$orderBy} ASC";
-  $result = $conn->query( $sql);
-  if ($result) {
+  $studentsQueryStmt = $conn->prepare($sql);
+  if ($studentsQueryStmt) {
+    $studentParams = $teacher_owner_ids;
+    $result = false;
+    if (teacher_bind_dynamic_params($studentsQueryStmt, $teacher_id_types, $studentParams) && $studentsQueryStmt->execute()) {
+      $result = $studentsQueryStmt->get_result();
+    }
+
+    if ($result) {
     $seenStudentIds = [];
 
     while ($result && ($row = $result->fetch_assoc())) {
@@ -165,6 +191,9 @@ if (
 
       $students[] = $row;
     }
+    }
+
+    $studentsQueryStmt->close();
   }
 }
 
@@ -191,14 +220,21 @@ if (teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'clas
   $sql_classes = "SELECT {$classNameExpr} AS name, COUNT(DISTINCT s.id) AS student_count
           FROM classes c
           LEFT JOIN students s ON ({$distributionJoinSql})
-          WHERE c.teacher_id IN ({$teacher_ids_sql})
+          WHERE c.teacher_id IN ({$teacher_id_placeholders})
           GROUP BY c.id, {$classNameExpr}
           ORDER BY {$classNameExpr} ASC";
-  $result_classes = $conn->query( $sql_classes);
-  if ($result_classes) {
-    while ($row = $result_classes->fetch_assoc()) {
-      $class_distribution[] = $row;
+  $distributionStmt = $conn->prepare($sql_classes);
+  if ($distributionStmt) {
+    $distributionParams = $teacher_owner_ids;
+    if (teacher_bind_dynamic_params($distributionStmt, $teacher_id_types, $distributionParams) && $distributionStmt->execute()) {
+      $result_classes = $distributionStmt->get_result();
+      if ($result_classes) {
+        while ($row = $result_classes->fetch_assoc()) {
+          $class_distribution[] = $row;
+        }
+      }
     }
+    $distributionStmt->close();
   }
 }
 ?>

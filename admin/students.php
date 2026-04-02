@@ -148,23 +148,43 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
 }
 
   // Build the student list query with optional search filter.
-// Fetch all students
-$sql = "SELECT * FROM students ORDER BY id DESC";
-$search = '';
+  $search = trim((string) ($_GET['search'] ?? ''));
+  $students = [];
 
-if (isset($_GET['search']) && !empty($_GET['search'])) {
-    $search = $conn->real_escape_string($_GET['search']);
-    $sql = "SELECT * FROM students WHERE roll_no LIKE '%$search%' OR name LIKE '%$search%' OR class LIKE '%$search%' ORDER BY id DESC";
-}
+  if ($search !== '') {
+    $escapedSearch = str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $search);
+    $searchLike = '%' . $escapedSearch . '%';
+    $searchSql = "SELECT * FROM students WHERE roll_no LIKE ? ESCAPE '\\\\' OR name LIKE ? ESCAPE '\\\\' OR class LIKE ? ESCAPE '\\\\' ORDER BY id DESC";
+    $searchStmt = $conn->prepare($searchSql);
 
-$result = $conn->query($sql);
-$students = [];
+    if ($searchStmt) {
+      $searchStmt->bind_param('sss', $searchLike, $searchLike, $searchLike);
+      $searchStmt->execute();
+      $searchResult = $searchStmt->get_result();
 
-if ($result && $result->num_rows > 0) {
-    while ($row = $result->fetch_assoc()) {
-        $students[] = $row;
+      if ($searchResult) {
+        while ($row = $searchResult->fetch_assoc()) {
+          $students[] = $row;
+        }
+      }
+
+      $searchStmt->close();
     }
-}
+  } else {
+    $listStmt = $conn->prepare('SELECT * FROM students ORDER BY id DESC');
+    if ($listStmt) {
+      $listStmt->execute();
+      $listResult = $listStmt->get_result();
+
+      if ($listResult) {
+        while ($row = $listResult->fetch_assoc()) {
+          $students[] = $row;
+        }
+      }
+
+      $listStmt->close();
+    }
+  }
 ?>
 <!-- Render student table, action modals, and form interactions. -->
 <!DOCTYPE html>

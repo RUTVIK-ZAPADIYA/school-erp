@@ -68,14 +68,19 @@ if (table_exists($connection, 'classes') && ($classesHasName || $classesHasClass
     $classQuerySql = "SELECT class_name AS class_name FROM classes ORDER BY id ASC";
   }
 
-  $classQuery = $connection->query( $classQuerySql);
-  if ($classQuery) {
-    while ($row = $classQuery->fetch_assoc()) {
-      if (!empty($row['class_name'])) {
-        $classes[] = $row['class_name'];
-      }
+  $classQueryStmt = $connection->prepare($classQuerySql);
+  if ($classQueryStmt) {
+    $classQueryStmt->execute();
+    $classQuery = $classQueryStmt->get_result();
+    if ($classQuery) {
+      while ($row = $classQuery->fetch_assoc()) {
+        if (!empty($row['class_name'])) {
+          $classes[] = $row['class_name'];
         }
+      }
     }
+    $classQueryStmt->close();
+  }
 }
 
     // Handle student form submission and lifecycle operations.

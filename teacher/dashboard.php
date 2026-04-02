@@ -5,8 +5,13 @@ include '../includes/db_connect.php';
 
 $teacherContext = teacher_auth_resolve_context($conn);
 $teacherUserId = (int) ($teacherContext['user_id'] ?? 0);
-$teacherIds = (array) ($teacherContext['teacher_ids'] ?? [$teacherUserId]);
-$teacherIdSql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacherIds = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? [$teacherUserId]));
+if (empty($teacherIds)) {
+  $teacherIds = [0];
+}
+$teacherIdSql = implode(',', $teacherIds);
+$teacherIdPlaceholders = implode(',', array_fill(0, count($teacherIds), '?'));
+$teacherIdTypes = str_repeat('i', count($teacherIds));
 $teacherName = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
 function teacher_table_exists($conn, $tableName)
@@ -30,14 +35,48 @@ function teacher_column_exists($conn, $tableName, $columnName)
   return $result && $result->num_rows > 0;
 }
 
-function teacher_scalar_value($conn, $sql, $defaultValue = 0)
+function teacher_bind_dynamic_params($stmt, $types, array &$params)
 {
-  $result = $conn->query( $sql);
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
+}
+
+function teacher_scalar_value($conn, $sql, $types = '', array $params = [], $defaultValue = 0)
+{
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
+    return $defaultValue;
+  }
+
+  if ($types !== '') {
+    $bindParams = $params;
+    if (!teacher_bind_dynamic_params($stmt, $types, $bindParams)) {
+      $stmt->close();
+      return $defaultValue;
+    }
+  }
+
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return $defaultValue;
+  }
+
+  $result = $stmt->get_result();
   if (!$result) {
+    $stmt->close();
     return $defaultValue;
   }
 
   $row = $result->fetch_row();
+  $stmt->close();
   if (!$row || !isset($row[0])) {
     return $defaultValue;
   }
@@ -88,7 +127,9 @@ if (
     "SELECT COUNT(DISTINCT s.id)
      FROM students s
      INNER JOIN classes c ON ({$classJoinSql})
-     WHERE c.teacher_id IN ({$teacherIdSql})",
+     WHERE c.teacher_id IN ({$teacherIdPlaceholders})",
+    $teacherIdTypes,
+    $teacherIds,
     0
   );
 }
@@ -96,7 +137,9 @@ if (
 if (teacher_table_exists($conn, 'assignments') && teacher_column_exists($conn, 'assignments', 'teacher_id')) {
   $stats['total_assignments'] = (int) teacher_scalar_value(
     $conn,
-    "SELECT COUNT(*) FROM assignments WHERE teacher_id IN ({$teacherIdSql})",
+    "SELECT COUNT(*) FROM assignments WHERE teacher_id IN ({$teacherIdPlaceholders})",
+    $teacherIdTypes,
+    $teacherIds,
     0
   );
 }
@@ -113,8 +156,10 @@ if (
     "SELECT COUNT(*)
      FROM assignment_submissions sub
      INNER JOIN assignments a ON sub.assignment_id = a.id
-     WHERE a.teacher_id IN ({$teacherIdSql})
+     WHERE a.teacher_id IN ({$teacherIdPlaceholders})
        AND LOWER(COALESCE(sub.status, '')) = 'graded'",
+    $teacherIdTypes,
+    $teacherIds,
     0
   );
 }
@@ -128,8 +173,10 @@ if (
     $conn,
     "SELECT COUNT(*)
      FROM attendance
-     WHERE teacher_id IN ({$teacherIdSql})
+     WHERE teacher_id IN ({$teacherIdPlaceholders})
        AND DATE({$attendanceDateColumn}) = CURDATE()",
+    $teacherIdTypes,
+    $teacherIds,
     0
   );
 }
@@ -150,15 +197,22 @@ if (
   $recentSql = "SELECT a.title, a.due_date, {$submissionExpr} AS submissions
                 FROM assignments a
                 {$joinClause}
-                WHERE a.teacher_id IN ({$teacherIdSql})
+                WHERE a.teacher_id IN ({$teacherIdPlaceholders})
                 GROUP BY a.id
                 ORDER BY {$orderColumn} DESC
                 LIMIT 5";
-  $recentResult = $conn->query( $recentSql);
-  if ($recentResult) {
-    while ($recentRow = $recentResult->fetch_assoc()) {
-      $recentAssignments[] = $recentRow;
+  $recentStmt = $conn->prepare($recentSql);
+  if ($recentStmt) {
+    $recentParams = $teacherIds;
+    if (teacher_bind_dynamic_params($recentStmt, $teacherIdTypes, $recentParams) && $recentStmt->execute()) {
+      $recentResult = $recentStmt->get_result();
+      if ($recentResult) {
+        while ($recentRow = $recentResult->fetch_assoc()) {
+          $recentAssignments[] = $recentRow;
+        }
+      }
     }
+    $recentStmt->close();
   }
 }
 
@@ -170,15 +224,22 @@ if (
 ) {
   $trendSql = "SELECT DATE({$attendanceDateColumn}) AS attendance_day, COUNT(*) AS total
                FROM attendance
-               WHERE teacher_id IN ({$teacherIdSql})
+               WHERE teacher_id IN ({$teacherIdPlaceholders})
                  AND {$attendanceDateColumn} >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
                GROUP BY DATE({$attendanceDateColumn})
                ORDER BY attendance_day ASC";
-  $trendResult = $conn->query( $trendSql);
-  if ($trendResult) {
-    while ($trendRow = $trendResult->fetch_assoc()) {
-      $trendMap[(string) ($trendRow['attendance_day'] ?? '')] = (int) ($trendRow['total'] ?? 0);
+  $trendStmt = $conn->prepare($trendSql);
+  if ($trendStmt) {
+    $trendParams = $teacherIds;
+    if (teacher_bind_dynamic_params($trendStmt, $teacherIdTypes, $trendParams) && $trendStmt->execute()) {
+      $trendResult = $trendStmt->get_result();
+      if ($trendResult) {
+        while ($trendRow = $trendResult->fetch_assoc()) {
+          $trendMap[(string) ($trendRow['attendance_day'] ?? '')] = (int) ($trendRow['total'] ?? 0);
+        }
+      }
     }
+    $trendStmt->close();
   }
 }
 

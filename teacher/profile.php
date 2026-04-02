@@ -8,7 +8,13 @@ include '../includes/db_connect.php';
 $teacherContext = teacher_auth_resolve_context($conn);
 $user_id = (int) ($teacherContext['user_id'] ?? 0);
 $teacher_profile_id = (int) ($teacherContext['teacher_profile_id'] ?? 0);
-$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_ids = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? []));
+if (empty($teacher_ids)) {
+  $teacher_ids = [0];
+}
+$teacher_ids_sql = implode(',', $teacher_ids);
+$teacher_id_placeholders = implode(',', array_fill(0, count($teacher_ids), '?'));
+$teacher_id_types = str_repeat('i', count($teacher_ids));
 
 $account_table = null;
 $account_id = 0;
@@ -91,28 +97,50 @@ function column_exists($conn, $table_name, $column_name) {
   return $result && $result->num_rows > 0;
 }
 
+function profile_bind_dynamic_params($stmt, $types, array &$params) {
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
+}
+
 // Handle profile update
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['update_profile'])) {
-    $name = $conn->real_escape_string( $_POST['name']);
-    $email = $conn->real_escape_string( $_POST['email']);
-    $phone = $conn->real_escape_string( $_POST['phone']);
+  $name = trim((string) ($_POST['name'] ?? ''));
+  $email = trim((string) ($_POST['email'] ?? ''));
+  $phone = trim((string) ($_POST['phone'] ?? ''));
 
-    if ($account_table === null || $account_id <= 0) {
+  if ($account_table === null || $account_id <= 0) {
     $error = "Cannot update profile because account table is missing.";
+  } elseif (!in_array($account_table, ['users', 'teachers'], true)) {
+    $error = "Cannot update profile because account table is invalid.";
   } else {
-      $sql_update = "UPDATE $account_table SET name = '$name', email = '$email', phone = '$phone' WHERE id = $account_id";
-
-    if ($conn->query( $sql_update)) {
-      $success = "Profile updated successfully!";
-      // Update session
-      $_SESSION['name'] = $name;
-      $user['name'] = $name;
-      $user['email'] = $email;
-      $user['phone'] = $phone;
+    $updateStmt = $conn->prepare("UPDATE `{$account_table}` SET name = ?, email = ?, phone = ? WHERE id = ?");
+    if (!$updateStmt) {
+      $error = "Error preparing profile update: " . $conn->error;
     } else {
-      $error = "Error updating profile: " . $conn->error;
+      $updateStmt->bind_param('sssi', $name, $email, $phone, $account_id);
+
+      if ($updateStmt->execute()) {
+        $success = "Profile updated successfully!";
+        // Update session
+        $_SESSION['name'] = $name;
+        $user['name'] = $name;
+        $user['email'] = $email;
+        $user['phone'] = $phone;
+      } else {
+        $error = "Error updating profile: " . $updateStmt->error;
+      }
+
+      $updateStmt->close();
     }
-    }
+  }
 }
 
 // Get teacher statistics with table-safe queries to avoid runtime errors.
@@ -126,10 +154,18 @@ $stats = [
 ];
 
 if (table_exists($conn, 'classes') && column_exists($conn, 'classes', 'teacher_id')) {
-  $classes_count_result = $conn->query( "SELECT COUNT(*) AS total_classes FROM classes WHERE teacher_id IN ({$teacher_ids_sql})");
-  if ($classes_count_result) {
-    $row = $classes_count_result->fetch_assoc();
-    $stats['total_classes'] = (int)($row['total_classes'] ?? 0);
+  $classesCountSql = "SELECT COUNT(*) AS total_classes FROM classes WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $classesCountStmt = $conn->prepare($classesCountSql);
+  if ($classesCountStmt) {
+    $classesCountParams = $teacher_ids;
+    if (profile_bind_dynamic_params($classesCountStmt, $teacher_id_types, $classesCountParams) && $classesCountStmt->execute()) {
+      $classes_count_result = $classesCountStmt->get_result();
+      if ($classes_count_result) {
+        $row = $classes_count_result->fetch_assoc();
+        $stats['total_classes'] = (int)($row['total_classes'] ?? 0);
+      }
+    }
+    $classesCountStmt->close();
   }
 }
 
@@ -151,39 +187,71 @@ if (
   }
 
   $studentJoinSql = empty($studentJoinParts) ? '1 = 0' : implode(' OR ', $studentJoinParts);
-  $students_count_result = $conn->query( "SELECT COUNT(DISTINCT s.id) AS total_students FROM students s INNER JOIN classes c ON ({$studentJoinSql}) WHERE c.teacher_id IN ({$teacher_ids_sql})");
-  if ($students_count_result) {
-    $row = $students_count_result->fetch_assoc();
-    $stats['total_students'] = (int)($row['total_students'] ?? 0);
+  $studentsCountSql = "SELECT COUNT(DISTINCT s.id) AS total_students FROM students s INNER JOIN classes c ON ({$studentJoinSql}) WHERE c.teacher_id IN ({$teacher_id_placeholders})";
+  $studentsCountStmt = $conn->prepare($studentsCountSql);
+  if ($studentsCountStmt) {
+    $studentsCountParams = $teacher_ids;
+    if (profile_bind_dynamic_params($studentsCountStmt, $teacher_id_types, $studentsCountParams) && $studentsCountStmt->execute()) {
+      $students_count_result = $studentsCountStmt->get_result();
+      if ($students_count_result) {
+        $row = $students_count_result->fetch_assoc();
+        $stats['total_students'] = (int)($row['total_students'] ?? 0);
+      }
+    }
+    $studentsCountStmt->close();
   }
 }
 
 if (table_exists($conn, 'assignments') && column_exists($conn, 'assignments', 'teacher_id')) {
-  $assignments_count_result = $conn->query( "SELECT COUNT(*) AS total_assignments FROM assignments WHERE teacher_id IN ({$teacher_ids_sql})");
-  if ($assignments_count_result) {
-    $row = $assignments_count_result->fetch_assoc();
-    $stats['total_assignments'] = (int)($row['total_assignments'] ?? 0);
+  $assignmentsCountSql = "SELECT COUNT(*) AS total_assignments FROM assignments WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $assignmentsCountStmt = $conn->prepare($assignmentsCountSql);
+  if ($assignmentsCountStmt) {
+    $assignmentsCountParams = $teacher_ids;
+    if (profile_bind_dynamic_params($assignmentsCountStmt, $teacher_id_types, $assignmentsCountParams) && $assignmentsCountStmt->execute()) {
+      $assignments_count_result = $assignmentsCountStmt->get_result();
+      if ($assignments_count_result) {
+        $row = $assignments_count_result->fetch_assoc();
+        $stats['total_assignments'] = (int)($row['total_assignments'] ?? 0);
+      }
+    }
+    $assignmentsCountStmt->close();
   }
 }
 
 if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') && column_exists($conn, 'marks', 'marks')) {
-  $avg_marks_result = $conn->query( "SELECT AVG(marks) AS avg_class_performance FROM marks WHERE teacher_id IN ({$teacher_ids_sql})");
-  if ($avg_marks_result) {
-    $row = $avg_marks_result->fetch_assoc();
-    $stats['avg_class_performance'] = $row['avg_class_performance'];
+  $avgMarksSql = "SELECT AVG(marks) AS avg_class_performance FROM marks WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $avgMarksStmt = $conn->prepare($avgMarksSql);
+  if ($avgMarksStmt) {
+    $avgMarksParams = $teacher_ids;
+    if (profile_bind_dynamic_params($avgMarksStmt, $teacher_id_types, $avgMarksParams) && $avgMarksStmt->execute()) {
+      $avg_marks_result = $avgMarksStmt->get_result();
+      if ($avg_marks_result) {
+        $row = $avg_marks_result->fetch_assoc();
+        $stats['avg_class_performance'] = $row['avg_class_performance'];
+      }
+    }
+    $avgMarksStmt->close();
   }
 }
 
 if (table_exists($conn, 'attendance') && column_exists($conn, 'attendance', 'teacher_id') && column_exists($conn, 'attendance', 'status')) {
-  $attendance_result = $conn->query( "SELECT
+  $attendanceSql = "SELECT
       SUM(CASE WHEN status = 'present' THEN 1 ELSE 0 END) AS total_present_days,
       SUM(CASE WHEN status = 'absent' THEN 1 ELSE 0 END) AS total_absent_days
       FROM attendance
-      WHERE teacher_id IN ({$teacher_ids_sql})");
-  if ($attendance_result) {
-    $row = $attendance_result->fetch_assoc();
-    $stats['total_present_days'] = (int)($row['total_present_days'] ?? 0);
-    $stats['total_absent_days'] = (int)($row['total_absent_days'] ?? 0);
+      WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $attendanceStmt = $conn->prepare($attendanceSql);
+  if ($attendanceStmt) {
+    $attendanceParams = $teacher_ids;
+    if (profile_bind_dynamic_params($attendanceStmt, $teacher_id_types, $attendanceParams) && $attendanceStmt->execute()) {
+      $attendance_result = $attendanceStmt->get_result();
+      if ($attendance_result) {
+        $row = $attendance_result->fetch_assoc();
+        $stats['total_present_days'] = (int)($row['total_present_days'] ?? 0);
+        $stats['total_absent_days'] = (int)($row['total_absent_days'] ?? 0);
+      }
+    }
+    $attendanceStmt->close();
   }
 }
 
@@ -196,21 +264,33 @@ if (($stats['total_present_days'] + $stats['total_absent_days']) > 0) {
 // Get recent activities
 $result_recent = false;
 $recent_query_parts = [];
+$recent_types = '';
+$recent_params = [];
 
 if (table_exists($conn, 'assignments') && column_exists($conn, 'assignments', 'teacher_id') && column_exists($conn, 'assignments', 'title') && column_exists($conn, 'assignments', 'created_at')) {
-  $recent_query_parts[] = "SELECT 'assignment' as type, title as description, created_at as date FROM assignments WHERE teacher_id IN ({$teacher_ids_sql})";
+  $recent_query_parts[] = "SELECT 'assignment' as type, title as description, created_at as date FROM assignments WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $recent_types .= $teacher_id_types;
+  $recent_params = array_merge($recent_params, $teacher_ids);
 }
 
 if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') && column_exists($conn, 'marks', 'date') && column_exists($conn, 'marks', 'student_id') && table_exists($conn, 'students')) {
   $student_name_expr = column_exists($conn, 'students', 'name')
     ? "(SELECT name FROM students WHERE id = marks.student_id)"
     : "marks.student_id";
-  $recent_query_parts[] = "SELECT 'grade' as type, CONCAT('Graded ', $student_name_expr) as description, date as date FROM marks WHERE teacher_id IN ({$teacher_ids_sql})";
+  $recent_query_parts[] = "SELECT 'grade' as type, CONCAT('Graded ', $student_name_expr) as description, date as date FROM marks WHERE teacher_id IN ({$teacher_id_placeholders})";
+  $recent_types .= $teacher_id_types;
+  $recent_params = array_merge($recent_params, $teacher_ids);
 }
 
 if (!empty($recent_query_parts)) {
   $sql_recent = implode(" UNION ALL ", $recent_query_parts) . " ORDER BY date DESC LIMIT 5";
-  $result_recent = $conn->query( $sql_recent);
+  $recentStmt = $conn->prepare($sql_recent);
+  if ($recentStmt) {
+    if (profile_bind_dynamic_params($recentStmt, $recent_types, $recent_params) && $recentStmt->execute()) {
+      $result_recent = $recentStmt->get_result();
+    }
+    $recentStmt->close();
+  }
 }
 
 // Get monthly performance trend (last 6 months)
@@ -221,10 +301,17 @@ if (table_exists($conn, 'marks') && column_exists($conn, 'marks', 'teacher_id') 
       AVG(marks) as avg_performance,
       COUNT(*) as total_grades
       FROM marks
-      WHERE teacher_id IN ({$teacher_ids_sql}) AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
+      WHERE teacher_id IN ({$teacher_id_placeholders}) AND date >= DATE_SUB(NOW(), INTERVAL 6 MONTH)
       GROUP BY DATE_FORMAT(date, '%Y-%m')
       ORDER BY month";
-  $result_trend = $conn->query( $sql_trend);
+  $trendStmt = $conn->prepare($sql_trend);
+  if ($trendStmt) {
+    $trendParams = $teacher_ids;
+    if (profile_bind_dynamic_params($trendStmt, $teacher_id_types, $trendParams) && $trendStmt->execute()) {
+      $result_trend = $trendStmt->get_result();
+    }
+    $trendStmt->close();
+  }
 }
 
 $performance_trend = [];

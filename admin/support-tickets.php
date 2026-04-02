@@ -57,11 +57,15 @@ try {
         LEFT JOIN users u ON st.student_id = u.id
         ORDER BY st.status ASC, st.created_at DESC";
 
-    $result = $conn->query( $sql);
-    if ($result) {
+    $ticketListStmt = $conn->prepare($sql);
+    if ($ticketListStmt && $ticketListStmt->execute()) {
+      $result = $ticketListStmt->get_result();
+      if ($result) {
         while ($row = $result->fetch_assoc()) {
-            $tickets[] = $row;
+          $tickets[] = $row;
         }
+        }
+      $ticketListStmt->close();
     }
 } catch (Exception $e) {
     error_log("Tickets query error: " . $e->getMessage());
@@ -193,7 +197,7 @@ $total_count = count($tickets);
               </div>
             <?php else: ?>
               <!-- Reply Form -->
-              <form method="POST" class="replyForm" data-ticket="<?php echo $ticket['id']; ? novalidate>" novalidate>
+              <form method="POST" class="replyForm" data-ticket="<?php echo $ticket['id']; ?>" novalidate>
                 <input type="hidden" name="action" value="reply">
                 <input type="hidden" name="ticket_id" value="<?php echo $ticket['id']; ?>">
 

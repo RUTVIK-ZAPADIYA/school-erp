@@ -7,8 +7,13 @@ include '../includes/db_connect.php';
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
 $teacher_id = (int) ($teacherContext['user_id'] ?? 0);
-$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
-$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_owner_ids = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? [$teacher_id]));
+if (empty($teacher_owner_ids)) {
+  $teacher_owner_ids = [0];
+}
+$teacher_ids_sql = implode(',', $teacher_owner_ids);
+$teacher_id_placeholders = implode(',', array_fill(0, count($teacher_owner_ids), '?'));
+$teacher_id_types = str_repeat('i', count($teacher_owner_ids));
 $teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
 function teacher_table_exists($conn, $tableName)
@@ -41,6 +46,20 @@ function teacher_first_existing_column($conn, $tableName, array $candidates)
   }
 
   return null;
+}
+
+function teacher_bind_dynamic_params($stmt, $types, array &$params)
+{
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
 }
 
 function teacher_class_owner_id($conn, $classId, array $teacherIds)
@@ -104,10 +123,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
     $selectedClassLabel = teacher_auth_class_label_by_id($conn, $class_id);
     $studentClassWhere = teacher_auth_student_class_where_sql($conn, 'students', $class_id, $selectedClassLabel);
     $sqlStudents = "SELECT id FROM students WHERE {$studentClassWhere}";
-    $resultStudents = $conn->query( $sqlStudents);
+    $studentsStmt = $conn->prepare($sqlStudents);
 
-    if ($resultStudents) {
-      $safeDate = $conn->real_escape_string( $date);
+    if ($studentsStmt && $studentsStmt->execute()) {
+      $resultStudents = $studentsStmt->get_result();
       $savedCount = 0;
       $failedCount = 0;
       $lastSqlError = '';
@@ -123,50 +142,105 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
           $status = 'absent';
         }
 
-        $whereSql = "student_id = {$student_id} AND `{$attendanceDateColumn}` = '{$safeDate}'";
+        $whereParts = ['student_id = ?', "`{$attendanceDateColumn}` = ?"];
+        $whereTypes = 'is';
+        $whereParams = [$student_id, $date];
+
         if ($attendanceHasClass) {
-          $whereSql .= " AND COALESCE(NULLIF(class_id, 0), {$class_id}) = {$class_id}";
+          $whereParts[] = 'COALESCE(NULLIF(class_id, 0), ?) = ?';
+          $whereTypes .= 'ii';
+          $whereParams[] = $class_id;
+          $whereParams[] = $class_id;
         }
         if ($attendanceHasSubject) {
-          $whereSql .= " AND subject_id = {$subject_id}";
+          $whereParts[] = 'subject_id = ?';
+          $whereTypes .= 'i';
+          $whereParams[] = $subject_id;
         }
 
+        $whereSql = implode(' AND ', $whereParts);
         $checkSql = "SELECT id FROM attendance WHERE {$whereSql} LIMIT 1";
-        $checkResult = $conn->query( $checkSql);
+        $checkStmt = $conn->prepare($checkSql);
+        $checkResult = false;
+        if ($checkStmt) {
+          $checkBindParams = $whereParams;
+          if (teacher_bind_dynamic_params($checkStmt, $whereTypes, $checkBindParams) && $checkStmt->execute()) {
+            $checkResult = $checkStmt->get_result();
+          }
+        }
 
         if ($checkResult && $checkResult->num_rows > 0) {
-          $updateParts = ["status = '{$status}'"];
+          $updateParts = ['status = ?'];
+          $updateTypes = 's';
+          $updateParams = [$status];
+
           if ($attendanceHasTeacher) {
-            $updateParts[] = "teacher_id = {$class_owner_id}";
+            $updateParts[] = 'teacher_id = ?';
+            $updateTypes .= 'i';
+            $updateParams[] = $class_owner_id;
           }
           if ($attendanceHasClass) {
-            $updateParts[] = "class_id = {$class_id}";
+            $updateParts[] = 'class_id = ?';
+            $updateTypes .= 'i';
+            $updateParams[] = $class_id;
           }
 
           $sql = 'UPDATE attendance SET ' . implode(', ', $updateParts) . " WHERE {$whereSql}";
+          $updateTypes .= $whereTypes;
+          $updateParams = array_merge($updateParams, $whereParams);
+
+          $updateStmt = $conn->prepare($sql);
+          $executeSuccess = false;
+          if ($updateStmt) {
+            if (teacher_bind_dynamic_params($updateStmt, $updateTypes, $updateParams) && $updateStmt->execute()) {
+              $executeSuccess = true;
+            }
+            $updateStmt->close();
+          }
         } else {
           $insertColumns = ['student_id', "`{$attendanceDateColumn}`", 'status'];
-          $insertValues = [$student_id, "'{$safeDate}'", "'{$status}'"];
+          $insertValues = ['?', '?', '?'];
+          $insertTypes = 'iss';
+          $insertParams = [$student_id, $date, $status];
 
           if ($attendanceHasTeacher) {
             $insertColumns[] = 'teacher_id';
-            $insertValues[] = $class_owner_id;
+            $insertValues[] = '?';
+            $insertTypes .= 'i';
+            $insertParams[] = $class_owner_id;
           }
 
           if ($attendanceHasClass) {
             $insertColumns[] = 'class_id';
-            $insertValues[] = $class_id;
+            $insertValues[] = '?';
+            $insertTypes .= 'i';
+            $insertParams[] = $class_id;
           }
 
           if ($attendanceHasSubject) {
             $insertColumns[] = 'subject_id';
-            $insertValues[] = $subject_id;
+            $insertValues[] = '?';
+            $insertTypes .= 'i';
+            $insertParams[] = $subject_id;
           }
 
           $sql = 'INSERT INTO attendance (' . implode(', ', $insertColumns) . ') VALUES (' . implode(', ', $insertValues) . ')';
+
+          $insertStmt = $conn->prepare($sql);
+          $executeSuccess = false;
+          if ($insertStmt) {
+            if (teacher_bind_dynamic_params($insertStmt, $insertTypes, $insertParams) && $insertStmt->execute()) {
+              $executeSuccess = true;
+            }
+            $insertStmt->close();
+          }
         }
 
-        if ($conn->query( $sql)) {
+        if (isset($checkStmt) && $checkStmt) {
+          $checkStmt->close();
+        }
+
+        if (!empty($executeSuccess)) {
           $savedCount++;
         } else {
           $failedCount++;
@@ -175,6 +249,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
           }
         }
       }
+
+      $studentsStmt->close();
 
       if ($savedCount > 0 && $failedCount === 0) {
         $success = 'Attendance saved successfully!';
@@ -198,12 +274,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['save_attendance'])) {
 // Get classes for the teacher
 $classes = [];
 if ($classNameColumn !== null && teacher_column_exists($conn, 'classes', 'teacher_id')) {
-  $sql_classes = "SELECT id, {$classNameColumn} AS name FROM classes WHERE teacher_id IN ({$teacher_ids_sql}) ORDER BY {$classNameColumn} ASC";
-  $result_classes = $conn->query( $sql_classes);
-  if ($result_classes) {
-    while ($row = $result_classes->fetch_assoc()) {
-      $classes[] = $row;
+  $sql_classes = "SELECT id, {$classNameColumn} AS name FROM classes WHERE teacher_id IN ({$teacher_id_placeholders}) ORDER BY {$classNameColumn} ASC";
+  $classesStmt = $conn->prepare($sql_classes);
+  if ($classesStmt) {
+    $classParams = $teacher_owner_ids;
+    if (teacher_bind_dynamic_params($classesStmt, $teacher_id_types, $classParams) && $classesStmt->execute()) {
+      $result_classes = $classesStmt->get_result();
+      if ($result_classes) {
+        while ($row = $result_classes->fetch_assoc()) {
+          $classes[] = $row;
+        }
+      }
     }
+    $classesStmt->close();
   }
 }
 
@@ -211,11 +294,17 @@ if ($classNameColumn !== null && teacher_column_exists($conn, 'classes', 'teache
 $subjects = [];
 if ($subjectNameColumn !== null) {
   $sql_subjects = "SELECT id, {$subjectNameColumn} AS name FROM subjects ORDER BY {$subjectNameColumn} ASC";
-  $result_subjects = $conn->query( $sql_subjects);
-  if ($result_subjects) {
-    while ($row = $result_subjects->fetch_assoc()) {
-      $subjects[] = $row;
+  $subjectsStmt = $conn->prepare($sql_subjects);
+  if ($subjectsStmt) {
+    if ($subjectsStmt->execute()) {
+      $result_subjects = $subjectsStmt->get_result();
+      if ($result_subjects) {
+        while ($row = $result_subjects->fetch_assoc()) {
+          $subjects[] = $row;
+        }
+      }
     }
+    $subjectsStmt->close();
   }
 }
 
@@ -244,7 +333,6 @@ $stats = [
 
 // Get students for selected class with attendance data
 if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists($conn, 'students', 'name')) {
-  $safeDate = $conn->real_escape_string( $selected_date);
   $selectedClassLabel = teacher_auth_class_label_by_id($conn, $selected_class);
   $studentClassWhere = teacher_auth_student_class_where_sql($conn, 's', $selected_class, $selectedClassLabel);
   $rollSelectSql = $studentRollColumn !== null ? "s.`{$studentRollColumn}` AS roll_no" : "'' AS roll_no";
@@ -252,19 +340,28 @@ if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists
 
   $attendanceStatusSql = "'unmarked' AS attendance_status";
   $attendanceJoinSql = '';
+  $studentListTypes = '';
+  $studentListParams = [];
 
   if (teacher_table_exists($conn, 'attendance') && $attendanceDateColumn !== null) {
     $joinParts = [
       's.id = a.student_id',
-      "a.`{$attendanceDateColumn}` = '{$safeDate}'",
+      "a.`{$attendanceDateColumn}` = ?",
     ];
+    $studentListTypes .= 's';
+    $studentListParams[] = $selected_date;
 
     if ($attendanceHasClass) {
-      $joinParts[] = "COALESCE(NULLIF(a.class_id, 0), {$selected_class}) = {$selected_class}";
+      $joinParts[] = 'COALESCE(NULLIF(a.class_id, 0), ?) = ?';
+      $studentListTypes .= 'ii';
+      $studentListParams[] = $selected_class;
+      $studentListParams[] = $selected_class;
     }
 
     if ($attendanceHasSubject && $selected_subject > 0) {
-      $joinParts[] = "a.subject_id = {$selected_subject}";
+      $joinParts[] = 'a.subject_id = ?';
+      $studentListTypes .= 'i';
+      $studentListParams[] = $selected_subject;
     }
 
     $attendanceJoinSql = 'LEFT JOIN attendance a ON ' . implode(' AND ', $joinParts);
@@ -276,14 +373,25 @@ if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists
            {$attendanceJoinSql}
            WHERE {$studentClassWhere}
            ORDER BY {$orderBySql}";
-  $result_students = $conn->query( $sql_students);
-
-  if ($result_students) {
-    while ($row = $result_students->fetch_assoc()) {
-      $students[] = $row;
+  $studentListStmt = $conn->prepare($sql_students);
+  if ($studentListStmt) {
+    $result_students = false;
+    if (
+      ($studentListTypes === '' || teacher_bind_dynamic_params($studentListStmt, $studentListTypes, $studentListParams))
+      && $studentListStmt->execute()
+    ) {
+      $result_students = $studentListStmt->get_result();
     }
-  } else {
-    $error = 'Unable to load students for attendance.';
+
+    if ($result_students) {
+      while ($row = $result_students->fetch_assoc()) {
+        $students[] = $row;
+      }
+    } else {
+      $error = 'Unable to load students for attendance.';
+    }
+
+    $studentListStmt->close();
   }
 }
 

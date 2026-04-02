@@ -18,13 +18,18 @@ admin_ensure_column($connection, 'teachers', 'username', "VARCHAR(100) NULL");
 $subjects = [];
 $subjectColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectColumn !== null) {
-  $subjectResult = $connection->query(
+  $subjectStmt = $connection->prepare(
     "SELECT DISTINCT {$subjectColumn} AS subject_name FROM subjects WHERE {$subjectColumn} IS NOT NULL AND {$subjectColumn} != '' ORDER BY {$subjectColumn} ASC"
   );
-  if ($subjectResult) {
-    while ($subjectRow = $subjectResult->fetch_assoc()) {
-      $subjects[] = $subjectRow['subject_name'];
+  if ($subjectStmt) {
+    $subjectStmt->execute();
+    $subjectResult = $subjectStmt->get_result();
+    if ($subjectResult) {
+      while ($subjectRow = $subjectResult->fetch_assoc()) {
+        $subjects[] = $subjectRow['subject_name'];
+      }
     }
+    $subjectStmt->close();
   }
 }
 

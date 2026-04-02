@@ -191,11 +191,16 @@ if (admin_table_exists($connection, 'teachers')) {
       $searchStmt->close();
     }
   } else {
-    $teacherResult = $connection->query( 'SELECT id, name, username, subject, email, phone, experience, status FROM teachers ORDER BY id DESC');
-    if ($teacherResult) {
-      while ($teacherRow = $teacherResult->fetch_assoc()) {
-        $teachers[] = $teacherRow;
+    $listStmt = $connection->prepare('SELECT id, name, username, subject, email, phone, experience, status FROM teachers ORDER BY id DESC');
+    if ($listStmt) {
+      $listStmt->execute();
+      $teacherResult = $listStmt->get_result();
+      if ($teacherResult) {
+        while ($teacherRow = $teacherResult->fetch_assoc()) {
+          $teachers[] = $teacherRow;
+        }
       }
+      $listStmt->close();
     }
   }
 }

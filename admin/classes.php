@@ -114,11 +114,16 @@ if (admin_table_exists($connection, 'classes')) {
       $searchStmt->close();
     }
   } else {
-    $result = $connection->query( $baseSql . ' ORDER BY c.id DESC');
-    if ($result) {
-      while ($row = $result->fetch_assoc()) {
-        $classes[] = $row;
+    $listStmt = $connection->prepare($baseSql . ' ORDER BY c.id DESC');
+    if ($listStmt) {
+      $listStmt->execute();
+      $result = $listStmt->get_result();
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $classes[] = $row;
+        }
       }
+      $listStmt->close();
     }
   }
 }

@@ -16,32 +16,47 @@ admin_ensure_column($connection, 'exams', 'instructions', 'TEXT NULL');
 $classOptions = [];
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 if ($classNameColumn !== null) {
-  $classResult = $connection->query("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
-  if ($classResult) {
-    while ($classRow = $classResult->fetch_assoc()) {
-      $classOptions[] = $classRow;
+  $classStmt = $connection->prepare("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  if ($classStmt) {
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
+    if ($classResult) {
+      while ($classRow = $classResult->fetch_assoc()) {
+        $classOptions[] = $classRow;
+      }
     }
+    $classStmt->close();
   }
 }
 
 $subjectOptions = [];
 $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name', 'subject_name']);
 if ($subjectNameColumn !== null) {
-  $subjectResult = $connection->query("SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
-  if ($subjectResult) {
-    while ($subjectRow = $subjectResult->fetch_assoc()) {
-      $subjectOptions[] = $subjectRow;
+  $subjectStmt = $connection->prepare("SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
+  if ($subjectStmt) {
+    $subjectStmt->execute();
+    $subjectResult = $subjectStmt->get_result();
+    if ($subjectResult) {
+      while ($subjectRow = $subjectResult->fetch_assoc()) {
+        $subjectOptions[] = $subjectRow;
+      }
     }
+    $subjectStmt->close();
   }
 }
 
 $teacherOptions = [];
 if (admin_table_exists($connection, 'teachers')) {
-  $teacherResult = $connection->query('SELECT id, name FROM teachers ORDER BY name ASC');
-  if ($teacherResult) {
-    while ($teacherRow = $teacherResult->fetch_assoc()) {
-      $teacherOptions[] = $teacherRow;
+  $teacherStmt = $connection->prepare('SELECT id, name FROM teachers ORDER BY name ASC');
+  if ($teacherStmt) {
+    $teacherStmt->execute();
+    $teacherResult = $teacherStmt->get_result();
+    if ($teacherResult) {
+      while ($teacherRow = $teacherResult->fetch_assoc()) {
+        $teacherOptions[] = $teacherRow;
+      }
     }
+    $teacherStmt->close();
   }
 }
 

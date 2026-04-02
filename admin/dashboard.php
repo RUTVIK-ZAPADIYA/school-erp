@@ -24,11 +24,24 @@ function columnExists($conn, $tableName, $columnName)
 
 function scalarValue($conn, $sql, $defaultValue = 0)
 {
-  $result = $conn->query( $sql);
-  if (!$result) {
+  $stmt = $conn->prepare($sql);
+  if (!$stmt) {
     return $defaultValue;
   }
+
+  if (!$stmt->execute()) {
+    $stmt->close();
+    return $defaultValue;
+  }
+
+  $result = $stmt->get_result();
+  if (!$result) {
+    $stmt->close();
+    return $defaultValue;
+  }
+
   $row = $result->fetch_row();
+  $stmt->close();
   if (!$row || !isset($row[0])) {
     return $defaultValue;
   }

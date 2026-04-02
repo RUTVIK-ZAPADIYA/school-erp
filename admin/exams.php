@@ -67,11 +67,16 @@ if (admin_table_exists($connection, 'exams')) {
       $searchStmt->close();
     }
   } else {
-    $result = $connection->query( $baseSql . ' ORDER BY e.exam_date DESC');
-    if ($result) {
-      while ($row = $result->fetch_assoc()) {
-        $exams[] = $row;
+    $listStmt = $connection->prepare($baseSql . ' ORDER BY e.exam_date DESC');
+    if ($listStmt) {
+      $listStmt->execute();
+      $result = $listStmt->get_result();
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $exams[] = $row;
+        }
       }
+      $listStmt->close();
     }
   }
 }

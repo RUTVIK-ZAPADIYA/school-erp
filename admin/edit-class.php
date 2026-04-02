@@ -12,11 +12,16 @@ admin_ensure_column($connection, 'classes', 'description', 'TEXT NULL');
 // Load teacher options for reassignment.
 $teachers = [];
 if (admin_table_exists($connection, 'teachers')) {
-  $teacherResult = $connection->query('SELECT id, name FROM teachers ORDER BY name ASC');
-  if ($teacherResult) {
-    while ($teacherRow = $teacherResult->fetch_assoc()) {
-      $teachers[] = $teacherRow;
+  $teacherStmt = $connection->prepare('SELECT id, name FROM teachers ORDER BY name ASC');
+  if ($teacherStmt) {
+    $teacherStmt->execute();
+    $teacherResult = $teacherStmt->get_result();
+    if ($teacherResult) {
+      while ($teacherRow = $teacherResult->fetch_assoc()) {
+        $teachers[] = $teacherRow;
+      }
     }
+    $teacherStmt->close();
   }
 }
 

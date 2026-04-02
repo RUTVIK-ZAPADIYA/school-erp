@@ -12,27 +12,37 @@ admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
 $classNameColumn = admin_first_existing_column($connection, 'classes', ['name', 'class_name']);
 $classMap = [];
 if ($classNameColumn !== null) {
-  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes");
-  if ($classResult) {
-    while ($classRow = $classResult->fetch_assoc()) {
-      $classMap[(int) $classRow['id']] = (string) $classRow['class_name'];
+  $classStmt = $connection->prepare("SELECT id, {$classNameColumn} AS class_name FROM classes");
+  if ($classStmt) {
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
+    if ($classResult) {
+      while ($classRow = $classResult->fetch_assoc()) {
+        $classMap[(int) $classRow['id']] = (string) $classRow['class_name'];
+      }
     }
+    $classStmt->close();
   }
 }
 
 $students = [];
 if (admin_table_exists($connection, 'students')) {
-  $studentResult = $connection->query( 'SELECT id, name, class, class_id FROM students ORDER BY name ASC');
-  if ($studentResult) {
-    while ($studentRow = $studentResult->fetch_assoc()) {
-      $studentClass = trim((string) ($studentRow['class'] ?? ''));
-      if ($studentClass === '' && isset($studentRow['class_id'])) {
-        $studentClassId = (int) $studentRow['class_id'];
-        $studentClass = $classMap[$studentClassId] ?? '';
+  $studentStmt = $connection->prepare('SELECT id, name, class, class_id FROM students ORDER BY name ASC');
+  if ($studentStmt) {
+    $studentStmt->execute();
+    $studentResult = $studentStmt->get_result();
+    if ($studentResult) {
+      while ($studentRow = $studentResult->fetch_assoc()) {
+        $studentClass = trim((string) ($studentRow['class'] ?? ''));
+        if ($studentClass === '' && isset($studentRow['class_id'])) {
+          $studentClassId = (int) $studentRow['class_id'];
+          $studentClass = $classMap[$studentClassId] ?? '';
+        }
+        $studentRow['display_class'] = $studentClass;
+        $students[] = $studentRow;
       }
-      $studentRow['display_class'] = $studentClass;
-      $students[] = $studentRow;
     }
+    $studentStmt->close();
   }
 }
 

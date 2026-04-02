@@ -36,11 +36,16 @@ $classOptions = [];
 
 // Load class choices for the student edit datalist.
 if ($classNameColumn !== null) {
-  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
-  if ($classResult) {
-    while ($classRow = $classResult->fetch_assoc()) {
-      $classOptions[] = $classRow;
+  $classStmt = $connection->prepare("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  if ($classStmt) {
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
+    if ($classResult) {
+      while ($classRow = $classResult->fetch_assoc()) {
+        $classOptions[] = $classRow;
+      }
     }
+    $classStmt->close();
   }
 }
 

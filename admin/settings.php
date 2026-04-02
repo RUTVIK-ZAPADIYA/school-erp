@@ -64,11 +64,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Load persisted settings and merge them with defaults.
 $settings = $defaultSettings;
-$settingsResult = $connection->query( 'SELECT setting_key, setting_value FROM system_settings');
-if ($settingsResult) {
-  while ($settingRow = $settingsResult->fetch_assoc()) {
-    $settings[$settingRow['setting_key']] = (string) ($settingRow['setting_value'] ?? '');
+$settingsStmt = $connection->prepare('SELECT setting_key, setting_value FROM system_settings');
+if ($settingsStmt) {
+  $settingsStmt->execute();
+  $settingsResult = $settingsStmt->get_result();
+  if ($settingsResult) {
+    while ($settingRow = $settingsResult->fetch_assoc()) {
+      $settings[$settingRow['setting_key']] = (string) ($settingRow['setting_value'] ?? '');
+    }
   }
+  $settingsStmt->close();
 }
 
 $flash = admin_pull_flash();

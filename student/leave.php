@@ -334,7 +334,6 @@ try {
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">To Date</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Days</th>
               <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Status</th>
-              <th class="px-6 py-4 text-left text-sm font-semibold text-stone-900">Action</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-stone-200">
@@ -371,17 +370,11 @@ try {
                       </span>
                     <?php endif; ?>
                   </td>
-                  <td class="px-6 py-4">
-                    <button class="inline-flex items-center gap-1 px-3 py-1 text-sm font-medium text-blue-600 hover:bg-blue-50 rounded transition">
-                      <span class="material-symbols-outlined text-sm">visibility</span>
-                      View
-                    </button>
-                  </td>
                 </tr>
               <?php endforeach; ?>
             <?php else: ?>
               <tr>
-                <td colspan="7" class="px-6 py-8 text-center text-stone-500">No leave applications found</td>
+                <td colspan="6" class="px-6 py-8 text-center text-stone-500">No leave applications found</td>
               </tr>
             <?php endif; ?>
           </tbody>

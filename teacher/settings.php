@@ -110,12 +110,26 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $storedPassword = (string) ($user['password'] ?? '');
             if (password_verify($current_password, $storedPassword) || hash_equals($storedPassword, $current_password)) {
                 $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
-                $sql_update = "UPDATE $account_table SET password = '$hashed_password' WHERE id = $account_id";
 
-                if ($conn->query( $sql_update)) {
-                    $success = "Password changed successfully!";
+                if (!in_array($account_table, ['users', 'teachers'], true)) {
+                    $error = 'Unsupported account table for password update.';
                 } else {
-                    $error = "Error updating password: " . $conn->error;
+                    $updateStmt = $conn->prepare("UPDATE `{$account_table}` SET password = ? WHERE id = ?");
+
+                    if (!$updateStmt) {
+                        $error = "Error preparing password update: " . $conn->error;
+                    } else {
+                        $updateStmt->bind_param('si', $hashed_password, $account_id);
+
+                        if ($updateStmt->execute()) {
+                            $success = "Password changed successfully!";
+                            $user['password'] = $hashed_password;
+                        } else {
+                            $error = "Error updating password: " . $updateStmt->error;
+                        }
+
+                        $updateStmt->close();
+                    }
                 }
             } else {
                 $error = "Current password is incorrect.";

@@ -7,8 +7,13 @@ include '../includes/db_connect.php';
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
 $teacher_id = (int) ($teacherContext['user_id'] ?? 0);
-$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
-$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_owner_ids = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? [$teacher_id]));
+if (empty($teacher_owner_ids)) {
+  $teacher_owner_ids = [0];
+}
+$teacher_ids_sql = implode(',', $teacher_owner_ids);
+$teacher_id_placeholders = implode(',', array_fill(0, count($teacher_owner_ids), '?'));
+$teacher_id_types = str_repeat('i', count($teacher_owner_ids));
 $teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
 function teacher_table_exists($conn, $tableName)
@@ -43,6 +48,20 @@ function teacher_first_existing_column($conn, $tableName, array $candidates)
   return null;
 }
 
+function teacher_bind_dynamic_params($stmt, $types, array &$params)
+{
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
+}
+
 $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
 $subjectNameColumn = teacher_first_existing_column($conn, 'subjects', ['name', 'subject_name']);
 
@@ -64,9 +83,16 @@ if (
            FROM schedule s
            INNER JOIN classes c ON s.class_id = c.id
            INNER JOIN subjects sub ON s.subject_id = sub.id
-           WHERE s.teacher_id IN ({$teacher_ids_sql})
+           WHERE s.teacher_id IN ({$teacher_id_placeholders})
            ORDER BY FIELD(s.day_of_week, 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'), s.start_time";
-  $result_schedule = $conn->query( $sql_schedule);
+  $scheduleStmt = $conn->prepare($sql_schedule);
+  if ($scheduleStmt) {
+    $scheduleParams = $teacher_owner_ids;
+    if (teacher_bind_dynamic_params($scheduleStmt, $teacher_id_types, $scheduleParams) && $scheduleStmt->execute()) {
+      $result_schedule = $scheduleStmt->get_result();
+    }
+    $scheduleStmt->close();
+  }
 }
 
 // Organize schedule by day and time

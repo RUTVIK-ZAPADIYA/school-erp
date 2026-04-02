@@ -17,31 +17,46 @@ $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name
 // Load dropdown data required by the attendance edit form.
 $classOptions = [];
 if ($classNameColumn !== null) {
-  $classResult = $connection->query("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
-  if ($classResult) {
-    while ($classRow = $classResult->fetch_assoc()) {
-      $classOptions[] = $classRow;
+  $classStmt = $connection->prepare("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  if ($classStmt) {
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
+    if ($classResult) {
+      while ($classRow = $classResult->fetch_assoc()) {
+        $classOptions[] = $classRow;
+      }
     }
+    $classStmt->close();
   }
 }
 
 $subjectOptions = [];
 if ($attendanceHasSubjectId && $subjectNameColumn !== null) {
-  $subjectResult = $connection->query("SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
-  if ($subjectResult) {
-    while ($subjectRow = $subjectResult->fetch_assoc()) {
-      $subjectOptions[] = $subjectRow;
+  $subjectStmt = $connection->prepare("SELECT id, {$subjectNameColumn} AS subject_name FROM subjects ORDER BY {$subjectNameColumn} ASC");
+  if ($subjectStmt) {
+    $subjectStmt->execute();
+    $subjectResult = $subjectStmt->get_result();
+    if ($subjectResult) {
+      while ($subjectRow = $subjectResult->fetch_assoc()) {
+        $subjectOptions[] = $subjectRow;
+      }
     }
+    $subjectStmt->close();
   }
 }
 
 $teacherOptions = [];
 if ($attendanceHasTeacherId && admin_table_exists($connection, 'teachers')) {
-  $teacherResult = $connection->query('SELECT id, name FROM teachers ORDER BY name ASC');
-  if ($teacherResult) {
-    while ($teacherRow = $teacherResult->fetch_assoc()) {
-      $teacherOptions[] = $teacherRow;
+  $teacherStmt = $connection->prepare('SELECT id, name FROM teachers ORDER BY name ASC');
+  if ($teacherStmt) {
+    $teacherStmt->execute();
+    $teacherResult = $teacherStmt->get_result();
+    if ($teacherResult) {
+      while ($teacherRow = $teacherResult->fetch_assoc()) {
+        $teacherOptions[] = $teacherRow;
+      }
     }
+    $teacherStmt->close();
   }
 }
 
@@ -64,16 +79,21 @@ if ($studentsHasClassId && $classNameColumn !== null) {
 $studentSql .= ' ORDER BY s.name ASC';
 
 $studentOptions = [];
-$studentResult = $connection->query($studentSql);
-if ($studentResult) {
-  while ($studentRow = $studentResult->fetch_assoc()) {
-    $displayClass = trim((string) ($studentRow['mapped_class'] ?? ''));
-    if ($displayClass === '') {
-      $displayClass = trim((string) ($studentRow['legacy_class'] ?? ''));
+ $studentStmt = $connection->prepare($studentSql);
+if ($studentStmt) {
+  $studentStmt->execute();
+  $studentResult = $studentStmt->get_result();
+  if ($studentResult) {
+    while ($studentRow = $studentResult->fetch_assoc()) {
+      $displayClass = trim((string) ($studentRow['mapped_class'] ?? ''));
+      if ($displayClass === '') {
+        $displayClass = trim((string) ($studentRow['legacy_class'] ?? ''));
+      }
+      $studentRow['display_class'] = $displayClass;
+      $studentOptions[] = $studentRow;
     }
-    $studentRow['display_class'] = $displayClass;
-    $studentOptions[] = $studentRow;
   }
+  $studentStmt->close();
 }
 
 $attendanceId = (int) ($_GET['id'] ?? $_POST['attendance_id'] ?? 0);

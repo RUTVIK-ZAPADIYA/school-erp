@@ -80,92 +80,99 @@ $subjectNameColumn = admin_first_existing_column($connection, 'subjects', ['name
 
 // Build class-wise attendance metrics with schema-aware joins.
 if ($classNameColumn !== null) {
-  $classResult = $connection->query( "SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
-  if ($classResult) {
-    while ($classRow = $classResult->fetch_assoc()) {
-      $classId = (int) $classRow['id'];
-      $className = (string) ($classRow['class_name'] ?? '');
+  $classStmt = $connection->prepare("SELECT id, {$classNameColumn} AS class_name FROM classes ORDER BY {$classNameColumn} ASC");
+  if ($classStmt) {
+    $classStmt->execute();
+    $classResult = $classStmt->get_result();
 
-      $totalStudents = 0;
-      if ($studentsHasClassId) {
-        $studentCountStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class_id = ?');
-        if ($studentCountStmt) {
-          $studentCountStmt->bind_param( 'i', $classId);
-          $studentCountStmt->execute();
-          $studentCountResult = $studentCountStmt->get_result();
-          $studentCountRow = $studentCountResult ? $studentCountResult->fetch_assoc() : null;
-          $totalStudents = (int) ($studentCountRow['total'] ?? 0);
-          $studentCountStmt->close();
-        }
-      }
+    if ($classResult) {
+      while ($classRow = $classResult->fetch_assoc()) {
+        $classId = (int) $classRow['id'];
+        $className = (string) ($classRow['class_name'] ?? '');
 
-      if ($totalStudents === 0 && $studentsHasClass && $className !== '') {
-        $studentNameCountStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class = ?');
-        if ($studentNameCountStmt) {
-          $studentNameCountStmt->bind_param( 's', $className);
-          $studentNameCountStmt->execute();
-          $studentNameCountResult = $studentNameCountStmt->get_result();
-          $studentNameCountRow = $studentNameCountResult ? $studentNameCountResult->fetch_assoc() : null;
-          $totalStudents = (int) ($studentNameCountRow['total'] ?? 0);
-          $studentNameCountStmt->close();
-        }
-      }
-
-      $presentCount = 0;
-      $absentCount = 0;
-
-      if ($attendanceDateColumn !== null) {
-        if ($attendanceHasClassId) {
-          $attendanceStmt = $connection->prepare(
-            "SELECT
-              SUM(CASE WHEN LOWER(COALESCE(status, '')) IN ('present', 'p') THEN 1 ELSE 0 END) AS present_count,
-              SUM(CASE WHEN LOWER(COALESCE(status, '')) IN ('absent', 'a') THEN 1 ELSE 0 END) AS absent_count
-             FROM attendance
-             WHERE class_id = ? AND {$attendanceDateColumn} = ?"
-          );
-          if ($attendanceStmt) {
-            $attendanceStmt->bind_param( 'is', $classId, $today);
-            $attendanceStmt->execute();
-            $attendanceResult = $attendanceStmt->get_result();
-            $attendanceRow = $attendanceResult ? $attendanceResult->fetch_assoc() : null;
-            $presentCount = (int) ($attendanceRow['present_count'] ?? 0);
-            $absentCount = (int) ($attendanceRow['absent_count'] ?? 0);
-            $attendanceStmt->close();
-          }
-        } elseif ($studentsHasClassId) {
-          $attendanceStmt = $connection->prepare(
-            "SELECT
-              SUM(CASE WHEN LOWER(COALESCE(a.status, '')) IN ('present', 'p') THEN 1 ELSE 0 END) AS present_count,
-              SUM(CASE WHEN LOWER(COALESCE(a.status, '')) IN ('absent', 'a') THEN 1 ELSE 0 END) AS absent_count
-             FROM attendance a
-             INNER JOIN students s ON s.id = a.student_id
-             WHERE s.class_id = ? AND a.{$attendanceDateColumn} = ?"
-          );
-          if ($attendanceStmt) {
-            $attendanceStmt->bind_param( 'is', $classId, $today);
-            $attendanceStmt->execute();
-            $attendanceResult = $attendanceStmt->get_result();
-            $attendanceRow = $attendanceResult ? $attendanceResult->fetch_assoc() : null;
-            $presentCount = (int) ($attendanceRow['present_count'] ?? 0);
-            $absentCount = (int) ($attendanceRow['absent_count'] ?? 0);
-            $attendanceStmt->close();
+        $totalStudents = 0;
+        if ($studentsHasClassId) {
+          $studentCountStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class_id = ?');
+          if ($studentCountStmt) {
+            $studentCountStmt->bind_param( 'i', $classId);
+            $studentCountStmt->execute();
+            $studentCountResult = $studentCountStmt->get_result();
+            $studentCountRow = $studentCountResult ? $studentCountResult->fetch_assoc() : null;
+            $totalStudents = (int) ($studentCountRow['total'] ?? 0);
+            $studentCountStmt->close();
           }
         }
-      }
 
-      $attendancePct = 0;
-      if ($totalStudents > 0) {
-        $attendancePct = (int) round(($presentCount / $totalStudents) * 100);
-      }
+        if ($totalStudents === 0 && $studentsHasClass && $className !== '') {
+          $studentNameCountStmt = $connection->prepare( 'SELECT COUNT(*) AS total FROM students WHERE class = ?');
+          if ($studentNameCountStmt) {
+            $studentNameCountStmt->bind_param( 's', $className);
+            $studentNameCountStmt->execute();
+            $studentNameCountResult = $studentNameCountStmt->get_result();
+            $studentNameCountRow = $studentNameCountResult ? $studentNameCountResult->fetch_assoc() : null;
+            $totalStudents = (int) ($studentNameCountRow['total'] ?? 0);
+            $studentNameCountStmt->close();
+          }
+        }
 
-      $classStats[] = [
-        'class_name' => $className,
-        'total_students' => $totalStudents,
-        'present_count' => $presentCount,
-        'absent_count' => $absentCount,
-        'attendance_pct' => $attendancePct,
-      ];
+        $presentCount = 0;
+        $absentCount = 0;
+
+        if ($attendanceDateColumn !== null) {
+          if ($attendanceHasClassId) {
+            $attendanceStmt = $connection->prepare(
+              "SELECT
+                SUM(CASE WHEN LOWER(COALESCE(status, '')) IN ('present', 'p') THEN 1 ELSE 0 END) AS present_count,
+                SUM(CASE WHEN LOWER(COALESCE(status, '')) IN ('absent', 'a') THEN 1 ELSE 0 END) AS absent_count
+               FROM attendance
+               WHERE class_id = ? AND {$attendanceDateColumn} = ?"
+            );
+            if ($attendanceStmt) {
+              $attendanceStmt->bind_param( 'is', $classId, $today);
+              $attendanceStmt->execute();
+              $attendanceResult = $attendanceStmt->get_result();
+              $attendanceRow = $attendanceResult ? $attendanceResult->fetch_assoc() : null;
+              $presentCount = (int) ($attendanceRow['present_count'] ?? 0);
+              $absentCount = (int) ($attendanceRow['absent_count'] ?? 0);
+              $attendanceStmt->close();
+            }
+          } elseif ($studentsHasClassId) {
+            $attendanceStmt = $connection->prepare(
+              "SELECT
+                SUM(CASE WHEN LOWER(COALESCE(a.status, '')) IN ('present', 'p') THEN 1 ELSE 0 END) AS present_count,
+                SUM(CASE WHEN LOWER(COALESCE(a.status, '')) IN ('absent', 'a') THEN 1 ELSE 0 END) AS absent_count
+               FROM attendance a
+               INNER JOIN students s ON s.id = a.student_id
+               WHERE s.class_id = ? AND a.{$attendanceDateColumn} = ?"
+            );
+            if ($attendanceStmt) {
+              $attendanceStmt->bind_param( 'is', $classId, $today);
+              $attendanceStmt->execute();
+              $attendanceResult = $attendanceStmt->get_result();
+              $attendanceRow = $attendanceResult ? $attendanceResult->fetch_assoc() : null;
+              $presentCount = (int) ($attendanceRow['present_count'] ?? 0);
+              $absentCount = (int) ($attendanceRow['absent_count'] ?? 0);
+              $attendanceStmt->close();
+            }
+          }
+        }
+
+        $attendancePct = 0;
+        if ($totalStudents > 0) {
+          $attendancePct = (int) round(($presentCount / $totalStudents) * 100);
+        }
+
+        $classStats[] = [
+          'class_name' => $className,
+          'total_students' => $totalStudents,
+          'present_count' => $presentCount,
+          'absent_count' => $absentCount,
+          'attendance_pct' => $attendancePct,
+        ];
+      }
     }
+
+    $classStmt->close();
   }
 }
 
@@ -209,11 +216,16 @@ if ($attendanceDateColumn !== null && admin_table_exists($connection, 'attendanc
     ORDER BY a.`{$attendanceDateColumn}` DESC, a.id DESC
     LIMIT 100";
 
-  $recentResult = $connection->query($recentSql);
-  if ($recentResult) {
-    while ($recentRow = $recentResult->fetch_assoc()) {
-      $recentAttendance[] = $recentRow;
+  $recentStmt = $connection->prepare($recentSql);
+  if ($recentStmt) {
+    $recentStmt->execute();
+    $recentResult = $recentStmt->get_result();
+    if ($recentResult) {
+      while ($recentRow = $recentResult->fetch_assoc()) {
+        $recentAttendance[] = $recentRow;
+      }
     }
+    $recentStmt->close();
   }
 }
 

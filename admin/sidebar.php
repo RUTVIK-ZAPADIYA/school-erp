@@ -60,6 +60,9 @@ function isAdminActive(array $pages, $currentPage)
     <a href="classes.php" class="<?php echo isAdminActive(['classes.php', 'add-class.php', 'edit-class.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">meeting_room</span><span>Classes</span>
     </a>
+    <a href="curriculum.php" class="<?php echo isAdminActive(['curriculum.php'], $currentPage); ?>">
+      <span class="material-symbols-outlined">calendar_view_week</span><span>Curriculum</span>
+    </a>
     <a href="subjects.php" class="<?php echo isAdminActive(['subjects.php', 'add-subject.php', 'edit-subject.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">menu_book</span><span>Subjects</span>
     </a>

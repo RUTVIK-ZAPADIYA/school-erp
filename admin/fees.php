@@ -68,11 +68,16 @@ if ($search !== '') {
     $searchStmt->close();
   }
 } else {
-  $result = $connection->query( $baseSql . ' ORDER BY f.id DESC LIMIT 50');
-  if ($result) {
-    while ($feeRow = $result->fetch_assoc()) {
-      $transactions[] = $feeRow;
+  $listStmt = $connection->prepare($baseSql . ' ORDER BY f.id DESC LIMIT 50');
+  if ($listStmt) {
+    $listStmt->execute();
+    $result = $listStmt->get_result();
+    if ($result) {
+      while ($feeRow = $result->fetch_assoc()) {
+        $transactions[] = $feeRow;
+      }
     }
+    $listStmt->close();
   }
 }
 

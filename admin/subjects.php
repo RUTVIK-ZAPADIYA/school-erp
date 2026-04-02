@@ -110,11 +110,16 @@ if (admin_table_exists($connection, 'subjects')) {
       $searchStmt->close();
     }
   } else {
-    $result = $connection->query( $baseSql . ' ORDER BY s.id DESC');
-    if ($result) {
-      while ($row = $result->fetch_assoc()) {
-        $subjects[] = $row;
+    $listStmt = $connection->prepare($baseSql . ' ORDER BY s.id DESC');
+    if ($listStmt) {
+      $listStmt->execute();
+      $result = $listStmt->get_result();
+      if ($result) {
+        while ($row = $result->fetch_assoc()) {
+          $subjects[] = $row;
+        }
       }
+      $listStmt->close();
     }
   }
 }

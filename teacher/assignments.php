@@ -7,8 +7,13 @@ include '../includes/db_connect.php';
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
 $teacher_id = (int) ($teacherContext['user_id'] ?? 0);
-$teacher_owner_ids = (array) ($teacherContext['teacher_ids'] ?? [$teacher_id]);
-$teacher_ids_sql = (string) ($teacherContext['teacher_ids_sql'] ?? '0');
+$teacher_owner_ids = teacher_auth_sanitize_ids((array) ($teacherContext['teacher_ids'] ?? [$teacher_id]));
+if (empty($teacher_owner_ids)) {
+  $teacher_owner_ids = [0];
+}
+$teacher_ids_sql = implode(',', $teacher_owner_ids);
+$teacher_id_placeholders = implode(',', array_fill(0, count($teacher_owner_ids), '?'));
+$teacher_id_types = str_repeat('i', count($teacher_owner_ids));
 $teacher_name = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ?? 'Teacher');
 
 function teacher_table_exists($conn, $tableName)
@@ -41,6 +46,20 @@ function teacher_first_existing_column($conn, $tableName, array $candidates)
   }
 
   return null;
+}
+
+function teacher_bind_dynamic_params($stmt, $types, array &$params)
+{
+  if ($types === '') {
+    return true;
+  }
+
+  $bindArgs = [$types];
+  foreach ($params as $index => &$value) {
+    $bindArgs[] = &$value;
+  }
+
+  return call_user_func_array([$stmt, 'bind_param'], $bindArgs);
 }
 
 $classNameColumn = teacher_first_existing_column($conn, 'classes', ['name', 'class_name']);
@@ -234,36 +253,56 @@ if (teacher_table_exists($conn, 'assignments') && teacher_table_exists($conn, 'c
             FROM assignments a
             INNER JOIN classes c ON a.class_id = c.id
             INNER JOIN subjects s ON a.subject_id = s.id
-            WHERE a.teacher_id IN ({$teacher_ids_sql})
+            WHERE a.teacher_id IN ({$teacher_id_placeholders})
             ORDER BY {$assignmentOrderColumn} DESC";
-  $result_assignments = $conn->query( $sql_assignments);
-  if ($result_assignments) {
-    while ($row = $result_assignments->fetch_assoc()) {
-      $assignments[] = $row;
+  $assignmentsStmt = $conn->prepare($sql_assignments);
+  if ($assignmentsStmt) {
+    $assignmentParams = $teacher_owner_ids;
+    if (teacher_bind_dynamic_params($assignmentsStmt, $teacher_id_types, $assignmentParams) && $assignmentsStmt->execute()) {
+      $result_assignments = $assignmentsStmt->get_result();
+      if ($result_assignments) {
+        while ($row = $result_assignments->fetch_assoc()) {
+          $assignments[] = $row;
+        }
+      }
     }
+    $assignmentsStmt->close();
   }
 }
 
 // Get classes and subjects for form
 $classes = [];
 if ($classNameColumn !== null && teacher_table_exists($conn, 'classes') && teacher_column_exists($conn, 'classes', 'teacher_id')) {
-  $sql_classes = "SELECT id, `{$classNameColumn}` AS name FROM classes WHERE teacher_id IN ({$teacher_ids_sql}) ORDER BY `{$classNameColumn}` ASC";
-  $result_classes = $conn->query( $sql_classes);
-  if ($result_classes) {
-    while ($row = $result_classes->fetch_assoc()) {
-      $classes[] = $row;
+  $sql_classes = "SELECT id, `{$classNameColumn}` AS name FROM classes WHERE teacher_id IN ({$teacher_id_placeholders}) ORDER BY `{$classNameColumn}` ASC";
+  $classesStmt = $conn->prepare($sql_classes);
+  if ($classesStmt) {
+    $classParams = $teacher_owner_ids;
+    if (teacher_bind_dynamic_params($classesStmt, $teacher_id_types, $classParams) && $classesStmt->execute()) {
+      $result_classes = $classesStmt->get_result();
+      if ($result_classes) {
+        while ($row = $result_classes->fetch_assoc()) {
+          $classes[] = $row;
+        }
+      }
     }
+    $classesStmt->close();
   }
 }
 
 $subjects = [];
 if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
   $sql_subjects = "SELECT id, `{$subjectNameColumn}` AS name FROM subjects ORDER BY `{$subjectNameColumn}` ASC";
-  $result_subjects = $conn->query( $sql_subjects);
-  if ($result_subjects) {
-    while ($row = $result_subjects->fetch_assoc()) {
-      $subjects[] = $row;
+  $subjectsStmt = $conn->prepare($sql_subjects);
+  if ($subjectsStmt) {
+    if ($subjectsStmt->execute()) {
+      $result_subjects = $subjectsStmt->get_result();
+      if ($result_subjects) {
+        while ($row = $result_subjects->fetch_assoc()) {
+          $subjects[] = $row;
+        }
+      }
     }
+    $subjectsStmt->close();
   }
 }
 ?>
