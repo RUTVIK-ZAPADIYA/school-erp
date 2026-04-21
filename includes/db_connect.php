@@ -1,6 +1,9 @@
 <?php
 mysqli_report(MYSQLI_REPORT_OFF);
 
+require_once __DIR__ . '/env_loader.php';
+school_erp_load_env(__DIR__ . '/../.env');
+
 // Database connection configuration
 $servername = getenv('DB_HOST') ?: '127.0.0.1';
 $username = getenv('DB_USER') ?: 'root';
@@ -327,6 +330,12 @@ if (!function_exists('ensure_school_erp_schema')) {
         ensure_school_erp_column($conn, 'assignment_submissions', 'grade', 'DECIMAL(10,2) NULL');
         ensure_school_erp_column($conn, 'grades', 'student_user_id', 'INT NULL');
         ensure_school_erp_column($conn, 'marks', 'student_user_id', 'INT NULL');
+        ensure_school_erp_column($conn, 'fees', 'payment_method', 'VARCHAR(40) NULL');
+        ensure_school_erp_column($conn, 'fees', 'remarks', 'TEXT NULL');
+        ensure_school_erp_column($conn, 'fees', 'paid_date', 'DATE NULL');
+        ensure_school_erp_column($conn, 'fees', 'razorpay_order_id', 'VARCHAR(80) NULL');
+        ensure_school_erp_column($conn, 'fees', 'razorpay_payment_id', 'VARCHAR(80) NULL');
+        ensure_school_erp_column($conn, 'fees', 'razorpay_signature', 'VARCHAR(255) NULL');
         ensure_school_erp_column($conn, 'leave_applications', 'application_id', 'VARCHAR(50) NULL');
         ensure_school_erp_column($conn, 'leave_applications', 'student_user_id', 'INT NULL');
         ensure_school_erp_column($conn, 'leave_applications', 'leave_type', 'VARCHAR(40) NULL');

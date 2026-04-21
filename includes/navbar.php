@@ -5,7 +5,7 @@
 
 <nav class="navbar navbar-expand-lg sticky-top main-nav">
   <div class="container">
-    <a class="navbar-brand brand-mark" href="index.php">
+    <a class="navbar-brand brand-mark" href="login.php">
       <span class="brand-icon"><i class="fas fa-graduation-cap"></i></span>
       <span>School ERP</span>
     </a>
@@ -14,10 +14,6 @@
     </button>
     <div class="collapse navbar-collapse" id="navbarNav">
       <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
-        <li class="nav-item"><a class="nav-link px-lg-3" href="index.php">Home</a></li>
-        <li class="nav-item"><a class="nav-link px-lg-3" href="about.php">About</a></li>
-        <li class="nav-item"><a class="nav-link px-lg-3" href="gallery.php">Gallery</a></li>
-        <li class="nav-item"><a class="nav-link px-lg-3" href="register.php">Register</a></li>
         <li class="nav-item ms-lg-2 mt-2 mt-lg-0">
           <a class="btn nav-login-btn" href="login.php"><i class="fas fa-sign-in-alt me-1"></i>Login</a>
         </li>

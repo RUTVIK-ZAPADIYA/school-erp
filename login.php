@@ -10,17 +10,24 @@ function clear_role_sessions()
   unset($_SESSION['student_id'], $_SESSION['student_name'], $_SESSION['student_profile_id'], $_SESSION['student_user_id'], $_SESSION['student_roll_no']);
 }
 
+function normalize_role($role)
+{
+  return strtolower(trim((string) $role));
+}
+
 function redirect_by_role($role)
 {
-  if ($role === 'admin') {
+  $normalizedRole = normalize_role($role);
+
+  if ($normalizedRole === 'admin') {
     header('Location: admin/dashboard.php');
     exit();
   }
-  if ($role === 'teacher') {
+  if ($normalizedRole === 'teacher') {
     header('Location: teacher/dashboard.php');
     exit();
   }
-  if ($role === 'student') {
+  if ($normalizedRole === 'student') {
     header('Location: student/dashboard.php');
     exit();
   }
@@ -43,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   if ($username === '' || $password === '') {
     $error = 'Please enter username/email and password.';
   } else {
-    $sql = 'SELECT id, username, password, role, name, email FROM users WHERE username = ? OR email = ? LIMIT 1';
+    $sql = 'SELECT id, username, password, role, name, email FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) LIMIT 1';
     $stmt = $conn->prepare( $sql);
 
     if (!$stmt) {
@@ -51,17 +58,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     } else {
       $stmt->bind_param( 'ss', $username, $username);
       $stmt->execute();
-      $result = $stmt->get_result();
+      $user = null;
 
-      if ($result && $result->num_rows === 1) {
-        $user = $result->fetch_assoc();
+      if (method_exists($stmt, 'get_result')) {
+        $result = $stmt->get_result();
+        if ($result && $result->num_rows === 1) {
+          $user = $result->fetch_assoc();
+        }
+      } else {
+        $stmt->bind_result($id, $dbUsername, $dbPassword, $dbRole, $dbName, $dbEmail);
+        if ($stmt->fetch()) {
+          $user = [
+            'id' => $id,
+            'username' => $dbUsername,
+            'password' => $dbPassword,
+            'role' => $dbRole,
+            'name' => $dbName,
+            'email' => $dbEmail,
+          ];
+        }
+      }
+
+      if (is_array($user)) {
         $storedPassword = (string) ($user['password'] ?? '');
+        $trimmedStoredPassword = trim($storedPassword);
 
-        $isPasswordValid = password_verify($password, $storedPassword) || hash_equals($storedPassword, $password);
+        $isPasswordValid = password_verify($password, $storedPassword)
+          || ($trimmedStoredPassword !== $storedPassword && password_verify($password, $trimmedStoredPassword))
+          || hash_equals($storedPassword, $password)
+          || ($trimmedStoredPassword !== $storedPassword && hash_equals($trimmedStoredPassword, $password));
 
         if ($isPasswordValid) {
+          $normalizedRole = normalize_role($user['role'] ?? '');
+
           // Upgrade plain-text legacy passwords to hashed form.
-          if (strpos($storedPassword, '$2y$') !== 0 && strpos($storedPassword, '$argon2') !== 0) {
+          $passwordInfo = password_get_info($storedPassword);
+          $isHash = !empty($passwordInfo['algo']) && $passwordInfo['algo'] !== 0;
+          if (!$isHash) {
             $newHash = password_hash($password, PASSWORD_DEFAULT);
             $updateStmt = $conn->prepare( 'UPDATE users SET password = ? WHERE id = ?');
             if ($updateStmt) {
@@ -77,24 +110,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
           $_SESSION['user_id'] = (int) $user['id'];
           $_SESSION['username'] = $user['username'];
-          $_SESSION['role'] = $user['role'];
+          $_SESSION['role'] = $normalizedRole;
           $_SESSION['name'] = $user['name'];
 
-          if ($user['role'] === 'admin') {
+          if ($normalizedRole === 'admin') {
             $_SESSION['admin_id'] = (int) $user['id'];
             $_SESSION['admin_name'] = $user['name'];
-          } elseif ($user['role'] === 'teacher') {
+          } elseif ($normalizedRole === 'teacher') {
             $_SESSION['teacher_id'] = (int) $user['id'];
             $_SESSION['teacher_name'] = $user['name'];
-          } elseif ($user['role'] === 'student') {
+          } elseif ($normalizedRole === 'student') {
             $_SESSION['student_id'] = (int) $user['id'];
             $_SESSION['student_profile_id'] = (int) $user['id'];
             $_SESSION['student_user_id'] = (int) $user['id'];
             $_SESSION['student_name'] = $user['name'];
           }
 
-          $stmt->close();
-          if (redirect_by_role($user['role']) === false) {
+          if (redirect_by_role($normalizedRole) === false) {
             clear_role_sessions();
             unset($_SESSION['user_id'], $_SESSION['username'], $_SESSION['role'], $_SESSION['name']);
             $error = 'Your account role is not recognized.';
@@ -173,7 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
 
         <div class="signup-link">
-          Don't have an account? <a href="register.php">Sign Up</a>
+          Need an account? Contact your school administrator.
         </div>
       </div>
 
