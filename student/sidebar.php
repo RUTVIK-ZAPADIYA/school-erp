@@ -52,6 +52,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <span class="material-symbols-outlined">calendar_view_week</span>
 <span class="text-[14px]">Curriculum</span>
 </a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'notices.php' ? 'text-blue-700 font-semibold bg-blue-50 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="notices.php">
+<span class="material-symbols-outlined">campaign</span>
+<span class="text-[14px]">Notice Board</span>
+</a>
 <a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'fees.php' ? 'text-blue-700 font-semibold bg-blue-50 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="fees.php">
 <span class="material-symbols-outlined">account_balance_wallet</span>
 <span class="text-[14px]">Fees</span>

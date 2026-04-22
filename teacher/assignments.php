@@ -3,6 +3,7 @@ require_once __DIR__ . '/auth.php';
 
 // Include database connection
 include '../includes/db_connect.php';
+require_once __DIR__ . '/../includes/assignment_file_helper.php';
 
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
@@ -133,27 +134,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']))
   $due_date = trim((string) ($_POST['due_date'] ?? ''));
   $points = isset($_POST['points']) ? (int) $_POST['points'] : 100;
   $class_owner_id = 0;
+  $uploadedAssignmentPath = null;
 
   if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } elseif (!teacher_subject_exists($conn, $subject_id)) {
     $error = 'Selected subject was not found.';
+  } elseif (!teacher_is_valid_date($due_date)) {
+    $error = 'Please provide a valid due date.';
   } else {
-    $insertSql = "INSERT INTO assignments (title, description, teacher_id, class_id, subject_id, due_date, {$assignmentPointsColumn}, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, NOW())";
-    $stmt = $conn->prepare( $insertSql);
+    $hasFileUpload = isset($_FILES['assignment_file'])
+      && (int) ($_FILES['assignment_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
 
-    if (!$stmt) {
-      $error = 'Unable to create assignment right now.';
-    } else {
-      $stmt->bind_param( 'ssiiisi', $title, $description, $class_owner_id, $class_id, $subject_id, $due_date, $points);
-      if ($stmt->execute()) {
-        $stmt->close();
-        header('Location: ' . $_SERVER['PHP_SELF']);
-        exit();
+    if ($hasFileUpload) {
+      $uploadResult = assignment_file_save_upload((array) $_FILES['assignment_file'], 'teacher_assignment', $class_owner_id, 0);
+      if (!($uploadResult['ok'] ?? false)) {
+        $error = (string) ($uploadResult['error'] ?? 'Unable to upload assignment file.');
+      } else {
+        $uploadedAssignmentPath = (string) ($uploadResult['relative_path'] ?? '');
       }
-      $error = 'Error creating assignment: ' . $conn->error;
-      $stmt->close();
+    }
+
+    if (!isset($error)) {
+      $insertSql = "INSERT INTO assignments (title, description, teacher_id, class_id, subject_id, due_date, {$assignmentPointsColumn}, file_path, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, NOW())";
+      $stmt = $conn->prepare( $insertSql);
+
+      if (!$stmt) {
+        if ($uploadedAssignmentPath) {
+          assignment_file_delete($uploadedAssignmentPath);
+        }
+        $error = 'Unable to create assignment right now.';
+      } else {
+        $stmt->bind_param( 'ssiiisis', $title, $description, $class_owner_id, $class_id, $subject_id, $due_date, $points, $uploadedAssignmentPath);
+        if ($stmt->execute()) {
+          $stmt->close();
+          header('Location: ' . $_SERVER['PHP_SELF']);
+          exit();
+        }
+        if ($uploadedAssignmentPath) {
+          assignment_file_delete($uploadedAssignmentPath);
+        }
+        $error = 'Error creating assignment: ' . $conn->error;
+        $stmt->close();
+      }
     }
   }
 }
@@ -162,19 +186,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['create_assignment']))
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_assignment'])) {
   $assignment_id = isset($_POST['assignment_id']) ? (int) $_POST['assignment_id'] : 0;
 
-  $ownsStmt = $conn->prepare( "SELECT id FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
+  $ownsStmt = $conn->prepare( "SELECT id, file_path FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
   if (!$ownsStmt) {
     $error = 'Unable to validate assignment ownership.';
   } else {
     $ownsStmt->bind_param( 'i', $assignment_id);
     $ownsStmt->execute();
     $ownsResult = $ownsStmt->get_result();
-    $isOwner = $ownsResult && $ownsResult->num_rows > 0;
+    $ownedAssignment = $ownsResult ? $ownsResult->fetch_assoc() : null;
+    $isOwner = is_array($ownedAssignment) && !empty($ownedAssignment['id']);
+    $assignmentFilePath = (string) ($ownedAssignment['file_path'] ?? '');
     $ownsStmt->close();
 
     if (!$isOwner) {
       $error = 'Assignment not found or not assigned to your account.';
     } else {
+      $submissionFiles = [];
+      $submissionFileStmt = $conn->prepare( 'SELECT file_path FROM assignment_submissions WHERE assignment_id = ?');
+      if ($submissionFileStmt) {
+        $submissionFileStmt->bind_param( 'i', $assignment_id);
+        $submissionFileStmt->execute();
+        $submissionFileResult = $submissionFileStmt->get_result();
+        while ($submissionFileResult && ($submissionFileRow = $submissionFileResult->fetch_assoc())) {
+          $candidatePath = trim((string) ($submissionFileRow['file_path'] ?? ''));
+          if ($candidatePath !== '') {
+            $submissionFiles[] = $candidatePath;
+          }
+        }
+        $submissionFileStmt->close();
+      }
+
       $deleteSubStmt = $conn->prepare( 'DELETE FROM assignment_submissions WHERE assignment_id = ?');
       if ($deleteSubStmt) {
         $deleteSubStmt->bind_param( 'i', $assignment_id);
@@ -187,6 +228,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['delete_assignment']))
         $deleteStmt->bind_param( 'i', $assignment_id);
         if ($deleteStmt->execute()) {
           $deleteStmt->close();
+          if ($assignmentFilePath !== '') {
+            assignment_file_delete($assignmentFilePath);
+          }
+          foreach ($submissionFiles as $submissionFilePath) {
+            assignment_file_delete($submissionFilePath);
+          }
           header('Location: ' . $_SERVER['PHP_SELF']);
           exit();
         }
@@ -209,28 +256,77 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_assignment'])) {
   $due_date = trim((string) ($_POST['edit_due_date'] ?? ''));
   $points = isset($_POST['edit_points']) ? (int) $_POST['edit_points'] : 100;
   $class_owner_id = 0;
+  $existingFilePath = '';
+  $nextFilePath = '';
+  $uploadedFilePath = '';
 
-  if (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
+  $existingStmt = $conn->prepare( "SELECT file_path FROM assignments WHERE id = ? AND teacher_id IN ({$teacher_ids_sql}) LIMIT 1");
+  if (!$existingStmt) {
+    $error = 'Unable to validate assignment ownership.';
+  } else {
+    $existingStmt->bind_param( 'i', $assignment_id);
+    $existingStmt->execute();
+    $existingResult = $existingStmt->get_result();
+    $existingRow = $existingResult ? $existingResult->fetch_assoc() : null;
+    $existingStmt->close();
+
+    if (!$existingRow) {
+      $error = 'Assignment not found or not assigned to your account.';
+    } else {
+      $existingFilePath = trim((string) ($existingRow['file_path'] ?? ''));
+      $nextFilePath = $existingFilePath;
+    }
+  }
+
+  if (isset($error) && $error !== '') {
+    // Keep the first validation error.
+  } elseif (($class_owner_id = teacher_class_owner_id($conn, $class_id, $teacher_owner_ids)) <= 0) {
     $error = 'Selected class is not assigned to your account.';
   } elseif (!teacher_subject_exists($conn, $subject_id)) {
     $error = 'Selected subject was not found.';
+  } elseif (!teacher_is_valid_date($due_date)) {
+    $error = 'Please provide a valid due date.';
   } else {
-    $updateSql = "UPDATE assignments
-            SET title = ?, description = ?, class_id = ?, subject_id = ?, due_date = ?, {$assignmentPointsColumn} = ?, teacher_id = ?
-            WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})";
-    $stmt = $conn->prepare( $updateSql);
+    $hasFileUpload = isset($_FILES['edit_assignment_file'])
+      && (int) ($_FILES['edit_assignment_file']['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_NO_FILE;
 
-    if (!$stmt) {
-      $error = 'Unable to update assignment right now.';
-    } else {
-      $stmt->bind_param( 'ssiisiii', $title, $description, $class_id, $subject_id, $due_date, $points, $class_owner_id, $assignment_id);
-      if ($stmt->execute()) {
-        $stmt->close();
-        header('Location: ' . $_SERVER['PHP_SELF']);
-        exit();
+    if ($hasFileUpload) {
+      $uploadResult = assignment_file_save_upload((array) $_FILES['edit_assignment_file'], 'teacher_assignment', $class_owner_id, $assignment_id);
+      if (!($uploadResult['ok'] ?? false)) {
+        $error = (string) ($uploadResult['error'] ?? 'Unable to upload assignment file.');
+      } else {
+        $uploadedFilePath = (string) ($uploadResult['relative_path'] ?? '');
+        $nextFilePath = $uploadedFilePath;
       }
-      $error = 'Error updating assignment: ' . $conn->error;
-      $stmt->close();
+    }
+
+    if (!isset($error)) {
+      $updateSql = "UPDATE assignments
+            SET title = ?, description = ?, class_id = ?, subject_id = ?, due_date = ?, {$assignmentPointsColumn} = ?, teacher_id = ?, file_path = ?
+            WHERE id = ? AND teacher_id IN ({$teacher_ids_sql})";
+      $stmt = $conn->prepare( $updateSql);
+
+      if (!$stmt) {
+        if ($uploadedFilePath !== '') {
+          assignment_file_delete($uploadedFilePath);
+        }
+        $error = 'Unable to update assignment right now.';
+      } else {
+        $stmt->bind_param( 'ssiisiisi', $title, $description, $class_id, $subject_id, $due_date, $points, $class_owner_id, $nextFilePath, $assignment_id);
+        if ($stmt->execute()) {
+          $stmt->close();
+          if ($uploadedFilePath !== '' && $existingFilePath !== '' && $existingFilePath !== $uploadedFilePath) {
+            assignment_file_delete($existingFilePath);
+          }
+          header('Location: ' . $_SERVER['PHP_SELF']);
+          exit();
+        }
+        if ($uploadedFilePath !== '') {
+          assignment_file_delete($uploadedFilePath);
+        }
+        $error = 'Error updating assignment: ' . $conn->error;
+        $stmt->close();
+      }
     }
   }
 }
@@ -242,6 +338,7 @@ if (teacher_table_exists($conn, 'assignments') && teacher_table_exists($conn, 'c
   $subjectNameExpr = $subjectNameColumn !== null ? "s.`{$subjectNameColumn}`" : "''";
 
   $sql_assignments = "SELECT a.id, a.title, a.description, a.due_date, a.{$assignmentPointsColumn} AS total_points,
+                 a.file_path,
                  a.created_at, a.class_id, a.subject_id,
                  {$classNameExpr} AS class_name, {$subjectNameExpr} AS subject_name,
               (SELECT COUNT(*) FROM students st
@@ -399,12 +496,35 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
     .no-scrollbar::-webkit-scrollbar {
       display: none;
     }
+    .assignment-file-input {
+      width: 100%;
+      font-size: 0.875rem;
+      color: #434653;
+      border: 1px solid #c3c6d6;
+      border-radius: 0.75rem;
+      background: #ffffff;
+      padding: 0.65rem 0.75rem;
+    }
+    .assignment-file-input::file-selector-button {
+      border: 0;
+      border-radius: 0.6rem;
+      margin-right: 0.75rem;
+      padding: 0.45rem 0.75rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      background: #e8efff;
+      color: #003b93;
+      cursor: pointer;
+    }
+    .assignment-file-input:hover::file-selector-button {
+      background: #dae2ff;
+    }
   </style>
 </head>
 <body class="bg-surface font-body text-on-surface antialiased">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-10 space-y-10">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-10 lg:pt-10 space-y-10">
     <!-- Header Section -->
     <section class="space-y-6">
       <div class="flex justify-between items-end">
@@ -472,6 +592,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
               <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Class</th>
               <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Subject</th>
               <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Due Date</th>
+              <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">File</th>
               <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest">Progress</th>
               <th class="px-6 py-3 text-xs font-bold text-on-surface-variant uppercase tracking-widest text-right">Actions</th>
             </tr>
@@ -510,6 +631,16 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
                   </div>
                 </td>
                 <td class="px-6 py-4">
+                  <?php if (!empty($assignment['file_path'])): ?>
+                  <a href="../download-assignment-file.php?type=assignment&amp;id=<?php echo (int) $assignment['id']; ?>" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                    Download
+                  </a>
+                  <?php else: ?>
+                  <span class="text-xs text-on-surface-variant">No file</span>
+                  <?php endif; ?>
+                </td>
+                <td class="px-6 py-4">
                   <div class="flex items-center gap-3">
                     <div class="w-20 h-2 bg-surface-container-low rounded-full overflow-hidden">
                       <?php
@@ -537,7 +668,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
               <?php endforeach; ?>
             <?php else: ?>
             <tr>
-              <td colspan="6" class="px-6 py-16 text-center">
+              <td colspan="7" class="px-6 py-16 text-center">
                 <div class="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center mx-auto mb-4">
                   <span class="material-symbols-outlined text-on-surface-variant text-2xl">assignment</span>
                 </div>
@@ -574,7 +705,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
           </button>
         </div>
 
-        <form method="POST" class="space-y-6" novalidate>
+        <form method="POST" enctype="multipart/form-data" class="space-y-6" novalidate>
           <input type="hidden" name="assignment_id" id="edit_assignment_id" data-validation="required,number,minValue" data-min-value="1" data-validate-hidden="true">
           <div class="grid grid-cols-2 gap-4">
             <div>
@@ -592,6 +723,12 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
           <div>
             <label class="block text-sm font-semibold text-on-surface mb-2">Description</label>
             <textarea name="edit_description" id="edit_description" rows="4" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus:border-primary"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-on-surface mb-2">Replace Assignment File (Optional)</label>
+            <input type="file" name="edit_assignment_file" class="assignment-file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.zip,.rar">
+            <p class="text-xs text-on-surface-variant mt-1">Allowed formats: pdf, doc, docx, ppt, pptx, xls, xlsx, txt, jpg, jpeg, png, zip, rar.</p>
           </div>
 
           <div class="grid grid-cols-3 gap-4">
@@ -747,7 +884,7 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
         </button>
       </div>
 
-      <form method="POST" class="space-y-6" novalidate>
+      <form method="POST" enctype="multipart/form-data" class="space-y-6" novalidate>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div class="md:col-span-2">
             <label class="block text-sm font-semibold text-on-surface mb-2">Assignment Title</label>
@@ -792,6 +929,12 @@ if ($subjectNameColumn !== null && teacher_table_exists($conn, 'subjects')) {
             <label class="block text-sm font-semibold text-on-surface mb-2">Total Points</label>
             <input type="number" name="points" value="100" min="1" class="w-full px-4 py-3 bg-white border border-outline-variant rounded-xl focus:ring-2 focus:ring-primary/20 focus-border-primary text-sm" data-validation="required,number,minValue" data-min-value="1">
             <p id="points_error" class="text-sm text-red-600 hidden"></p>
+          </div>
+
+          <div class="md:col-span-2">
+            <label class="block text-sm font-semibold text-on-surface mb-2">Assignment File (Optional)</label>
+            <input type="file" name="assignment_file" class="assignment-file-input" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.zip,.rar">
+            <p class="text-xs text-on-surface-variant mt-1">Allowed formats: pdf, doc, docx, ppt, pptx, xls, xlsx, txt, jpg, jpeg, png, zip, rar.</p>
           </div>
         </div>
 

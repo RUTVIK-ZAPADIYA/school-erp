@@ -11,7 +11,18 @@ $teacherLastName = !empty($teacherNameParts)
 $current_page = basename($_SERVER['PHP_SELF']);
 ?>
 <!-- SideNavBar Shell -->
-<aside class="h-screen w-64 fixed left-0 top-0 bg-white border-r border-outline-variant/20 flex flex-col py-6 px-4 z-50">
+<button
+  type="button"
+  id="teacher-sidebar-toggle"
+  aria-label="Toggle menu"
+  class="lg:hidden fixed top-4 left-4 z-40 inline-flex h-10 w-10 items-center justify-center rounded-lg border border-stone-200 bg-white text-stone-700 shadow-sm"
+>
+  <span class="material-symbols-outlined">menu</span>
+</button>
+
+<div id="teacher-sidebar-overlay" class="fixed inset-0 z-40 hidden bg-stone-900/40 lg:hidden"></div>
+
+<aside id="teacher-sidebar" class="h-screen w-64 fixed left-0 top-0 bg-white border-r border-outline-variant/20 flex flex-col py-6 px-4 z-50 transform -translate-x-full transition-transform duration-200 ease-out lg:translate-x-0">
 <div class="mb-10 px-2 flex items-center gap-3">
 <div class="w-8 h-8 bg-primary rounded flex items-center justify-center text-white font-bold">T</div>
 <div>
@@ -39,6 +50,10 @@ $current_page = basename($_SERVER['PHP_SELF']);
 <a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'schedule.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="schedule.php">
 <span class="material-symbols-outlined">calendar_month</span>
 <span class="text-[14px]">Curriculum</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'notices.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="notices.php">
+<span class="material-symbols-outlined">campaign</span>
+<span class="text-[14px]">Notice Board</span>
 </a>
 <a class="flex items-center gap-3 px-3 py-2.5 <?php echo $current_page == 'students.php' || $current_page == 'view-student.php' ? 'text-primary font-semibold bg-primary/5 rounded-lg' : 'text-stone-500 hover:text-stone-900 hover:bg-stone-50 rounded-lg'; ?>" href="students.php">
 <span class="material-symbols-outlined">group</span>
@@ -72,3 +87,16 @@ $current_page = basename($_SERVER['PHP_SELF']);
     box-shadow: 0 4px 20px -5px rgba(0,0,0,0.05);
   }
 </style>
+<script>
+  (function () {
+    const sidebar = document.getElementById('teacher-sidebar');
+    const overlay = document.getElementById('teacher-sidebar-overlay');
+    const toggle = document.getElementById('teacher-sidebar-toggle');
+    if (!sidebar || !overlay || !toggle) return;
+    const open = function () { sidebar.classList.remove('-translate-x-full'); overlay.classList.remove('hidden'); };
+    const close = function () { sidebar.classList.add('-translate-x-full'); overlay.classList.add('hidden'); };
+    toggle.addEventListener('click', function () { sidebar.classList.contains('-translate-x-full') ? open() : close(); });
+    overlay.addEventListener('click', close);
+    window.addEventListener('resize', function () { if (window.innerWidth >= 1024) close(); });
+  })();
+</script>

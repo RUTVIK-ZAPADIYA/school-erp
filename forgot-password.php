@@ -3,10 +3,19 @@ session_start();
 include 'includes/db_connect.php';
 include 'includes/email-helper.php';
 
+if (empty($_SESSION['csrf_token'])) {
+  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 $message = '';
 $messageType = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $submittedCsrf = (string) ($_POST['csrf_token'] ?? '');
+  if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $submittedCsrf)) {
+    $message = 'Invalid request. Please try again.';
+    $messageType = 'error';
+  } else {
   $email = trim($_POST['email'] ?? '');
 
   if ($email === '') {
@@ -82,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $message = 'An error occurred. Please try again.';
       $messageType = 'error';
     }
-  }
+  } // end CSRF check
 }
 ?>
 <!doctype html>
@@ -94,7 +103,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
     <link rel="stylesheet" href="assets/css/auth-pages.css">
   </head>
   <body class="auth-layout">
@@ -115,8 +123,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form id="forgotPasswordForm" method="POST" action="" novalidate>
+          <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
           <div class="input-group-custom">
-            <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email address" required>
+            <input type="email" class="form-control" id="email" name="email" placeholder="Enter your email address" required data-validation="required,email">
             <i class="fas fa-envelope input-icon"></i>
           </div>
 
@@ -135,34 +144,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script>
-      $(document).ready(function() {
-        $('#forgotPasswordForm').validate({
-          rules: {
-            email: {
-              required: true,
-              email: true
-            }
-          },
-          messages: {
-            email: {
-              required: "Please enter your email address",
-              email: "Please enter a valid email address"
-            }
-          },
-          errorElement: 'div',
-          errorClass: 'error',
-          highlight: function(element, errorClass, validClass) {
-            $(element).addClass('is-invalid');
-          },
-          unhighlight: function(element, errorClass, validClass) {
-            $(element).removeClass('is-invalid');
-          },
-          submitHandler: function(form) {
-            form.submit();
-          }
-        });
-      });
-    </script>
+    <script src="js/validate.js"></script>
   </body>
 </html>

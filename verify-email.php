@@ -33,6 +33,9 @@ if ($token) {
 } else {
   $message = 'No verification token provided.';
   $messageType = 'error';
+  // Redirect to forgot-password since this page is only reachable via email link.
+  header('Location: forgot-password.php');
+  exit();
 }
 
 // Handle email verification confirmation
@@ -48,19 +51,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && $tokenValid) {
 
     // Generate password reset token
     $resetToken = bin2hex(random_bytes(32));
-    $resetExpiry = date('Y-m-d H:i:s', strtotime('+1 hour'));
 
-    $resetSql = 'UPDATE users SET reset_token = ?, reset_token_expiry = ? WHERE id = ?';
+    // Use DB-side time to avoid timezone mismatch during reset-token validation.
+    $resetSql = 'UPDATE users SET reset_token = ?, reset_token_expiry = DATE_ADD(NOW(), INTERVAL 1 HOUR) WHERE id = ?';
     $resetStmt = $conn->prepare($resetSql);
 
     if ($resetStmt) {
-      $resetStmt->bind_param('ssi', $resetToken, $resetExpiry, $userId);
+      $resetStmt->bind_param('si', $resetToken, $userId);
       $resetStmt->execute();
       $resetStmt->close();
 
-      // Redirect to reset password page
-      $resetLink = "http://" . $_SERVER['HTTP_HOST'] . "/school-erp/reset-password.php?token=" . $resetToken;
-      header('Location: ' . $resetLink);
+      // Redirect using relative path so deployments in any subfolder/protocol work.
+      header('Location: reset-password.php?token=' . urlencode($resetToken));
       exit();
     } else {
       $message = 'An error occurred during verification. Please try again.';

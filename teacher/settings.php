@@ -161,7 +161,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 <body class="bg-surface font-['Inter'] antialiased">
     <?php include 'sidebar.php'; ?>
 
-    <main class="ml-64 p-8">
+    <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-8 lg:pt-8">
         <!-- Header -->
         <div class="mb-8">
             <h1 class="text-3xl font-bold text-on-surface mb-2">System Settings</h1>

@@ -334,7 +334,7 @@ for ($i = 6; $i >= 0; $i--) {
 <body class="bg-surface font-body text-on-surface antialiased">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-10 space-y-8">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-10 lg:pt-10 space-y-8">
     <section class="flex items-end justify-between">
       <div>
         <h1 class="text-3xl font-bold tracking-tight text-on-surface">Teacher Dashboard</h1>
@@ -414,7 +414,7 @@ for ($i = 6; $i >= 0; $i--) {
       </div>
     </section>
 
-    <section class="grid grid-cols-1 md:grid-cols-3 gap-6">
+    <section class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
       <a href="assignments.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
         <p class="font-semibold text-on-surface">Create Assignment</p>
         <p class="text-sm text-on-surface-variant mt-1">Add work for your classes.</p>
@@ -426,6 +426,10 @@ for ($i = 6; $i >= 0; $i--) {
       <a href="students.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
         <p class="font-semibold text-on-surface">View Students</p>
         <p class="text-sm text-on-surface-variant mt-1">Monitor academic progress.</p>
+      </a>
+      <a href="notices.php" class="glass-panel rounded-xl p-6 pro-shadow hover:bg-white/80">
+        <p class="font-semibold text-on-surface">Notice Board</p>
+        <p class="text-sm text-on-surface-variant mt-1">Read official announcements.</p>
       </a>
     </section>
   </main>

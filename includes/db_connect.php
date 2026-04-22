@@ -14,17 +14,20 @@ $dbname = getenv('DB_NAME') ?: 'school_erp';
 $conn = new mysqli($servername, $username, $password);
 
 if ($conn->connect_errno) {
-    die('Connection failed: ' . $conn->connect_error);
+    error_log('Database connection failed: ' . $conn->connect_error);
+    die('System error: unable to connect to database. Please contact administrator.');
 }
 
 // Ensure application database exists.
 $createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
 if (!$conn->query( $createDbSql)) {
-    die('Error creating database: ' . $conn->error);
+    error_log('Database creation failed: ' . $conn->error);
+    die('System error: unable to initialize database. Please contact administrator.');
 }
 
 if (!$conn->select_db( $dbname)) {
-    die('Error selecting database: ' . $conn->error);
+    error_log('Database selection failed: ' . $conn->error);
+    die('System error: unable to access database. Please contact administrator.');
 }
 
 $conn->set_charset( 'utf8mb4');
@@ -302,6 +305,22 @@ if (!function_exists('ensure_school_erp_schema')) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         ");
 
+        $conn->query( "
+            CREATE TABLE IF NOT EXISTS notices (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                title VARCHAR(255) NOT NULL,
+                message TEXT NOT NULL,
+                target_audience VARCHAR(30) DEFAULT 'all',
+                class_id INT NULL,
+                publish_date DATE NULL,
+                expiry_date DATE NULL,
+                status VARCHAR(20) DEFAULT 'Active',
+                created_by INT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        ");
+
         ensure_school_erp_column($conn, 'classes', 'name', "VARCHAR(100) NULL");
         ensure_school_erp_column($conn, 'classes', 'class_name', "VARCHAR(100) NULL");
         ensure_school_erp_column($conn, 'users', 'reset_token', 'VARCHAR(255) NULL');
@@ -345,6 +364,15 @@ if (!function_exists('ensure_school_erp_schema')) {
         ensure_school_erp_column($conn, 'leave_applications', 'reason', 'TEXT NULL');
         ensure_school_erp_column($conn, 'leave_applications', 'status', "VARCHAR(20) DEFAULT 'pending'");
         ensure_school_erp_column($conn, 'leave_applications', 'updated_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
+        ensure_school_erp_column($conn, 'notices', 'title', 'VARCHAR(255) NOT NULL');
+        ensure_school_erp_column($conn, 'notices', 'message', 'TEXT NOT NULL');
+        ensure_school_erp_column($conn, 'notices', 'target_audience', "VARCHAR(30) DEFAULT 'all'");
+        ensure_school_erp_column($conn, 'notices', 'class_id', 'INT NULL');
+        ensure_school_erp_column($conn, 'notices', 'publish_date', 'DATE NULL');
+        ensure_school_erp_column($conn, 'notices', 'expiry_date', 'DATE NULL');
+        ensure_school_erp_column($conn, 'notices', 'status', "VARCHAR(20) DEFAULT 'Active'");
+        ensure_school_erp_column($conn, 'notices', 'created_by', 'INT NULL');
+        ensure_school_erp_column($conn, 'notices', 'updated_at', 'TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP');
 
         $adminPass = password_hash('admin123', PASSWORD_DEFAULT);
         $teacherPass = password_hash('teacher123', PASSWORD_DEFAULT);

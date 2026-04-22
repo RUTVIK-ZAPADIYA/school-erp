@@ -2,6 +2,7 @@
 require_once __DIR__ . '/auth.php';
 
 include '../includes/db_connect.php';
+require_once __DIR__ . '/../includes/assignment_file_helper.php';
 
 // Resolve teacher identity across users.id and teachers.id.
 $teacherContext = teacher_auth_resolve_context($conn);
@@ -115,6 +116,7 @@ $sql_submissions = "SELECT
           {$rollSelectExpr},
           sub.id,
           sub.submission_date,
+          sub.file_path,
           CASE
             WHEN sub.id IS NULL THEN 'pending'
             WHEN sub.status IS NULL OR sub.status = '' THEN 'submitted'
@@ -195,6 +197,25 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet"/>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+  <script id="tailwind-config">
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            'primary': '#003b93',
+            'primary-hover': '#002a6e',
+            'surface': '#ffffff',
+            'surface-variant': '#f8fafc',
+            'on-surface': '#1e293b',
+            'on-surface-variant': '#64748b',
+            'outline-variant': '#e2e8f0',
+            'tertiary': '#7c3aed',
+            'tertiary-hover': '#6d28d9'
+          }
+        }
+      }
+    }
+  </script>
   <style>
     :root {
       --primary: #003b93;
@@ -280,7 +301,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
     </div>
   </div>
 
-  <main class="ml-64 min-h-screen p-6">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-6 lg:pt-6">
     <!-- Header Section -->
     <div class="mb-8">
       <div class="flex justify-between items-start mb-6">
@@ -293,6 +314,12 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
             <div class="text-sm text-on-surface-variant">Due Date</div>
             <div class="text-lg font-semibold text-on-surface"><?php echo date('M j, Y', strtotime($assignment['due_date'])); ?></div>
           </div>
+          <?php if (!empty($assignment['file_path'])): ?>
+          <a href="../download-assignment-file.php?type=assignment&amp;id=<?php echo (int) $assignment_id; ?>" class="bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary font-medium px-6 py-2.5 rounded-xl flex items-center gap-2 pro-shadow">
+            <span class="material-symbols-outlined text-sm">download</span>
+            Assignment File
+          </a>
+          <?php endif; ?>
           <a href="assignments.php" class="bg-surface hover:bg-surface-variant border border-outline-variant text-on-surface font-medium px-6 py-2.5 rounded-xl flex items-center gap-2 pro-shadow">
             <span class="material-symbols-outlined text-sm">arrow_back</span>
             Back to Assignments
@@ -512,6 +539,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
               <th class="px-6 py-4 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Status</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Grade</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Remarks</th>
+              <th class="px-6 py-4 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">File</th>
               <th class="px-6 py-4 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Actions</th>
             </tr>
           </thead>
@@ -566,6 +594,16 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
                   <?php echo !empty($submission['id']) ? htmlspecialchars($submission['remarks'] ?? 'No remarks') : 'No submission'; ?>
                 </td>
                 <td class="px-6 py-4">
+                  <?php if (!empty($submission['id']) && !empty($submission['file_path'])): ?>
+                  <a href="../download-assignment-file.php?type=submission&amp;id=<?php echo (int) $submission['id']; ?>" class="inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-primary bg-primary/10 rounded-lg hover:bg-primary/20">
+                    <span class="material-symbols-outlined text-sm">download</span>
+                    Submission
+                  </a>
+                  <?php else: ?>
+                  <span class="text-xs text-on-surface-variant">No file</span>
+                  <?php endif; ?>
+                </td>
+                <td class="px-6 py-4">
                   <?php if (!empty($submission['id'])): ?>
                   <button onclick='gradeSubmission(<?php echo (int) $submission['id']; ?>, <?php echo json_encode((string) $submission['student_name']); ?>, <?php echo $submission['grade'] !== null ? json_encode((string) $submission['grade']) : 'null'; ?>, <?php echo json_encode((string) ($submission['remarks'] ?? '')); ?>)' class="bg-primary hover:bg-primary-hover text-white font-medium px-4 py-2 rounded-lg flex items-center gap-2">
                     <span class="material-symbols-outlined text-sm">
@@ -581,7 +619,7 @@ $average_grade = $graded_count > 0 ? round($total_grades / $graded_count, 1) : 0
               <?php endforeach; ?>
             <?php else: ?>
             <tr>
-              <td colspan="7" class="px-6 py-12 text-center">
+              <td colspan="8" class="px-6 py-12 text-center">
                 <div class="w-16 h-16 bg-surface-variant rounded-full flex items-center justify-center mx-auto mb-4">
                   <span class="material-symbols-outlined text-on-surface-variant text-2xl">assignment</span>
                 </div>

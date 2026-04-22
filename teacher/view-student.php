@@ -279,7 +279,7 @@ foreach ($recent_assignments as $assignment) {
 <body class="bg-surface font-body text-on-surface">
     <?php include 'sidebar.php'; ?>
 
-    <main class="ml-64 p-10 space-y-10">
+    <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-10 lg:pt-10 space-y-10">
         <!-- Header Section -->
         <section class="space-y-6">
             <div class="flex justify-between items-start">

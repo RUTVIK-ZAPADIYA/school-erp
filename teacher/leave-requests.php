@@ -413,7 +413,7 @@ foreach ($leaveRecords as $leaveRecord) {
 <body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-8">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-8 lg:pt-8">
     <div class="flex items-center gap-3 mb-8">
       <span class="material-symbols-outlined text-3xl text-blue-600" style="font-variation-settings: 'FILL' 1;">approval_delegation</span>
       <div>
@@ -514,7 +514,8 @@ foreach ($leaveRecords as $leaveRecord) {
                     <?php if ($isPending): ?>
                       <form method="POST" class="space-y-2" novalidate>
                         <input type="hidden" name="leave_id" value="<?php echo (int) ($leaveRecord['id'] ?? 0); ?>">
-                        <textarea name="teacher_remark" rows="2" maxlength="1000" class="w-full min-w-[220px] rounded-lg border border-stone-300 px-3 py-2 text-xs" placeholder="Optional remark..."></textarea>
+                        <textarea name="teacher_remark" rows="2" maxlength="1000" class="w-full min-w-[220px] rounded-lg border border-stone-300 px-3 py-2 text-xs" placeholder="Optional remark..." data-validation="max" data-max="1000"></textarea>
+                        <p id="teacher_remark_error" class="text-xs text-red-600 hidden mt-1"></p>
                         <div class="flex gap-2">
                           <button type="submit" name="action" value="approve" class="rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700">Approve</button>
                           <button type="submit" name="action" value="reject" class="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700">Reject</button>
@@ -536,5 +537,7 @@ foreach ($leaveRecords as $leaveRecord) {
       </div>
     </div>
   </main>
+  <script src="../js/jquery.js"></script>
+  <script src="../js/validate.js"></script>
 </body>
 </html>

@@ -74,7 +74,7 @@ try {
 <body class="bg-stone-50">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-8">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-8 lg:pt-8">
     <!-- Header -->
     <div class="flex items-center gap-3 mb-8">
       <span class="material-symbols-outlined text-3xl text-violet-500">support_agent</span>

@@ -462,7 +462,7 @@ if ($selected_class > 0 && $selected_class_owner_id > 0 && teacher_column_exists
 <body class="bg-surface font-body text-on-surface antialiased">
   <?php include 'sidebar.php'; ?>
 
-  <main class="ml-64 min-h-screen p-10 space-y-10">
+  <main class="min-h-screen p-4 pt-16 sm:p-6 sm:pt-16 lg:ml-64 lg:p-10 lg:pt-10 space-y-10">
     <!-- Header Section -->
     <section class="space-y-6">
       <div class="flex justify-between items-end">

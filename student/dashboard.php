@@ -250,6 +250,9 @@ try {
           <a href="curriculum.php" class="block p-3 rounded-lg hover:bg-sky-50 text-stone-700 hover:text-sky-600 transition">
             <span class="font-medium">-> View Weekly Curriculum</span>
           </a>
+          <a href="notices.php" class="block p-3 rounded-lg hover:bg-amber-50 text-stone-700 hover:text-amber-700 transition">
+            <span class="font-medium">-> Read Notice Board Updates</span>
+          </a>
           <a href="fees.php" class="block p-3 rounded-lg hover:bg-amber-50 text-stone-700 hover:text-amber-600 transition">
             <span class="font-medium">→ View Fee Status</span>
           </a>

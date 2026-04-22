@@ -3,6 +3,11 @@ session_start();
 
 include 'includes/db_connect.php';
 
+// Generate CSRF token for login form.
+if (empty($_SESSION['csrf_token'])) {
+  $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+}
+
 function clear_role_sessions()
 {
   unset($_SESSION['admin_id'], $_SESSION['admin_name']);
@@ -46,10 +51,16 @@ if (isset($_SESSION['user_id'], $_SESSION['role'])) {
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $username = trim($_POST['username'] ?? '');
   $password = (string) ($_POST['password'] ?? '');
+  $rememberMe = isset($_POST['remember']);
 
   if ($username === '' || $password === '') {
     $error = 'Please enter username/email and password.';
   } else {
+    // Validate CSRF token.
+    $submittedCsrf = (string) ($_POST['csrf_token'] ?? '');
+    if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $submittedCsrf)) {
+      $error = 'Invalid request. Please try again.';
+    } else {
     $sql = 'SELECT id, username, password, role, name, email FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) LIMIT 1';
     $stmt = $conn->prepare( $sql);
 
@@ -108,10 +119,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           session_regenerate_id(true);
           clear_role_sessions();
 
+          // Set persistent cookie if remember me was checked.
+          if ($rememberMe) {
+            $cookieExpiry = time() + (30 * 24 * 60 * 60); // 30 days
+            $cookieParams = session_get_cookie_params();
+            setcookie(session_name(), session_id(), $cookieExpiry, $cookieParams['path'], $cookieParams['domain'], $cookieParams['secure'], $cookieParams['httponly']);
+          }
+
           $_SESSION['user_id'] = (int) $user['id'];
           $_SESSION['username'] = $user['username'];
           $_SESSION['role'] = $normalizedRole;
           $_SESSION['name'] = $user['name'];
+          $_SESSION['email'] = (string) ($user['email'] ?? '');
 
           if ($normalizedRole === 'admin') {
             $_SESSION['admin_id'] = (int) $user['id'];
@@ -140,6 +159,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
       $stmt->close();
     }
+    } // end CSRF check
   }
 }
 ?>
@@ -151,11 +171,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <title>Login - School ERP System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
-    <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-    <!-- jQuery Validation Plugin -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/jquery.validate.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery-validate/1.19.5/additional-methods.min.js"></script>
     <link rel="stylesheet" href="assets/css/auth-pages.css">
   </head>
   <body class="auth-layout">
@@ -176,13 +192,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <?php endif; ?>
 
         <form id="loginForm" method="POST" action="" novalidate>
+          <input type="hidden" name="csrf_token" value="<?php echo htmlspecialchars($_SESSION['csrf_token']); ?>">
           <div class="input-group-custom">
-            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required>
+            <input type="text" class="form-control" id="username" name="username" placeholder="Username or Email" required minlength="3" data-validation="required,min">
             <i class="fas fa-user input-icon"></i>
           </div>
 
           <div class="input-group-custom">
-            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required>
+            <input type="password" class="form-control" id="password" name="password" placeholder="Password" required minlength="8" data-validation="required,min">
             <i class="fas fa-lock input-icon"></i>
             <i class="fas fa-eye password-toggle" id="togglePassword"></i>
           </div>
@@ -210,55 +227,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="js/validate.js"></script>
     <script>
       $(document).ready(function() {
-        $('.password-toggle').attr('aria-label', 'Toggle password visibility');
-
-        // Initialize jQuery Validation
-        $('#loginForm').validate({
-          rules: {
-            username: {
-              required: true,
-              minlength: 3
-            },
-            password: {
-              required: true,
-              minlength: 6
-            }
-          },
-          messages: {
-            username: {
-              required: "Please enter your username or email",
-              minlength: "Username must be at least 3 characters"
-            },
-            password: {
-              required: "Please enter your password",
-              minlength: "Password must be at least 6 characters"
-            }
-          },
-          errorElement: 'div',
-          errorClass: 'error',
-          highlight: function(element, errorClass, validClass) {
-            $(element).addClass('is-invalid');
-          },
-          unhighlight: function(element, errorClass, validClass) {
-            $(element).removeClass('is-invalid');
-          },
-          submitHandler: function(form) {
-            form.submit();
-          }
-        });
-
-        // Password toggle functionality
         const togglePassword = document.getElementById('togglePassword');
         const passwordInput = document.getElementById('password');
-
-        togglePassword.addEventListener('click', function() {
-          const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
-          passwordInput.setAttribute('type', type);
-          this.classList.toggle('fa-eye');
-          this.classList.toggle('fa-eye-slash');
-        });
+        if (togglePassword && passwordInput) {
+          togglePassword.addEventListener('click', function() {
+            const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+            passwordInput.setAttribute('type', type);
+            this.classList.toggle('fa-eye');
+            this.classList.toggle('fa-eye-slash');
+          });
+        }
       });
     </script>
   </body>
