@@ -671,7 +671,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       exit();
     }
 
-    } elseif (strlen($password) < 8) {
+    if ($newPassword !== '' && strlen($newPassword) < 8) {
       admin_set_flash('danger', 'New password must be at least 8 characters long.');
       header('Location: manage-users.php');
       exit();

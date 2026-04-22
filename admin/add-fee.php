@@ -3,6 +3,7 @@
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/../includes/razorpay-helper.php';
 
 admin_ensure_column($connection, 'fees', 'payment_method', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'fees', 'remarks', 'TEXT NULL');
@@ -57,14 +58,25 @@ $formData = [
 ];
 
 $errorMessage = '';
+$razorpayConfigured = razorpay_is_configured();
 
 // Handle fee form submissions.
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+  $submitAction = trim((string) ($_POST['submit_action'] ?? 'save'));
+  if ($submitAction !== 'save_and_pay') {
+    $submitAction = 'save';
+  }
+
   foreach ($formData as $key => $value) {
     $formData[$key] = trim((string) ($_POST[$key] ?? ''));
   }
 
   $status = admin_normalize_status($formData['payment_status'], 'Pending');
+  if ($submitAction === 'save_and_pay') {
+    $status = 'Pending';
+    $formData['payment_status'] = 'Pending';
+    $formData['payment_method'] = 'Razorpay';
+  }
 
   // Validate required fields and amount constraints before save.
   if (
@@ -80,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   }
 
   // Build and run a schema-aware insert for the new fee record.
+  $newFeeId = 0;
   if ($errorMessage === '') {
     $insertColumns = [];
     $insertValues = [];
@@ -149,12 +162,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $errorMessage = 'Unable to bind fee parameters.';
       } elseif (!$insertStmt->execute()) {
         $errorMessage = 'Failed to add fee record. Please try again.';
+      } else {
+        $newFeeId = (int) $connection->insert_id;
       }
       $insertStmt->close();
     }
   }
 
   if ($errorMessage === '') {
+    if ($submitAction === 'save_and_pay' && $razorpayConfigured && $newFeeId > 0) {
+      admin_set_flash('success', 'Fee record added. Complete payment in Razorpay checkout.');
+      header('Location: fees.php?autopay=1&pay_fee_id=' . $newFeeId);
+      exit();
+    }
+
     admin_set_flash('success', 'Fee record added successfully.');
     header('Location: add-fee.php');
     exit();
@@ -213,6 +234,7 @@ $flash = admin_pull_flash();
       <?php endif; ?>
 
       <form method="POST" action="" novalidate>
+        <input type="hidden" name="submit_action" id="submit_action" value="save">
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Student *</label>
@@ -286,6 +308,9 @@ $flash = admin_pull_flash();
         
         <div class="mt-4">
           <button type="submit" class="btn-submit"><i class="fas fa-save"></i> Add Fee Record</button>
+          <button type="button" id="save_pay_btn" class="btn-submit" style="background:#3498db; color:white; margin-left:10px;<?php echo $razorpayConfigured ? '' : ' opacity:0.6; cursor:not-allowed;'; ?>" <?php echo $razorpayConfigured ? '' : 'disabled'; ?>>
+            <i class="fas fa-bolt"></i> Save and Pay with Razorpay
+          </button>
           <a href="fees.php" class="btn-cancel"><i class="fas fa-times"></i> Cancel</a>
         </div>
       </form>
@@ -295,5 +320,31 @@ $flash = admin_pull_flash();
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/validate.js"></script>
+  <script>
+    (function () {
+      var savePayButton = document.getElementById('save_pay_btn');
+      var submitActionInput = document.getElementById('submit_action');
+      if (!savePayButton || !submitActionInput) {
+        return;
+      }
+
+      savePayButton.addEventListener('click', function () {
+        submitActionInput.value = 'save_and_pay';
+        if (typeof savePayButton.form.requestSubmit === 'function') {
+          savePayButton.form.requestSubmit();
+        } else {
+          savePayButton.form.submit();
+        }
+      });
+
+      if (savePayButton.form) {
+        savePayButton.form.addEventListener('submit', function () {
+          if (submitActionInput.value !== 'save_and_pay') {
+            submitActionInput.value = 'save';
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

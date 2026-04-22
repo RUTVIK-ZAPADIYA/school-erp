@@ -3,10 +3,22 @@
 require_once __DIR__ . '/auth.php';
 include '../dbconfig.php';
 require_once __DIR__ . '/db_helpers.php';
+require_once __DIR__ . '/../includes/razorpay-helper.php';
 
 admin_ensure_column($connection, 'fees', 'payment_method', "VARCHAR(40) NULL");
 admin_ensure_column($connection, 'fees', 'remarks', 'TEXT NULL');
 admin_ensure_column($connection, 'fees', 'paid_date', 'DATE NULL');
+admin_ensure_column($connection, 'fees', 'razorpay_order_id', 'VARCHAR(80) NULL');
+admin_ensure_column($connection, 'fees', 'razorpay_payment_id', 'VARCHAR(80) NULL');
+admin_ensure_column($connection, 'fees', 'razorpay_signature', 'VARCHAR(255) NULL');
+
+if (empty($_SESSION['razorpay_csrf'])) {
+  try {
+    $_SESSION['razorpay_csrf'] = bin2hex(random_bytes(32));
+  } catch (Exception $e) {
+    $_SESSION['razorpay_csrf'] = sha1(uniqid((string) mt_rand(), true));
+  }
+}
 
 // Formatting helper used by summary cards and table output.
 if (!function_exists('admin_format_currency')) {
@@ -100,6 +112,30 @@ $totalOverdue = (float) admin_scalar_value(
 $totalAmount = (float) admin_scalar_value($connection, 'SELECT COALESCE(SUM(amount), 0) FROM fees', 0);
 $collectionRate = $totalAmount > 0 ? (int) round(($totalCollected / $totalAmount) * 100) : 0;
 
+$razorpayConfigured = razorpay_is_configured();
+$razorpayConfig = razorpay_load_config();
+$razorpayCsrfToken = (string) ($_SESSION['razorpay_csrf'] ?? '');
+$adminName = trim((string) ($_SESSION['admin_name'] ?? $_SESSION['name'] ?? 'Admin'));
+
+$paymentNoticeType = '';
+$paymentNoticeText = '';
+$paymentState = strtolower(trim((string) ($_GET['payment'] ?? '')));
+$paymentMessage = trim((string) ($_GET['message'] ?? ''));
+$autoPayRequested = (string) ($_GET['autopay'] ?? '') === '1';
+$autoPayFeeId = (int) ($_GET['pay_fee_id'] ?? 0);
+if ($paymentState === 'success') {
+  $paymentNoticeType = 'success';
+  $paymentNoticeText = 'Payment completed and verified successfully.';
+} elseif ($paymentState === 'failed') {
+  $paymentNoticeType = 'danger';
+  $paymentNoticeText = $paymentMessage !== ''
+    ? $paymentMessage
+    : 'Payment could not be verified. If amount was debited, verify the transaction in Razorpay dashboard.';
+} elseif ($paymentState === 'cancelled') {
+  $paymentNoticeType = 'warning';
+  $paymentNoticeText = 'Payment checkout was cancelled.';
+}
+
 $flash = admin_pull_flash();
 ?>
 <!-- Render fee analytics cards, search, and fee transaction rows. -->
@@ -145,6 +181,19 @@ $flash = admin_pull_flash();
       </div>
     <?php endif; ?>
 
+    <?php if ($paymentNoticeText !== ''): ?>
+      <div class="alert alert-<?php echo htmlspecialchars($paymentNoticeType); ?> alert-dismissible fade show" role="alert">
+        <?php echo htmlspecialchars($paymentNoticeText); ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+    <?php endif; ?>
+
+    <?php if (!$razorpayConfigured): ?>
+      <div class="alert alert-warning" role="alert">
+        Razorpay is not configured. Add Razorpay keys in config/razorpay-config.php or environment variables to enable online fee collection.
+      </div>
+    <?php endif; ?>
+
     <div class="stats-grid">
       <div class="summary-item"><div class="summary-value"><?php echo htmlspecialchars(admin_format_currency($totalCollected)); ?></div><div class="summary-label">Total Collected</div></div>
       <div class="summary-item"><div class="summary-value"><?php echo htmlspecialchars(admin_format_currency($totalPending)); ?></div><div class="summary-label">Pending</div></div>
@@ -172,9 +221,11 @@ $flash = admin_pull_flash();
             <?php if (!empty($transactions)): ?>
               <?php foreach ($transactions as $transaction): ?>
                 <?php
-                  $status = admin_normalize_status($transaction['status'] ?? 'Pending', 'Pending');
+                  $statusRaw = strtolower(trim((string) ($transaction['status'] ?? 'pending')));
+                  $isPaid = in_array($statusRaw, ['paid', 'completed'], true);
+                  $status = $isPaid ? 'Paid' : admin_normalize_status($transaction['status'] ?? 'Pending', 'Pending');
                   $statusClass = 'bg-warning';
-                  if ($status === 'Paid') {
+                  if ($isPaid) {
                       $statusClass = 'bg-success';
                   } elseif ($status === 'Overdue') {
                       $statusClass = 'bg-danger';
@@ -198,6 +249,16 @@ $flash = admin_pull_flash();
                     <a class="btn btn-sm btn-outline-primary" href="edit-fee.php?id=<?php echo (int) $transaction['id']; ?>" title="Edit Fee Record">
                       <i class="fas fa-edit"></i>
                     </a>
+                    <?php if (!$isPaid && $razorpayConfigured): ?>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-success pay-razorpay-btn"
+                        data-fee-id="<?php echo (int) $transaction['id']; ?>"
+                        data-fee-type="<?php echo htmlspecialchars((string) ($transaction['fee_type'] ?? 'Fee')); ?>"
+                        title="Pay with Razorpay">
+                        <i class="fas fa-bolt"></i>
+                      </button>
+                    <?php endif; ?>
                     <form method="POST" action="" style="display:inline-block;" novalidate>
                       <input type="hidden" name="action" value="delete">
                       <input type="hidden" name="fee_id" value="<?php echo (int) $transaction['id']; ?>">
@@ -221,6 +282,150 @@ $flash = admin_pull_flash();
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <?php if ($razorpayConfigured): ?>
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script>
+    (function () {
+      var payButtons = document.querySelectorAll('.pay-razorpay-btn');
+      if (!payButtons.length) {
+        return;
+      }
+
+      var csrfToken = <?php echo json_encode($razorpayCsrfToken); ?>;
+      var adminName = <?php echo json_encode($adminName); ?>;
+      var companyName = <?php echo json_encode((string) ($razorpayConfig['company_name'] ?? 'School ERP')); ?>;
+      var autoPayEnabled = <?php echo $autoPayRequested && $autoPayFeeId > 0 ? 'true' : 'false'; ?>;
+      var autoPayFeeId = <?php echo (int) $autoPayFeeId; ?>;
+
+      function toFormBody(payload) {
+        var params = new URLSearchParams();
+        Object.keys(payload).forEach(function (key) {
+          params.append(key, payload[key]);
+        });
+        return params.toString();
+      }
+
+      function redirectWithState(state, message) {
+        var nextUrl = 'fees.php?payment=' + encodeURIComponent(state);
+        if (message) {
+          nextUrl += '&message=' + encodeURIComponent(message);
+        }
+        window.location.href = nextUrl;
+      }
+
+      payButtons.forEach(function (button) {
+        button.addEventListener('click', async function () {
+          var feeId = button.getAttribute('data-fee-id') || '';
+          var feeType = button.getAttribute('data-fee-type') || 'Fee Payment';
+          var previousHtml = button.innerHTML;
+
+          button.disabled = true;
+          button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+          try {
+            var createResponse = await fetch('create-razorpay-order.php', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+              },
+              body: toFormBody({
+                fee_id: feeId,
+                csrf_token: csrfToken
+              })
+            });
+
+            var createData = await createResponse.json();
+            if (!createData.success) {
+              throw new Error(createData.message || 'Unable to create payment order.');
+            }
+
+            if (typeof Razorpay === 'undefined') {
+              throw new Error('Razorpay checkout SDK failed to load.');
+            }
+
+            var options = {
+              key: createData.key_id,
+              amount: createData.amount,
+              currency: createData.currency,
+              name: createData.name || companyName,
+              description: createData.description || feeType,
+              order_id: createData.order_id,
+              prefill: {
+                name: adminName
+              },
+              method: {
+                upi: true,
+                card: true,
+                netbanking: true,
+                wallet: true,
+                emi: true,
+                paylater: true
+              },
+              theme: {
+                color: '#3498db'
+              },
+              modal: {
+                ondismiss: function () {
+                  redirectWithState('cancelled');
+                }
+              },
+              handler: async function (paymentResponse) {
+                try {
+                  var verifyResponse = await fetch('verify-razorpay-payment.php', {
+                    method: 'POST',
+                    headers: {
+                      'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+                    },
+                    body: toFormBody({
+                      fee_id: feeId,
+                      csrf_token: csrfToken,
+                      razorpay_order_id: paymentResponse.razorpay_order_id,
+                      razorpay_payment_id: paymentResponse.razorpay_payment_id,
+                      razorpay_signature: paymentResponse.razorpay_signature
+                    })
+                  });
+
+                  var verifyData = await verifyResponse.json();
+                  if (!verifyData.success) {
+                    throw new Error(verifyData.message || 'Unable to verify payment.');
+                  }
+
+                  redirectWithState('success');
+                } catch (verificationError) {
+                  var verificationMessage = verificationError && verificationError.message
+                    ? verificationError.message
+                    : 'Payment verification failed.';
+                  redirectWithState('failed', verificationMessage);
+                }
+              }
+            };
+
+            var checkout = new Razorpay(options);
+            checkout.on('payment.failed', function (response) {
+              var failedReason = response && response.error && response.error.description
+                ? response.error.description
+                : 'Payment failed at gateway.';
+              redirectWithState('failed', failedReason);
+            });
+
+            checkout.open();
+          } catch (error) {
+            alert(error.message || 'Unable to start Razorpay payment.');
+            button.disabled = false;
+            button.innerHTML = previousHtml;
+          }
+        });
+      });
+
+      if (autoPayEnabled) {
+        var autoPayButton = document.querySelector('.pay-razorpay-btn[data-fee-id="' + autoPayFeeId + '"]');
+        if (autoPayButton) {
+          autoPayButton.click();
+        }
+      }
+    })();
+  </script>
+  <?php endif; ?>
   <?php if ($flash && $flash['type'] === 'danger'): ?>
   <script>document.addEventListener('DOMContentLoaded', function() { showErrorModal('Error', <?php echo json_encode($flash['message']); ?>); });</script>
   <?php endif; ?>
