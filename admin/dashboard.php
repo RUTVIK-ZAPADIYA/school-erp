@@ -153,6 +153,9 @@ if ($previousMonthEnrollments > 0) {
   $enrollmentGrowthPct = 0;
 }
 
+$attendanceProgress = max(0, min(100, (int) round($attendancePct)));
+$feeCollectionProgress = max(0, min(100, (int) $feeCollectionPct));
+
 $academicYearStart = (int) date('Y');
 $academicYearLabel = $academicYearStart . '/' . substr((string) ($academicYearStart + 1), -2);
 $todayDisplay = date('d M Y');
@@ -206,150 +209,269 @@ if ($totalTeachers <= 0) {
   <link rel="stylesheet" href="../assets/css/responsive.css">
   <link rel="stylesheet" href="../assets/css/theme.css">
   <style>
+    * { box-sizing: border-box; }
+    :root {
+      --ink-900: #17243d;
+      --ink-700: #364766;
+      --ink-500: #60708e;
+      --bg-soft: #f2f6fb;
+      --surface: #ffffff;
+      --brand: #0d6efd;
+      --brand-strong: #0a58ca;
+      --brand-tint: #cfe2ff;
+      --accent: #f1b24a;
+      --danger: #d64545;
+      --success: #2d9b66;
+      --warning: #c98515;
+      --radius-md: 12px;
+      --radius-lg: 18px;
+      --shadow-sm: 0 6px 18px rgba(23, 36, 61, 0.08);
+      --shadow-md: 0 14px 34px rgba(23, 36, 61, 0.1);
+    }
     body {
-      background:
-        radial-gradient(circle at 8% 12%, rgba(58, 123, 231, 0.14), transparent 30%),
-        radial-gradient(circle at 90% 4%, rgba(16, 185, 129, 0.1), transparent 28%),
-        #eef3f9;
-      color: #172746;
+      background: radial-gradient(circle at top right, #e4f9f2, transparent 32%), var(--bg-soft);
+      color: var(--ink-900);
+      font-family: 'Manrope', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      min-height: 100vh;
     }
     .dashboard-shell {
       margin-left: 280px;
-      padding: 24px;
+      padding: 28px;
       min-height: 100vh;
     }
     .dashboard-inner {
-      max-width: 1260px;
+      max-width: 1400px;
       margin: 0 auto;
     }
     .headline-panel {
-      border: 1px solid #d7e4f2;
+      background: linear-gradient(135deg, var(--brand) 0%, var(--brand-strong) 100%);
       border-radius: 18px;
-      padding: 18px;
-      background: linear-gradient(120deg, #ffffff 0%, #f2f7ff 62%, #eefaf5 100%);
-      box-shadow: 0 14px 30px rgba(23, 36, 61, 0.08);
-      margin-bottom: 16px;
+      padding: 32px;
+      margin-bottom: 28px;
+      box-shadow: var(--shadow-md);
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+    .headline-panel h1,
+    .headline-panel p,
+    .headline-panel .headline-meta {
+      color: white !important;
+    }
+    .headline-panel::before {
+      content: '';
+      position: absolute;
+      top: -50%;
+      right: -10%;
+      width: 400px;
+      height: 400px;
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 50%;
+      pointer-events: none;
     }
     .title-row {
       display: flex;
       align-items: flex-start;
       justify-content: space-between;
-      gap: 12px;
-      margin-bottom: 12px;
+      gap: 16px;
+      margin-bottom: 16px;
+      position: relative;
+      z-index: 1;
     }
     .title-row h1 {
       margin: 0;
-      font-size: 2.05rem;
+      font-size: 2.2rem;
       font-weight: 800;
-      color: #141f36;
-      line-height: 1.15;
+      color: #ffffff !important;
+      line-height: 1.2;
+      letter-spacing: -0.3px;
     }
     .title-row p {
-      margin: 4px 0 0;
-      color: #607493;
-      font-weight: 600;
-      font-size: 0.93rem;
+      margin: 6px 0 0;
+      color: rgba(255, 255, 255, 0.85) !important;
+      font-weight: 500;
+      font-size: 0.95rem;
     }
     .headline-meta {
       display: inline-flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
       margin-top: 10px;
-      background: #e9f1fc;
-      color: #244777;
-      border-radius: 999px;
-      padding: 6px 12px;
-      font-size: 0.75rem;
-      font-weight: 700;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      border-radius: 50px;
+      padding: 6px 14px;
+      font-size: 0.8rem;
+      font-weight: 600;
     }
     .title-actions {
       display: flex;
+      flex-wrap: wrap;
       gap: 10px;
     }
     .btn-soft {
-      border: 1px solid #d6e3f2;
-      background: #f4f8fd;
-      color: #334a6f;
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.18);
+      color: white !important;
       font-weight: 700;
       border-radius: 10px;
-      padding: 8px 14px;
+      padding: 10px 16px;
       font-size: 0.85rem;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+    .btn-soft:hover {
+      background: rgba(255, 255, 255, 0.25);
+      border-color: rgba(255, 255, 255, 0.6);
+      transform: translateY(-1px);
+      color: white !important;
+    }
+    .quick-actions-grid {
+      margin-top: 16px;
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .quick-link {
+      border: 1px solid #d9e3f0;
+      border-radius: 12px;
+      background: var(--surface);
+      color: var(--ink-900);
+      text-decoration: none;
+      font-weight: 600;
+      font-size: 0.8rem;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      min-height: 90px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      text-align: center;
+    }
+    .quick-link:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 10px 25px rgba(13, 110, 253, 0.12);
+      border-color: var(--brand);
+    }
+    .quick-link-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: var(--brand-tint);
+      color: var(--brand);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1rem;
     }
     .insight-grid {
       display: grid;
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: 10px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
     }
     .insight-pill {
-      border: 1px solid #d9e7f6;
-      background: rgba(255, 255, 255, 0.85);
+      border: 1px solid #e0e6ed;
+      background: var(--surface);
       border-radius: 12px;
-      padding: 10px 12px;
+      padding: 12px 14px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       gap: 10px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+    }
+    .insight-pill:hover {
+      box-shadow: 0 8px 20px rgba(13, 110, 253, 0.1);
+      border-color: var(--brand);
     }
     .insight-label {
-      color: #4f668d;
+      color: var(--ink-500);
       font-size: 0.8rem;
-      font-weight: 700;
+      font-weight: 600;
     }
     .insight-value {
-      font-size: 0.78rem;
-      font-weight: 800;
-      border-radius: 999px;
-      padding: 3px 10px;
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 50px;
+      padding: 4px 10px;
+      min-width: 70px;
+      text-align: center;
     }
     .health-good {
-      color: #196b47;
-      background: #e6f7ef;
+      color: var(--success);
+      background: #d1fae5;
     }
     .health-watch {
-      color: #7a5a1e;
+      color: var(--warning);
       background: #fff6e5;
     }
     .health-alert {
-      color: #8a2737;
+      color: var(--danger);
       background: #fdecef;
     }
     .health-muted {
-      color: #486182;
-      background: #eaf1fb;
+      color: var(--ink-500);
+      background: #f0f4f8;
     }
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 14px;
-      margin-bottom: 16px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
     }
     .metric-card {
-      border: 1px solid #dbe8f5;
+      border: 1px solid #e8eef8;
       border-radius: 14px;
-      background: #fff;
-      padding: 14px;
-      box-shadow: 0 8px 18px rgba(23, 36, 61, 0.06);
-      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      background: var(--surface);
+      padding: 18px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+    }
+    .metric-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: var(--brand);
+      transform: scaleX(0);
+      transition: transform 0.2s ease;
     }
     .metric-card:hover {
       transform: translateY(-3px);
-      box-shadow: 0 14px 24px rgba(23, 36, 61, 0.12);
+      box-shadow: 0 12px 30px rgba(13, 110, 253, 0.12);
+      border-color: var(--brand);
+    }
+    .metric-card:hover::before {
+      transform: scaleX(1);
     }
     .metric-card.metric-enroll .metric-icon {
-      background: #ebf3ff;
-      color: #1f4fb5;
+      background: var(--brand-tint);
+      color: var(--brand);
     }
     .metric-card.metric-fees .metric-icon {
-      background: #e9f9ef;
-      color: #1f7c4e;
+      background: #fff5e6;
+      color: var(--accent);
     }
     .metric-card.metric-ratio .metric-icon {
-      background: #fff2e7;
-      color: #9a5418;
+      background: #e8f4f8;
+      color: #0d99ff;
     }
     .metric-card.metric-performance .metric-icon {
-      background: #efeafe;
-      color: #5a3ba5;
+      background: #d1fae5;
+      color: var(--success);
     }
     .metric-head {
       display: flex;
@@ -358,106 +480,191 @@ if ($totalTeachers <= 0) {
       margin-bottom: 8px;
     }
     .metric-icon {
-      width: 34px;
-      height: 34px;
-      border-radius: 9px;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      background: #edf3ff;
-      color: #2d57b0;
-      font-size: 0.9rem;
+      font-size: 1.2rem;
     }
     .metric-chip {
-      border-radius: 999px;
-      padding: 2px 9px;
-      font-size: 0.68rem;
+      border-radius: 50px;
+      padding: 3px 10px;
+      font-size: 0.7rem;
       font-weight: 700;
-      color: #375175;
-      background: #eaf2fb;
+      color: var(--brand);
+      background: var(--brand-tint);
     }
     .metric-label {
-      color: #5a6d8d;
-      font-size: 0.78rem;
+      color: var(--ink-500);
+      font-size: 0.75rem;
       font-weight: 700;
-      margin-bottom: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      margin-bottom: 4px;
     }
     .metric-value {
       font-size: 2rem;
       font-weight: 800;
       line-height: 1;
-      color: #18233c;
+      color: var(--ink-900);
+      margin-bottom: 6px;
     }
     .metric-foot {
       margin-top: 6px;
-      color: #8394ad;
-      font-size: 0.72rem;
-      font-weight: 600;
+      color: var(--ink-500);
+      font-size: 0.75rem;
+      font-weight: 500;
+    }
+    .metric-progress {
+      margin-top: 10px;
+      width: 100%;
+      height: 6px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e8eef8;
+    }
+    .metric-progress span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--brand) 0%, var(--brand-strong) 100%);
+      transition: width 0.5s ease;
+    }
+    .focus-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .focus-card {
+      border: 1px solid #e8eef8;
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      padding: 18px;
+      transition: all 0.2s ease;
+    }
+    .focus-card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(13, 110, 253, 0.12);
+      border-color: var(--brand);
+    }
+    .focus-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .focus-title {
+      color: var(--ink-500);
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+    }
+    .focus-value {
+      color: var(--ink-900);
+      font-size: 1.3rem;
+      font-weight: 800;
+    }
+    .focus-track {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e8eef8;
+      margin-bottom: 10px;
+    }
+    .focus-track span {
+      display: block;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--brand) 0%, var(--brand-strong) 100%);
+      transition: width 0.5s ease;
+    }
+    .focus-note {
+      color: var(--ink-500);
+      font-size: 0.75rem;
+      font-weight: 500;
     }
     .section-kicker {
-      margin: 4px 0 10px;
-      color: #3d557b;
-      font-size: 0.82rem;
-      font-weight: 800;
-      letter-spacing: 0.06em;
+      margin: 32px 0 16px;
+      color: var(--ink-500);
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.6px;
       text-transform: uppercase;
     }
     .panel {
-      border: 1px solid #dbe8f5;
-      border-radius: 16px;
-      background: #fff;
-      box-shadow: 0 10px 22px rgba(23, 36, 61, 0.07);
-      padding: 18px;
+      border: 1px solid #e8eef8;
+      border-radius: 14px;
+      background: var(--surface);
+      box-shadow: var(--shadow-sm);
+      padding: 24px;
       height: 100%;
+      transition: all 0.2s ease;
+    }
+    .panel:hover {
+      box-shadow: 0 12px 30px rgba(13, 110, 253, 0.1);
+      border-color: var(--brand);
     }
     .panel h4 {
-      margin: 0;
-      color: #1a2a49;
-      font-size: 1.05rem;
-      font-weight: 800;
+      margin: 0 0 6px;
+      color: var(--ink-900);
+      font-size: 1rem;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel h4::before {
+      content: '';
+      width: 3px;
+      height: 18px;
+      background: var(--brand);
+      border-radius: 2px;
     }
     .panel small {
-      color: #7a8ea9;
-      font-weight: 600;
+      color: var(--ink-500);
+      font-weight: 500;
+      display: block;
+      margin-bottom: 12px;
+      font-size: 0.8rem;
     }
     .summary-item {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
-      padding: 10px 0;
-      border-bottom: 1px solid #e8eff8;
+      gap: 16px;
+      padding: 22px 18px;
+      border-bottom: 1px solid #f5f7fa;
+      background: #fafbfc;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      transition: all 0.2s ease;
+    }
+    .summary-item:hover {
+      background: #f0f4f8;
+      border-color: #e8eef8;
     }
     .summary-item:last-child {
-      border-bottom: 0;
-      padding-bottom: 0;
+      border-bottom: 1px solid #f5f7fa;
+      margin-bottom: 0;
     }
     .summary-label {
-      color: #5b7091;
-      font-size: 0.85rem;
-      font-weight: 700;
+      color: var(--ink-700);
+      font-size: 0.87rem;
+      font-weight: 600;
+      flex: 1;
     }
     .summary-value {
-      color: #162948;
-      font-size: 0.92rem;
-      font-weight: 800;
-    }
-    .fab-quick {
-      position: fixed;
-      right: 18px;
-      bottom: 16px;
-      width: 44px;
-      height: 44px;
-      border-radius: 12px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      background: #12356f;
-      color: #eaf2ff;
-      border: 0;
-      box-shadow: 0 12px 24px rgba(18, 53, 111, 0.34);
-      z-index: 1003;
+      color: var(--ink-900);
+      font-size: 0.95rem;
+      font-weight: 700;
+      text-align: right;
     }
     @media (max-width: 992px) {
       .dashboard-shell {
@@ -465,17 +672,24 @@ if ($totalTeachers <= 0) {
         padding: 72px 14px 20px;
       }
       .metrics-grid {
-        grid-template-columns: repeat(2, minmax(0, 1fr));
+        grid-template-columns: repeat(2, 1fr);
+        gap: 12px;
+      }
+      .focus-grid {
+        grid-template-columns: 1fr;
       }
       .headline-panel {
-        padding: 14px;
+        padding: 24px;
       }
       .insight-grid {
         grid-template-columns: 1fr;
       }
+      .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
       .title-actions {
-        width: 100%;
         justify-content: flex-start;
+        width: 100%;
       }
     }
     @media (max-width: 600px) {
@@ -485,14 +699,24 @@ if ($totalTeachers <= 0) {
       .metrics-grid {
         grid-template-columns: 1fr;
       }
+      .quick-actions-grid {
+        grid-template-columns: 1fr;
+      }
       .title-row h1 {
         font-size: 1.6rem;
+      }
+      .headline-panel {
+        padding: 18px;
+      }
+      .panel {
+        padding: 16px;
       }
     }
   </style>
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
+  <?php include '../includes/error-modal.php'; ?>
 
   <div class="dashboard-shell">
     <div class="dashboard-inner">
@@ -502,6 +726,11 @@ if ($totalTeachers <= 0) {
           <h1>Scholar Metric Insights</h1>
           <p>Institutional performance overview for Academic Year <?php echo htmlspecialchars($academicYearLabel); ?></p>
           <span class="headline-meta"><i class="fas fa-calendar-day"></i> Updated <?php echo htmlspecialchars($todayDisplay); ?></span>
+        </div>
+        <div class="title-actions">
+          <a href="add-student.php" class="btn-soft"><i class="fas fa-user-plus"></i> Add Student</a>
+          <a href="add-teacher.php" class="btn-soft"><i class="fas fa-chalkboard-user"></i> Add Teacher</a>
+          <a href="reports.php" class="btn-soft"><i class="fas fa-chart-column"></i> View Reports</a>
         </div>
       </div>
 
@@ -518,6 +747,29 @@ if ($totalTeachers <= 0) {
           <span class="insight-label">Classroom Capacity</span>
           <span class="insight-value <?php echo $ratioHealthClass; ?>"><?php echo htmlspecialchars($ratioHealth); ?></span>
         </div>
+      </div>
+
+      <div class="quick-actions-grid">
+        <a href="students.php" class="quick-link">
+          <span class="quick-link-icon"><i class="fas fa-users"></i></span>
+          Manage Students
+        </a>
+        <a href="teachers.php" class="quick-link">
+          <span class="quick-link-icon"><i class="fas fa-person-chalkboard"></i></span>
+          Manage Teachers
+        </a>
+        <a href="fees.php" class="quick-link">
+          <span class="quick-link-icon"><i class="fas fa-receipt"></i></span>
+          Fee Records
+        </a>
+        <a href="attendance.php" class="quick-link">
+          <span class="quick-link-icon"><i class="fas fa-clipboard-check"></i></span>
+          Attendance
+        </a>
+        <a href="notices.php" class="quick-link">
+          <span class="quick-link-icon"><i class="fas fa-bullhorn"></i></span>
+          Notices
+        </a>
       </div>
     </div>
 
@@ -539,6 +791,7 @@ if ($totalTeachers <= 0) {
         <div class="metric-label">Fee Collection</div>
         <div class="metric-value"><?php echo formatCompactCurrency($feesPaid); ?></div>
         <div class="metric-foot">Expected: <?php echo formatCompactCurrency($totalFeeTarget); ?> total</div>
+        <div class="metric-progress"><span style="width: <?php echo $feeCollectionProgress; ?>%;"></span></div>
       </div>
       <div class="metric-card metric-ratio">
         <div class="metric-head">
@@ -557,19 +810,39 @@ if ($totalTeachers <= 0) {
         <div class="metric-label">Academic Performance</div>
         <div class="metric-value"><?php echo $attendancePct; ?>%</div>
         <div class="metric-foot">Attendance-based performance indicator</div>
+        <div class="metric-progress"><span style="width: <?php echo $attendanceProgress; ?>%;"></span></div>
       </div>
     </div>
 
-    <div class="section-kicker">Enrollment and Revenue Pulse</div>
+    <div class="focus-grid">
+      <div class="focus-card">
+        <div class="focus-head">
+          <span class="focus-title">Fee Target Completion</span>
+          <span class="focus-value"><?php echo $feeCollectionPct; ?>%</span>
+        </div>
+        <div class="focus-track"><span style="width: <?php echo $feeCollectionProgress; ?>%;"></span></div>
+        <div class="focus-note">Collected <?php echo formatCompactCurrency($feesPaid); ?> from <?php echo formatCompactCurrency($totalFeeTarget); ?> target</div>
+      </div>
+      <div class="focus-card">
+        <div class="focus-head">
+          <span class="focus-title">Attendance Stability</span>
+          <span class="focus-value"><?php echo $attendancePct; ?>%</span>
+        </div>
+        <div class="focus-track"><span style="width: <?php echo $attendanceProgress; ?>%;"></span></div>
+        <div class="focus-note"><?php echo number_format($attendanceCount); ?> attendance records captured in current dataset</div>
+      </div>
+    </div>
+
+    <div class="section-kicker"><i class="fas fa-users"></i> Enrollment and Revenue Pulse</div>
     <div class="row">
       <div class="col-lg-8 mb-3">
         <div class="panel">
-          <div class="d-flex justify-content-between align-items-start mb-2">
+          <div class="d-flex justify-content-between align-items-start mb-3">
             <div>
-              <h4>Enrollment Snapshot</h4>
+              <h4><i class="fas fa-chart-line"></i> Enrollment Snapshot</h4>
               <small>Live metrics from student records</small>
             </div>
-            <a href="students.php" class="small fw-bold">View Students</a>
+            <a href="students.php" class="btn btn-sm" style="background: var(--brand); color: white !important; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">View Students</a>
           </div>
 
           <div class="summary-item">
@@ -593,7 +866,7 @@ if ($totalTeachers <= 0) {
 
       <div class="col-lg-4 mb-3">
         <div class="panel h-100">
-          <h4>Fee Stream Distribution</h4>
+          <h4><i class="fas fa-money-bill-wave"></i> Fee Stream Distribution</h4>
           <small>Calculated from fee type records</small>
 
           <div class="summary-item">
@@ -613,24 +886,24 @@ if ($totalTeachers <= 0) {
             <span class="summary-value"><?php echo formatCompactCurrency($infraAmount); ?> (<?php echo $infraPct; ?>%)</span>
           </div>
 
-          <div class="mt-4 p-3 rounded-3" style="background:#fff2f2;border:1px solid #ffd4d4;">
-            <div class="small fw-semibold text-danger"><i class="fas fa-triangle-exclamation"></i> Unpaid Balance</div>
-            <div class="h4 mb-0 mt-1 text-danger fw-bold"><?php echo '₹' . number_format($feesPending, 0); ?></div>
+          <div class="mt-4 p-4 rounded-3" style="background: linear-gradient(135deg, var(--danger) 0%, #c53c3c 100%); border: none; color: white;">
+            <div class="small fw-semibold"><i class="fas fa-exclamation-circle"></i> Unpaid Balance</div>
+            <div class="h4 mb-0 mt-2 fw-bold"><?php echo '₹' . number_format($feesPending, 0); ?></div>
           </div>
         </div>
       </div>
     </div>
 
-    <div class="section-kicker">Institution Operations</div>
+    <div class="section-kicker"><i class="fas fa-building"></i> Institution Operations</div>
     <div class="row">
       <div class="col-lg-12 mb-3">
         <div class="panel h-100">
-          <div class="d-flex justify-content-between align-items-center mb-2">
+          <div class="d-flex justify-content-between align-items-center mb-3">
             <div>
-              <h4>Operational Snapshot</h4>
+              <h4><i class="fas fa-gauge-high"></i> Operational Snapshot</h4>
               <small>Live institutional indicators from current data</small>
             </div>
-            <a href="reports.php" class="small fw-bold">View Detailed Reports</a>
+            <a href="reports.php" class="btn btn-sm" style="background: var(--brand); color: white !important; border: none; border-radius: 8px; padding: 10px 16px; font-weight: 700; text-decoration: none; white-space: nowrap; display: inline-flex; align-items: center; gap: 6px;">View Detailed Reports</a>
           </div>
 
           <div class="summary-item">
@@ -649,15 +922,15 @@ if ($totalTeachers <= 0) {
             <span class="summary-label">Total Collected Fees</span>
             <span class="summary-value"><?php echo formatCompactCurrency($feesPaid); ?></span>
           </div>
+          <div class="summary-item">
+            <span class="summary-label">Notice Board</span>
+            <span class="summary-value"><a href="notices.php" class="text-decoration-none">Manage Notices</a></span>
+          </div>
         </div>
       </div>
     </div>
     </div>
   </div>
-
-  <button class="fab-quick" title="Quick actions">
-    <i class="fas fa-calendar-week"></i>
-  </button>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 </body>
