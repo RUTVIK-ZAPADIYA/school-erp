@@ -12,7 +12,8 @@ if ((!isset($_SESSION['admin_id']) || !isset($_SESSION['admin_name'])) && isset(
 }
 
 // Redirect unauthenticated users to the login page.
-if (!isset($_SESSION['admin_id'])) {
+if (!isset($_SESSION['admin_id']) || (string) ($_SESSION['role'] ?? '') !== 'admin') {
+    unset($_SESSION['admin_id'], $_SESSION['admin_name']);
     header('Location: ../login.php');
     exit();
 }
