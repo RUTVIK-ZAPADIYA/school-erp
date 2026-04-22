@@ -335,6 +335,7 @@ $flash = admin_pull_flash();
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
+  <?php include '../includes/error-modal.php'; ?>
   
   <div class="main-content">
     <div class="header">
@@ -350,10 +351,7 @@ $flash = admin_pull_flash();
       <?php endif; ?>
 
       <?php if ($errorMessage !== ''): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-          <?php echo htmlspecialchars($errorMessage); ?>
-          <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
+        <!-- error shown via modal below -->
       <?php endif; ?>
 
       <form method="POST" action="" novalidate>
@@ -471,5 +469,8 @@ $flash = admin_pull_flash();
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/validate.js"></script>
+  <?php if ($errorMessage !== ''): ?>
+  <script>document.addEventListener('DOMContentLoaded', function() { showErrorModal('Validation Error', <?php echo json_encode($errorMessage); ?>); });</script>
+  <?php endif; ?>
 </body>
 </html>
