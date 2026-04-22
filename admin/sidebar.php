@@ -5,11 +5,7 @@ if ((!isset($_SESSION['admin_id']) || !isset($_SESSION['admin_name'])) && isset(
   $_SESSION['admin_id'] = (int) $_SESSION['user_id'];
   $_SESSION['admin_name'] = $_SESSION['name'] ?? 'Admin';
 }
-
-if (!isset($_SESSION['admin_id'])) {
-    header("Location: ../login.php");
-    exit();
-}
+// Auth redirect is handled by auth.php — no duplicate redirect needed here.
 
 // Resolve active route state for sidebar highlighting.
 $currentPage = basename($_SERVER['PHP_SELF']);
@@ -80,6 +76,9 @@ function isAdminActive(array $pages, $currentPage)
     </a>
     <a href="support-tickets.php" class="<?php echo isAdminActive(['support-tickets.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">support_agent</span><span>Support Tickets</span>
+    </a>
+    <a href="notices.php" class="<?php echo isAdminActive(['notices.php', 'add-notice.php', 'edit-notice.php'], $currentPage); ?>">
+      <span class="material-symbols-outlined">campaign</span><span>Notice Board</span>
     </a>
     <a href="reports.php" class="<?php echo isAdminActive(['reports.php'], $currentPage); ?>">
       <span class="material-symbols-outlined">analytics</span><span>Reports</span>
