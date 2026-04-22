@@ -258,6 +258,7 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
+  <?php include '../includes/error-modal.php'; ?>
   
   <div class="main-content">
     <div class="header">
@@ -267,17 +268,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
       </a>
     </div>
     
-    <!-- Display success and error Messages -->
     <?php if (isset($_COOKIE['success'])): ?>
         <div class="alert alert-success alert-dismissible fade show" role="alert">
-            <?= $_COOKIE['success'] ?>
-            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-        </div>
-    <?php endif; ?>
-
-    <?php if (isset($_COOKIE['error'])): ?>
-        <div class="alert alert-danger alert-dismissible fade show" role="alert">
-            <?= $_COOKIE['error'] ?>
+            <?= htmlspecialchars($_COOKIE['success']) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
     <?php endif; ?>
@@ -528,6 +521,9 @@ if (isset($_POST['action']) && $_POST['action'] === 'delete') {
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <?php if (isset($_COOKIE['error'])): ?>
+  <script>document.addEventListener('DOMContentLoaded', function() { showErrorModal('Error', <?php echo json_encode(htmlspecialchars($_COOKIE['error'])); ?>); });</script>
+  <?php endif; ?>
   <script>
     document.addEventListener('DOMContentLoaded', function() {
       const toText = (value) => value ? value : '-';
