@@ -550,12 +550,13 @@ $flash = admin_pull_flash();
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
+  <?php include '../includes/error-modal.php'; ?>
   <div class="main-content">
     <div class="header">
       <h2><i class="fas fa-calendar-check"></i> Attendance Overview</h2>
     </div>
 
-    <?php if ($flash): ?>
+    <?php if ($flash && $flash['type'] !== 'danger'): ?>
       <div class="alert alert-<?php echo htmlspecialchars($flash['type']); ?> alert-dismissible fade show" role="alert">
         <?php echo htmlspecialchars($flash['message']); ?>
         <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
@@ -701,5 +702,8 @@ $flash = admin_pull_flash();
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="../js/validate.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <?php if ($flash && $flash['type'] === 'danger'): ?>
+  <script>document.addEventListener('DOMContentLoaded', function() { showErrorModal('Error', <?php echo json_encode($flash['message']); ?>); });</script>
+  <?php endif; ?>
 </body>
 </html>
