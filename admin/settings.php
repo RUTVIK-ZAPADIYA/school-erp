@@ -121,19 +121,23 @@ $flash = admin_pull_flash();
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">School Name</label>
-            <input type="text" class="form-control" name="school_name" value="<?php echo htmlspecialchars((string) ($settings['school_name'] ?? '')); ?>" required>
+            <input type="text" class="form-control" name="school_name" value="<?php echo htmlspecialchars((string) ($settings['school_name'] ?? '')); ?>" data-validation="required,min" data-min="2">
+            <div id="school_name_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Email</label>
-            <input type="email" class="form-control" name="school_email" value="<?php echo htmlspecialchars((string) ($settings['school_email'] ?? '')); ?>" required>
+            <input type="email" class="form-control" name="school_email" value="<?php echo htmlspecialchars((string) ($settings['school_email'] ?? '')); ?>" data-validation="required,email">
+            <div id="school_email_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Phone</label>
-            <input type="tel" class="form-control" name="school_phone" value="<?php echo htmlspecialchars((string) ($settings['school_phone'] ?? '')); ?>" required>
+            <input type="tel" class="form-control" name="school_phone" value="<?php echo htmlspecialchars((string) ($settings['school_phone'] ?? '')); ?>" data-validation="required,min" data-min="7">
+            <div id="school_phone_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Address</label>
-            <input type="text" class="form-control" name="school_address" value="<?php echo htmlspecialchars((string) ($settings['school_address'] ?? '')); ?>" required>
+            <input type="text" class="form-control" name="school_address" value="<?php echo htmlspecialchars((string) ($settings['school_address'] ?? '')); ?>" data-validation="required,min" data-min="5">
+            <div id="school_address_error" class="invalid-feedback"></div>
           </div>
         </div>
         <button class="btn-save" type="submit"><i class="fas fa-save"></i> Save Changes</button>
