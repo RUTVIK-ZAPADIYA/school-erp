@@ -7,3 +7,6 @@
 [2026-04-22 01:13:40] Payment verification attempt - Fee ID: 5, Order: order_SgLwj8FEhyMP2c, Payment: pay_SgLwrnaFng9j1v, Signature provided: YES
 [2026-04-22 01:13:40] Signature verification result: SUCCESS
 [2026-04-22 01:13:40] Payment successfully verified and database updated. Fee ID: 5, Payment ID: pay_SgLwrnaFng9j1v
+[2026-04-22 02:37:29] Payment verification attempt - Fee ID: 7, Order: order_SgNMqWnypIN9pm, Payment: pay_SgNNOIY5CPOJZh, Signature provided: YES
+[2026-04-22 02:37:29] Signature verification result: SUCCESS
+[2026-04-22 02:37:29] Payment successfully verified and database updated. Fee ID: 7, Payment ID: pay_SgNNOIY5CPOJZh

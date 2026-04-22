@@ -91,6 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       $message = 'An error occurred. Please try again.';
       $messageType = 'error';
     }
+  }
   } // end CSRF check
 }
 ?>
