@@ -443,6 +443,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 </head>
 <body>
   <?php include 'sidebar.php'; ?>
+  <?php include '../includes/error-modal.php'; ?>
 
   <div class="main-content">
     <div class="header">
@@ -450,8 +451,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div class="form-card">
-      <?php if ($message): ?>
-        <div class="alert alert-<?php echo $message_type; ?> alert-dismissible fade show" role="alert">
+      <?php if ($message && $message_type === 'success'): ?>
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
           <?php echo htmlspecialchars($message); ?>
           <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
         </div>
@@ -461,38 +462,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Roll Number *</label>
-            <input type="text" class="form-control" name="roll_no" required value="<?php echo htmlspecialchars($_POST['roll_no'] ?? ''); ?>">
+            <input type="text" class="form-control" name="roll_no" data-validation="required,min" data-min="1" value="<?php echo htmlspecialchars($_POST['roll_no'] ?? ''); ?>">
+            <div id="roll_no_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Student Name *</label>
-            <input type="text" class="form-control" name="name" required value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+            <input type="text" class="form-control" name="name" data-validation="required,min" data-min="2" value="<?php echo htmlspecialchars($_POST['name'] ?? ''); ?>">
+            <div id="name_error" class="invalid-feedback"></div>
           </div>
         </div>
 
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Class *</label>
-            <input list="class-list" class="form-control" name="class" placeholder="e.g., Grade 10A" required value="<?php echo htmlspecialchars($_POST['class'] ?? ''); ?>">
+            <input list="class-list" class="form-control" name="class" placeholder="e.g., Grade 10A" data-validation="required" value="<?php echo htmlspecialchars($_POST['class'] ?? ''); ?>">
             <datalist id="class-list">
               <?php foreach ($classes as $className): ?>
               <option value="<?php echo htmlspecialchars($className); ?>"></option>
               <?php endforeach; ?>
             </datalist>
+            <div id="class_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Username *</label>
-            <input type="text" class="form-control" name="username" required value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" placeholder="e.g., stu_rahul01">
+            <input type="text" class="form-control" name="username" data-validation="required,min,max" data-min="3" data-max="30" value="<?php echo htmlspecialchars($_POST['username'] ?? ''); ?>" placeholder="e.g., stu_rahul01">
+            <div id="username_error" class="invalid-feedback"></div>
           </div>
         </div>
 
         <div class="row">
           <div class="col-md-6 mb-3">
             <label class="form-label">Password *</label>
-            <input type="password" class="form-control" name="password" required minlength="6" placeholder="Minimum 6 characters">
+            <input type="password" class="form-control" name="password" data-validation="required,min" data-min="6" placeholder="Minimum 6 characters">
+            <div id="password_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Confirm Password *</label>
-            <input type="password" class="form-control" name="confirm_password" required minlength="6" placeholder="Re-enter password">
+            <input type="password" class="form-control" name="confirm_password" data-validation="required,min" data-min="6" placeholder="Re-enter password">
+            <div id="confirm_password_error" class="invalid-feedback"></div>
           </div>
         </div>
 
@@ -500,10 +507,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="col-md-6 mb-3">
             <label class="form-label">Email</label>
             <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars($_POST['email'] ?? ''); ?>">
+            <div id="email_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Phone Number</label>
             <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars($_POST['phone'] ?? ''); ?>">
+            <div id="phone_error" class="invalid-feedback"></div>
           </div>
           <div class="col-md-6 mb-3">
             <label class="form-label">Status</label>
@@ -525,5 +534,3 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="../js/validate.js"></script>
-</body>
-</html>
