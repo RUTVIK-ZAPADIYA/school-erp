@@ -515,27 +515,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Roll Number *</label>
-              <input type="text" class="form-control" name="roll_no" required value="<?php echo htmlspecialchars($student['roll_no']); ?>">
+              <input type="text" class="form-control" name="roll_no" data-validation="required,min" data-min="1" value="<?php echo htmlspecialchars($student['roll_no']); ?>">
+              <div id="roll_no_error" class="invalid-feedback"></div>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Student Name *</label>
-              <input type="text" class="form-control" name="name" required value="<?php echo htmlspecialchars($student['name']); ?>">
+              <input type="text" class="form-control" name="name" data-validation="required,min" data-min="2" value="<?php echo htmlspecialchars($student['name']); ?>">
+              <div id="name_error" class="invalid-feedback"></div>
             </div>
           </div>
           
           <div class="row">
             <div class="col-md-6 mb-3">
               <label class="form-label">Class *</label>
-              <input list="class-list" type="text" class="form-control" name="class" placeholder="e.g., Grade 10A" required value="<?php echo htmlspecialchars((string) ($student['class'] ?? '')); ?>">
+              <input list="class-list" type="text" class="form-control" name="class" placeholder="e.g., Grade 10A" data-validation="required" value="<?php echo htmlspecialchars((string) ($student['class'] ?? '')); ?>">
               <datalist id="class-list">
                 <?php foreach ($classOptions as $classOption): ?>
                   <option value="<?php echo htmlspecialchars((string) $classOption['class_name']); ?>"></option>
                 <?php endforeach; ?>
               </datalist>
+              <div id="class_error" class="invalid-feedback"></div>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Username *</label>
-              <input type="text" class="form-control" name="username" required value="<?php echo htmlspecialchars((string) ($_POST['username'] ?? ($studentLogin['username'] !== '' ? $studentLogin['username'] : ($student['username'] ?? '')))); ?>">
+              <input type="text" class="form-control" name="username" data-validation="required,min,max" data-min="3" data-max="30" value="<?php echo htmlspecialchars((string) ($_POST['username'] ?? ($studentLogin['username'] !== '' ? $studentLogin['username'] : ($student['username'] ?? '')))); ?>">
+              <div id="username_error" class="invalid-feedback"></div>
             </div>
           </div>
 
@@ -543,10 +547,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="col-md-6 mb-3">
               <label class="form-label">New Password</label>
               <input type="password" class="form-control" name="password" minlength="6" placeholder="Leave blank to keep current password">
+              <div id="password_error" class="invalid-feedback"></div>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Confirm New Password</label>
               <input type="password" class="form-control" name="confirm_password" minlength="6" placeholder="Re-enter new password">
+              <div id="confirm_password_error" class="invalid-feedback"></div>
             </div>
           </div>
 
@@ -554,10 +560,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="col-md-6 mb-3">
               <label class="form-label">Email</label>
               <input type="email" class="form-control" name="email" value="<?php echo htmlspecialchars((string) ($student['email'] ?? '')); ?>">
+              <div id="email_error" class="invalid-feedback"></div>
             </div>
             <div class="col-md-6 mb-3">
               <label class="form-label">Phone Number</label>
               <input type="tel" class="form-control" name="phone" value="<?php echo htmlspecialchars((string) ($student['phone'] ?? '')); ?>">
+              <div id="phone_error" class="invalid-feedback"></div>
             </div>
           </div>
 
