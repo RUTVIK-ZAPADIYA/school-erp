@@ -530,8 +530,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       admin_set_flash('danger', 'Please fill all required fields for user creation.');
     } elseif (!admin_manage_valid_username($username)) {
       admin_set_flash('danger', 'Username must be 3-30 characters and use letters, numbers, dot, underscore, or hyphen.');
-    } elseif (strlen($password) < 6) {
-      admin_set_flash('danger', 'Password must be at least 6 characters long.');
+    } elseif (strlen($password) < 8) {
+      admin_set_flash('danger', 'Password must be at least 8 characters long.');
     } elseif ($password !== $confirmPassword) {
       admin_set_flash('danger', 'Password and confirm password do not match.');
     } elseif ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
@@ -671,8 +671,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       exit();
     }
 
-    if (($newPassword !== '' || $confirmNewPassword !== '') && strlen($newPassword) < 6) {
-      admin_set_flash('danger', 'New password must be at least 6 characters long.');
+    } elseif (strlen($password) < 8) {
+      admin_set_flash('danger', 'New password must be at least 8 characters long.');
       header('Location: manage-users.php');
       exit();
     }
