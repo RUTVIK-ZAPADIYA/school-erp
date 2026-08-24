@@ -5,24 +5,33 @@ require_once __DIR__ . '/env_loader.php';
 school_erp_load_env(__DIR__ . '/../.env');
 
 // Database connection configuration
-$servername = getenv('DB_HOST') ?: '127.0.0.1';
+$isRender = strtolower((string) getenv('RENDER')) === 'true';
+$servername = getenv('DB_HOST') ?: ($isRender ? '' : '127.0.0.1');
 $username = getenv('DB_USER') ?: 'root';
 $password = getenv('DB_PASS') ?: '';
 $dbname = getenv('DB_NAME') ?: 'school_erp';
+$dbPort = (int) (getenv('DB_PORT') ?: 3306);
+
+if ($servername === '') {
+    error_log('Database connection failed: DB_HOST is not configured.');
+    die('System error: database host is not configured. Set DB_HOST, DB_USER, DB_PASS, DB_NAME, and DB_PORT in Render.');
+}
 
 // Create connection without specifying database first.
-$conn = new mysqli($servername, $username, $password);
+$conn = new mysqli($servername, $username, $password, '', $dbPort);
 
 if ($conn->connect_errno) {
     error_log('Database connection failed: ' . $conn->connect_error);
     die('System error: unable to connect to database. Please contact administrator.');
 }
 
-// Ensure application database exists.
-$createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-if (!$conn->query( $createDbSql)) {
-    error_log('Database creation failed: ' . $conn->error);
-    die('System error: unable to initialize database. Please contact administrator.');
+// Local MySQL can create the database; managed databases provision it beforehand.
+if (!$isRender) {
+    $createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    if (!$conn->query( $createDbSql)) {
+        error_log('Database creation failed: ' . $conn->error);
+        die('System error: unable to initialize database. Please contact administrator.');
+    }
 }
 
 if (!$conn->select_db( $dbname)) {
