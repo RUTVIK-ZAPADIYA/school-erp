@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: school-erp
+    runtime: docker
+    plan: starter
+    healthCheckPath: /index.php
+    envVars:
+      - key: DB_HOST
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASS
+        sync: false
+      - key: DB_NAME
+        value: school_erp
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_UPI_FLOW
+        value: collect
+      - key: SMTP_HOST
+        value: smtp.gmail.com
+      - key: SMTP_PORT
+        value: "465"
+      - key: SMTP_SECURE
+        value: ssl
+      - key: SMTP_EMAIL
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: FROM_EMAIL
+        sync: false
+      - key: FROM_NAME
+        value: School ERP System
+    disk:
+      name: school-erp-uploads
+      mountPath: /var/www/html/uploads
+      sizeGB: 1
