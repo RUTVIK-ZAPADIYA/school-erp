@@ -97,6 +97,21 @@ DELIMITER ;
 -- Table structure for table `assignments`
 --
 
+CREATE TABLE `assignments` (
+  `id` int NOT NULL,
+  `title` varchar(255) NOT NULL,
+  `description` text,
+  `teacher_id` int DEFAULT NULL,
+  `subject_id` int DEFAULT NULL,
+  `class_id` int DEFAULT NULL,
+  `due_date` date DEFAULT NULL,
+  `total_marks` int DEFAULT '100',
+  `total_points` int DEFAULT '100',
+  `allow_late_submissions` tinyint(1) DEFAULT '0',
+  `file_path` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 --
 -- Dumping data for table `assignments`
 --
