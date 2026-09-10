@@ -7,4 +7,6 @@ COPY . /var/www/html/
 
 RUN chown -R www-data:www-data /var/www/html
 
+ENV APP_ENV=demo
+
 EXPOSE 80

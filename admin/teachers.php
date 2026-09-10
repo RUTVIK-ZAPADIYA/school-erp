@@ -6,7 +6,7 @@ require_once __DIR__ . '/db_helpers.php';
 
 $connection = $conn ?? null;
 
-if (!($connection instanceof mysqli)) {
+if (!($connection instanceof mysqli) && !($connection instanceof SchoolErpDemoConnection)) {
   die('Database connection is not available.');
 }
 

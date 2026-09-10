@@ -39,6 +39,10 @@ if (!$school_erp_demo_mode) {
     }
 }
 
+if ($school_erp_demo_mode) {
+    $conn = new SchoolErpDemoConnection();
+}
+
 if (!function_exists('ensure_school_erp_column')) {
     function ensure_school_erp_column($conn, $tableName, $columnName, $definition)
     {
