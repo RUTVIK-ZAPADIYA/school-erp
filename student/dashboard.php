@@ -20,6 +20,9 @@ $stats = [
     'assignments' => 0,
 ];
 
+if (!empty($school_erp_demo_mode)) {
+  $stats = school_erp_demo_dashboard_data('student');
+} else {
 try {
   // Count attendance records
   $sql_attendance = "SELECT COUNT(*) as total FROM attendance WHERE {$studentFilter['sql']}";
@@ -144,6 +147,7 @@ try {
 
 } catch (Exception $e) {
     error_log("Dashboard query error: " . $e->getMessage());
+}
 }
 ?>
 <!DOCTYPE html>

@@ -243,6 +243,24 @@ textarea:focus {
   margin-top: 16px;
 }
 
+.demo-credentials {
+  display: grid;
+  gap: 4px;
+  margin-top: 18px;
+  padding: 12px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #334155;
+  font-size: 0.78rem;
+  text-align: left;
+}
+
+.demo-credentials strong {
+  color: #1d4ed8;
+  margin-bottom: 2px;
+}
+
 .divider {
   text-align: center;
   margin: 20px 0;

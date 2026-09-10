@@ -61,34 +61,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!hash_equals((string) ($_SESSION['csrf_token'] ?? ''), $submittedCsrf)) {
       $error = 'Invalid request. Please try again.';
     } else {
-    $sql = 'SELECT id, username, password, role, name, email FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) LIMIT 1';
-    $stmt = $conn->prepare( $sql);
-
-    if (!$stmt) {
-      $error = 'Login is temporarily unavailable. Please try again.';
+    $user = null;
+    $stmt = null;
+    if (!empty($school_erp_demo_mode)) {
+      $user = school_erp_demo_find_account($username, $password);
     } else {
-      $stmt->bind_param( 'ss', $username, $username);
-      $stmt->execute();
-      $user = null;
+      $sql = 'SELECT id, username, password, role, name, email FROM users WHERE LOWER(username) = LOWER(?) OR LOWER(email) = LOWER(?) LIMIT 1';
+      $stmt = $conn->prepare($sql);
 
-      if (method_exists($stmt, 'get_result')) {
-        $result = $stmt->get_result();
-        if ($result && $result->num_rows === 1) {
-          $user = $result->fetch_assoc();
+      if ($stmt) {
+        $stmt->bind_param('ss', $username, $username);
+        $stmt->execute();
+
+        if (method_exists($stmt, 'get_result')) {
+          $result = $stmt->get_result();
+          if ($result && $result->num_rows === 1) {
+            $user = $result->fetch_assoc();
+          }
+        } else {
+          $stmt->bind_result($id, $dbUsername, $dbPassword, $dbRole, $dbName, $dbEmail);
+          if ($stmt->fetch()) {
+            $user = [
+              'id' => $id,
+              'username' => $dbUsername,
+              'password' => $dbPassword,
+              'role' => $dbRole,
+              'name' => $dbName,
+              'email' => $dbEmail,
+            ];
+          }
         }
       } else {
-        $stmt->bind_result($id, $dbUsername, $dbPassword, $dbRole, $dbName, $dbEmail);
-        if ($stmt->fetch()) {
-          $user = [
-            'id' => $id,
-            'username' => $dbUsername,
-            'password' => $dbPassword,
-            'role' => $dbRole,
-            'name' => $dbName,
-            'email' => $dbEmail,
-          ];
-        }
+        $error = 'Login is temporarily unavailable. Please try again.';
       }
+    }
 
       if (is_array($user)) {
         $storedPassword = (string) ($user['password'] ?? '');
@@ -105,7 +111,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           // Upgrade plain-text legacy passwords to hashed form.
           $passwordInfo = password_get_info($storedPassword);
           $isHash = !empty($passwordInfo['algo']) && $passwordInfo['algo'] !== 0;
-          if (!$isHash) {
+          if (!$isHash && empty($school_erp_demo_mode)) {
             $newHash = password_hash($password, PASSWORD_DEFAULT);
             $updateStmt = $conn->prepare( 'UPDATE users SET password = ? WHERE id = ?');
             if ($updateStmt) {
@@ -157,8 +163,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'User not found.';
       }
 
-      $stmt->close();
-    }
+      if ($stmt) {
+        $stmt->close();
+      }
     } // end CSRF check
   }
 }
@@ -224,6 +231,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="signup-link">
           Need an account? Contact your school administrator.
         </div>
+
+        <?php if (!empty($school_erp_demo_mode)): ?>
+        <div class="demo-credentials" role="note">
+          <strong>Demo access</strong>
+          <span>Admin: <b>admin</b> / <b>admin123</b></span>
+          <span>Teacher: <b>teacher</b> / <b>teacher123</b></span>
+          <span>Student: <b>student</b> / <b>student123</b></span>
+        </div>
+        <?php endif; ?>
       </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>

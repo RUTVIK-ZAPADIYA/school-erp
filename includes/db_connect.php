@@ -3,6 +3,7 @@ mysqli_report(MYSQLI_REPORT_OFF);
 
 require_once __DIR__ . '/env_loader.php';
 school_erp_load_env(__DIR__ . '/../.env');
+require_once __DIR__ . '/demo_mode.php';
 
 // Database connection configuration
 $servername = getenv('DB_HOST') ?: '127.0.0.1';
@@ -15,22 +16,20 @@ $conn = new mysqli($servername, $username, $password);
 
 if ($conn->connect_errno) {
     error_log('Database connection failed: ' . $conn->connect_error);
-    die('System error: unable to connect to database. Please contact administrator.');
+    $conn = null;
+    $school_erp_demo_mode = true;
+} else {
+    $school_erp_demo_mode = false;
+    $createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
+    if (!$conn->query($createDbSql) || !$conn->select_db($dbname)) {
+        error_log('Database initialization failed: ' . $conn->error);
+        $conn->close();
+        $conn = null;
+        $school_erp_demo_mode = true;
+    } else {
+        $conn->set_charset('utf8mb4');
+    }
 }
-
-// Ensure application database exists.
-$createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
-if (!$conn->query( $createDbSql)) {
-    error_log('Database creation failed: ' . $conn->error);
-    die('System error: unable to initialize database. Please contact administrator.');
-}
-
-if (!$conn->select_db( $dbname)) {
-    error_log('Database selection failed: ' . $conn->error);
-    die('System error: unable to access database. Please contact administrator.');
-}
-
-$conn->set_charset( 'utf8mb4');
 
 if (!function_exists('ensure_school_erp_column')) {
     function ensure_school_erp_column($conn, $tableName, $columnName, $definition)
@@ -732,6 +731,8 @@ if (!function_exists('ensure_school_erp_schema')) {
 
 if (!defined('SCHOOL_ERP_SCHEMA_READY')) {
     define('SCHOOL_ERP_SCHEMA_READY', true);
-    ensure_school_erp_schema($conn);
+    if ($conn instanceof mysqli && empty($school_erp_demo_mode)) {
+        ensure_school_erp_schema($conn);
+    }
 }
 ?>

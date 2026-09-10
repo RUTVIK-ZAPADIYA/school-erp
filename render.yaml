@@ -1,0 +1,9 @@
+services:
+  - type: web
+    name: school-erp-demo
+    runtime: docker
+    plan: free
+    healthCheckPath: /login.php
+    envVars:
+      - key: APP_ENV
+        value: demo

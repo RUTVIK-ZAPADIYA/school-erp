@@ -16,6 +16,9 @@ $teacherName = (string) ($teacherContext['teacher_name'] ?? $_SESSION['name'] ??
 
 function teacher_table_exists($conn, $tableName)
 {
+  if (!$conn instanceof mysqli) {
+    return false;
+  }
   $safeTable = $conn->real_escape_string( $tableName);
   $result = $conn->query( "SHOW TABLES LIKE '{$safeTable}'");
 
@@ -104,6 +107,10 @@ $stats = [
   'today_attendance' => 0,
 ];
 
+if (!empty($school_erp_demo_mode)) {
+  $stats = school_erp_demo_dashboard_data('teacher');
+}
+
 if (
   teacher_table_exists($conn, 'students')
   && teacher_table_exists($conn, 'classes')
@@ -182,6 +189,12 @@ if (
 }
 
 $recentAssignments = [];
+if (!empty($school_erp_demo_mode)) {
+  $recentAssignments = [
+    ['title' => 'Algebra Practice Set', 'due_date' => date('Y-m-d', strtotime('+2 days')), 'submissions' => 24],
+    ['title' => 'Science Lab Report', 'due_date' => date('Y-m-d', strtotime('+5 days')), 'submissions' => 18],
+  ];
+}
 if (
   teacher_table_exists($conn, 'assignments')
   && teacher_column_exists($conn, 'assignments', 'teacher_id')

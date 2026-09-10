@@ -64,8 +64,9 @@ function formatCompactCurrency($amount)
 }
 
 // Load top-level KPIs for students, teachers, and staffing ratio.
-$totalStudents = tableExists($conn, 'students') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM students", 0) : 0;
-$totalTeachers = tableExists($conn, 'teachers') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM teachers", 0) : 0;
+$demoData = !empty($school_erp_demo_mode) ? school_erp_demo_dashboard_data('admin') : [];
+$totalStudents = !empty($school_erp_demo_mode) ? (int) $demoData['students'] : (tableExists($conn, 'students') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM students", 0) : 0);
+$totalTeachers = !empty($school_erp_demo_mode) ? (int) $demoData['teachers'] : (tableExists($conn, 'teachers') ? (int) scalarValue($conn, "SELECT COUNT(*) FROM teachers", 0) : 0);
 
 $teacherRatio = $totalTeachers > 0 ? '1:' . max(1, (int) round($totalStudents / $totalTeachers)) : 'N/A';
 
@@ -81,7 +82,19 @@ $labAmount = 0.0;
 $infraAmount = 0.0;
 
 // Aggregate fee totals and revenue stream distribution.
-if (tableExists($conn, 'fees')) {
+if (!empty($school_erp_demo_mode)) {
+  $feesPaid = (float) $demoData['fees_paid'];
+  $feesPending = (float) $demoData['fees_pending'];
+  $tuitionAmount = 1120000.0;
+  $sportsAmount = 245000.0;
+  $labAmount = 386000.0;
+  $infraAmount = 420000.0;
+  $streamTotal = $tuitionAmount + $sportsAmount + $labAmount + $infraAmount;
+  $tuitionPct = (int) round(($tuitionAmount / $streamTotal) * 100);
+  $sportsPct = (int) round(($sportsAmount / $streamTotal) * 100);
+  $labPct = (int) round(($labAmount / $streamTotal) * 100);
+  $infraPct = max(0, 100 - ($tuitionPct + $sportsPct + $labPct));
+} elseif (tableExists($conn, 'fees')) {
   $feesPaid = (float) scalarValue(
     $conn,
     "SELECT COALESCE(SUM(amount),0) FROM fees WHERE LOWER(COALESCE(status,'')) IN ('paid','completed')",
@@ -112,7 +125,10 @@ $feeCollectionPct = $totalFeeTarget > 0 ? (int) round(($feesPaid / $totalFeeTarg
 
 $attendancePct = 0.0;
 $attendanceCount = 0;
-if (tableExists($conn, 'attendance')) {
+if (!empty($school_erp_demo_mode)) {
+  $attendancePct = (float) $demoData['attendance'];
+  $attendanceCount = 100;
+} elseif (tableExists($conn, 'attendance')) {
   $presentCount = (int) scalarValue(
     $conn,
     "SELECT COUNT(*) FROM attendance WHERE LOWER(COALESCE(status,'')) IN ('present','p')",
@@ -126,7 +142,10 @@ if (tableExists($conn, 'attendance')) {
 
 $currentMonthEnrollments = 0;
 $previousMonthEnrollments = 0;
-if (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
+if (!empty($school_erp_demo_mode)) {
+  $currentMonthEnrollments = (int) $demoData['enrollments'];
+  $previousMonthEnrollments = (int) $demoData['previous_enrollments'];
+} elseif (tableExists($conn, 'students') && columnExists($conn, 'students', 'created_at')) {
   $currentMonthEnrollments = (int) scalarValue(
     $conn,
     "SELECT COUNT(*)
