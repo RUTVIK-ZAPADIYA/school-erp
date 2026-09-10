@@ -2,7 +2,7 @@
 // Shared admin authentication guard for protected pages.
 // Start a session when this guard is included directly.
 if (session_status() !== PHP_SESSION_ACTIVE) {
-    session_start();
+    require_once __DIR__ . '/../includes/session_bootstrap.php';
 }
 
 // Bridge role-based session fields to admin-specific keys when needed.

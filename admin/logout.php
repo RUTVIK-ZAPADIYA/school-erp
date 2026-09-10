@@ -1,6 +1,6 @@
 <?php
 // Admin logout handler that clears session state.
-session_start();
+require_once __DIR__ . '/../includes/session_bootstrap.php';
 
 // Clear role-specific session keys for all portal personas.
 unset(

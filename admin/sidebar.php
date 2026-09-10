@@ -38,6 +38,9 @@ function isAdminActive(array $pages, $currentPage)
       <p class="admin-user-name"><?php echo htmlspecialchars($_SESSION['admin_name'] ?? 'Admin'); ?></p>
       <p class="admin-user-role">Administrator</p>
     </div>
+    <a href="logout.php" class="admin-user-logout" aria-label="Logout" title="Logout">
+      <span class="material-symbols-outlined">logout</span>
+    </a>
   </div>
 
   <nav class="admin-nav">
@@ -247,6 +250,22 @@ function isAdminActive(array $pages, $currentPage)
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.05em;
+  }
+
+  .admin-user-logout {
+    margin-left: auto;
+    color: #64748b !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+  }
+
+  .admin-user-logout:hover {
+    background: #fff1f2;
+    color: #dc2626 !important;
   }
 
   .admin-nav {

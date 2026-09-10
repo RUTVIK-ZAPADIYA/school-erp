@@ -1,5 +1,5 @@
 <?php
-session_start();
+require_once __DIR__ . '/../includes/session_bootstrap.php';
 unset(
 	$_SESSION['admin_id'],
 	$_SESSION['admin_name'],

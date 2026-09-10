@@ -1,6 +1,6 @@
 <?php
 // Start active session
-session_start();
+require_once __DIR__ . '/../includes/session_bootstrap.php';
 // Clear role sessions
 unset(
 	$_SESSION['admin_id'],
