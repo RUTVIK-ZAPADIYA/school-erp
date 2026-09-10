@@ -11,14 +11,21 @@ $username = getenv('DB_USER') ?: 'root';
 $password = getenv('DB_PASS') ?: '';
 $dbname = getenv('DB_NAME') ?: 'school_erp';
 
-// Create connection without specifying database first.
-$conn = new mysqli($servername, $username, $password);
+// Render demo deployments intentionally run without MySQL.
+$configuredAppEnvironment = strtolower(trim((string) (getenv('APP_ENV') ?: '')));
+$configuredDemoMode = strtolower(trim((string) (getenv('DEMO_MODE') ?: '')));
+$school_erp_demo_mode = $configuredAppEnvironment === 'demo' || in_array($configuredDemoMode, ['1', 'true', 'yes'], true);
+$conn = null;
 
-if ($conn->connect_errno) {
-    error_log('Database connection failed: ' . $conn->connect_error);
-    $conn = null;
-    $school_erp_demo_mode = true;
-} else {
+if (!$school_erp_demo_mode) {
+    // Create connection without specifying database first.
+    $conn = new mysqli($servername, $username, $password);
+
+    if ($conn->connect_errno) {
+        error_log('Database connection failed: ' . $conn->connect_error);
+        $conn = null;
+        $school_erp_demo_mode = true;
+    } else {
     $school_erp_demo_mode = false;
     $createDbSql = "CREATE DATABASE IF NOT EXISTS `$dbname` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci";
     if (!$conn->query($createDbSql) || !$conn->select_db($dbname)) {
@@ -28,6 +35,7 @@ if ($conn->connect_errno) {
         $school_erp_demo_mode = true;
     } else {
         $conn->set_charset('utf8mb4');
+    }
     }
 }
 
